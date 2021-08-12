@@ -765,7 +765,42 @@ sub determine_chinese_time ($) {
   return $it;
 }
 
+sub determine_events ($$$$$$$$) {
+  my($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday) = @_;
+  my @it;
+  no integer;
 
+  # Western quarter-hour chime
+  my $seconds_since_hour_change = 60*$min + $sec;
+  my $t_next_quarter_chime = $t0 + (900 - $seconds_since_hour_change%900);
+  my $next_quarter = (int($seconds_since_hour_change / 900) + 1)%4;
+  my $next_hour = ($next_quarter? $hour: $hour + 1 + 11)%12 + 1;
+  my $prechime_length;
+  die "Calculation error, next quarter $t_next_quarter_chime is in the past" if $t_next_quarter_chime < $t0;
+  die "Calculation error, next quarter $t_next_quarter_chime more than 15 minutes away" if $t_next_quarter_chime - $t0 > 900;
+  if ($next_quarter == 0) {
+    push @it, {
+      't' => $t_next_quarter_chime,
+      'type' => 'hour',
+      'comment' => "hour $next_hour chime",
+    };
+    $prechime_length = 25;
+  } elsif ($next_quarter == 1) {
+    $prechime_length = 5;
+  } elsif ($next_quarter == 2) {
+    $prechime_length = 10;
+  } elsif ($next_quarter == 3) {
+    $prechime_length = 15;
+  }
+  push @it, {
+    't' => $t_next_quarter_chime - $prechime_length,
+    'type' => 'quarter',
+    'comment' => "hour $next_hour quarter $next_quarter prechime",
+  };
+
+  @it = sort { $a->{'t'} <=> $b->{'t'} } @it;
+  return wantarray? @it: \@it;
+}
 
 sub usage (;$) {
   my($st) = @_;
@@ -817,6 +852,8 @@ binmode STDIN, ':utf8';
 binmode STDOUT, ':utf8';
 binmode STDERR, ':utf8';
 
+select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
+
 $coords = guess_coordinates unless defined $coords;
 ($lat, $lon) = ($coords->{'lat'}, $coords->{'lon'}) unless defined $lat;
 die "$0: Can't determine coordinates\n" unless defined $coords;
@@ -854,19 +891,27 @@ if (!caller) {
 
 }
 
-for (;;) {
+sub COUNTDOWN () { 10 }
+
+for (my $epsilon = 0, my $countdown = COUNTDOWN;;) {
   my $t0 = Time::HiRes::time;
   my $c = determine_chinese_time $t0;
   ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday) = @$c;
   my($sec, $min, $hour) = localtime $t0;
-  my $t1 = Time::HiRes::time;
 
   # Determine when we should wake up; try to make some effort to align it to a second boundary
   no integer;
-  my $t2 = int($t0) + 1;
-  my $dt = $t2 - $t1;
-  printf STDERR "%10.2f = %02d:%02d:%02d - %02d %2.2f %2.2f %2.2f (∂t=%2.2f)\r", $t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $dt;
-  flush STDERR;
+  my @event = determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday);
+  my $t_next = int($t0) + 1;
+  my $t1 = Time::HiRes::time;
+  my $dt = $t_next - $t1 + $epsilon;
+  $dt = 0 if $dt < 0;
+  printf STDERR "%10.2f = %02d:%02d:%02d - %02d %2.2f %2.2f %2.2f (∂t=%2.2f, ɛ=%2.2f) - next: %d %s\033[K\r", $t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $dt, $epsilon, $event[0]->{'t'}, $event[0]->{'comment'};
+
+  # Try to compensate for the printf. This actually seems to make things worse
+  my $t2 = Time::HiRes::time;
+  $epsilon = $t2 - $t1;
+
   Time::HiRes::sleep $dt;
 }
 
