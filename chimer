@@ -756,7 +756,7 @@ sub determine_events ($$$$$$$$$) {
 
   # Western quarter-hour chime
   my $seconds_since_hour_change = 60*$min + $sec;
-  my $t_next_quarter_chime = $t0 + (900 - $seconds_since_hour_change%900);
+  my $t_next_quarter_chime = int($t0) + (900 - $seconds_since_hour_change%900);
   my $next_quarter = (int($seconds_since_hour_change / 900) + 1)%4;
   my $next_hour = (($next_quarter? $hour: $hour + 1) + 11)%12 + 1;
   my $prechime_length;
@@ -935,6 +935,16 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   $epsilon = $t2 - $t1;
 
   Time::HiRes::sleep $dt;
+
+  # Check if any event has been fired
+  my $now = Time::HiRes::time;
+  for my $t (keys %events) {
+    if ($now >= $t) {
+      my $e = $events{$t};
+      my $dt = $now - $t;
+      print STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $e->{'id'}, $t, $now, ($dt? "$dt s late": "on time");
+    }
+  }
 
   $countdown -= 1;
   $countdown = COUNTDOWN if $countdown < 0;
