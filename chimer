@@ -1,0 +1,873 @@
+#!/usr/bin/perl
+# vi:set sw=2 ai sm:
+#
+
+# see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
+# THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
+use v5.12; # minimal for unicode string feature
+use v5.14; # //u modifier
+use utf8;
+use open qw( :encoding(UTF-8) :std );
+use charnames qw( :full :short );
+use feature "unicode_strings";
+
+use warnings qw( FATAL utf8 );
+use Encode qw( encode decode );
+#@ARGV = map { decode("UTF-8", $_) } @ARGV if grep /\P{ASCII}/ => @ARGV;
+
+
+use strict;
+use integer;
+
+use POSIX;
+use DateTime;
+use Time::HiRes; # overrides (qw) do not seem to work
+
+use Data::Dumper;
+
+use vars qw( $use_datetime_event_sunrise );
+use vars qw( $use_datetime_astro_sunrise );
+use vars qw( $use_astro_sunrise );
+BEGIN {
+  if (eval { require DateTime::Event::Sunrise; }) {
+    $use_datetime_event_sunrise = 1;
+  } elsif (eval { require DateTime::Astro::Sunrise; }) {
+    $use_datetime_astro_sunrise = 1;
+  } elsif (eval { require Astro::Sunrise; }) {
+    $use_astro_sunrise = 1;
+  } else {
+    die "Cannot find a usable Sunrise package";
+  }
+}
+
+use Getopt::Long;
+use Data::Dumper;
+
+use vars qw( $fake );
+use vars qw( $debug );
+use vars qw( $enable_seconds );
+use vars qw( $enable_nonproportional_watches );
+use vars qw( $enable_qing_quarters );
+use vars qw( $enable_chinese );
+use vars qw( $enable_hebcal );
+use vars qw( $enable_planetary $planetary_omit_details );
+use vars qw( $enable_chinese $lang );
+use vars qw( $enable_decaminutes $enable_minutes );
+use vars qw( $enable_4th_hebrew_watch );
+use vars qw( $decimals );
+use vars qw( $sysline_mode );
+use vars qw( $genmon_mode );
+$enable_chinese = 1;
+$enable_hebcal = 1;
+$decimals = 2;
+$lang = 'en';
+
+
+use vars qw( $coords );
+
+use vars qw( $representation );
+$representation = 'name';
+
+use vars qw( $lat $lon );
+
+use vars qw( $em $_em $b $_b $i $_i $u $_u );
+($b, $_b) = ('<span weight="900">', '</span>');
+($i, $_i) = ('<i>', '</i>');
+($u, $_u) = ('<u>', '</u>');
+($em, $_em) = ($i, $_i);
+
+use vars qw( @planets );
+@planets = (
+  {
+    'name' => {'zh' => '日', 'en' => 'Sun'},
+    'icon' => '☉',
+    'article' => {'en' => 'the'},
+  },
+  {
+    'name' => {'zh' => '月', 'en' => 'Moon'},
+    'icon' => '☽',
+    'article' => {'en' => 'the'},
+  },
+  {
+    'name' => {'zh' => '火', 'en' => 'Mars'},
+    'icon' => '♂',
+  },
+  {
+    'name' => {'zh' => '水', 'en' => 'Mercury'},
+    'icon' => '☿',
+  },
+  {
+    'name' => {'zh' => '木', 'en' => 'Jupiter'},
+    'icon' => '♃',
+  },
+  {
+    'name' => {'zh' => '金', 'en' => 'Venus'},
+    'icon' => '♀',
+  },
+  {
+    'name' => {'zh' => '土', 'en' => 'Saturn'},
+    'icon' => '♄',
+  },
+);
+
+use vars qw( @stems @branches );
+@stems = (
+  {
+    'zh' => '甲',
+    'en' => 'Jia',
+    'yue@latn' => 'ˉgap',
+  },
+  {
+    'zh' => '乙',
+    'en' => 'Yi',
+    'yue@latn' => 'ˍjyt',
+  },
+  {
+    'zh' => '丙',
+    'en' => 'Bing',
+    'yue@latn' => 'ˊbiŋ',
+  },
+  {
+    'zh' => '丁',
+    'en' => 'Ding',
+    'yue@latn' => 'ˈdiŋ',
+  },
+  {
+    'zh' => '戊',
+    'en' => 'Wu',
+    'yue@latn' => 'ˍmou',
+  },
+  {
+    'zh' => '己',
+    'en' => 'Ji',
+    'yue@latn' => 'ˊgei',
+  },
+  {
+    'zh' => '庚',
+    'en' => 'Geng',
+    'yue@latn' => 'ˈgɐŋ',
+  },
+  {
+    'zh' => '辛',
+    'en' => 'Xin',
+    'yue@latn' => 'ˈsɐn',
+  },
+  {
+    'zh' => '壬',
+    'en' => 'Ren',
+    'yue@latn' => 'ˌjɐm',
+  },
+  {
+    'zh' => '癸',
+    'en' => 'Gui',
+    'yue@latn' => 'ˉgwɐi',
+  },
+);
+# Note that apparently the hours have names in the Han dynasty
+# Cf. http://www.oldkids.cn/group/post_detail.php?did=669531
+@branches = (
+  {
+    'zh' => '子',
+    'en' => 'Zi',
+    'yue@latn' => 'ˊdzi',
+    'name' => {'zh' => '鼠', 'en' => 'Mouse'},
+    'icon' => '🐁',
+    'han_hour' => '夜半',
+  },
+  {
+    # feminine year
+    'zh' => '丑',
+    'en' => 'Chou',
+    'yue@latn' => 'ˊtsɐu',
+    'name' => {'zh' => '牛', 'en' => 'Cow'},
+    'icon' => '🐄',
+    'han_hour' => '雞鳴',
+  },
+  {
+    'zh' => '寅',
+    'en' => 'Yin',
+    'yue@latn' => 'ˌjɐn',
+    'name' => {'zh' => '虎', 'en' => 'Tiger'},
+    'icon' => '🐅',
+    'han_hour' => '平旦',
+  },
+  {
+    # feminine year
+    'zh' => '卯',
+    'en' => 'Mao',
+    'yue@latn' => 'ˏmɐu',
+    'name' => {'zh' => '兔', 'en' => 'Rabbit'},
+    'icon' => '🐇',
+    'han_hour' => '日出',
+  },
+  {
+    'zh' => '辰',
+    'en' => 'Chen',
+    'yue@latn' => 'ˌsɐn',
+    'name' => {'zh' => '龍', 'en' => 'Dragon'},
+    'icon' => '🐉',
+    'han_hour' => '食時',
+  },
+  {
+    # feminine year
+    'zh' => '巳',
+    'en' => 'Si',
+    'yue@latn' => 'ˍdzi',
+    'name' => {'zh' => '蛇', 'en' => 'Snake'},
+    'icon' => '🐍',
+    'han_hour' => '隅中',
+  },
+  {
+    'zh' => '午',
+    'en' => 'Wu',
+    'yue@latn' => 'ˏŋ',
+    'name' => {'zh' => '馬', 'en' => 'Horse'},
+    'icon' => '🐎',
+    'han_hour' => '日中',
+  },
+  {
+    # feminine year
+    'zh' => '未',
+    'en' => 'Wei',
+    'yue@latn' => 'ˍmei',
+    'name' => {'zh' => '羊', 'en' => 'Sheep'},
+    'icon' => '🐐',
+    'han_hour' => '日昳',
+  },
+  {
+    'zh' => '申',
+    'en' => 'Shen',
+    'yue@latn' => 'ˈsɐn',
+    'name' => {'zh' => '猴', 'en' => 'Monkey'},
+    'icon' => '🐒',
+    'han_hour' => '晡時',
+  },
+  {
+    # feminine year
+    'zh' => '酉',
+    'en' => 'You',
+    'yue@latn' => 'ˏjɐu',
+    'name' => {'zh' => '雞', 'en' => 'Chicken'},
+    'icon' => '🐔',
+    'han_hour' => '日入',
+  },
+  {
+    'zh' => '戌',
+    'en' => 'Xu',
+    'yue@latn' => 'ˈsœt',
+    'name' => {'zh' => '狗', 'en' => 'Dog'},
+    'icon' => '🐕',
+    'han_hour' => '黄昏',
+  },
+  {
+    # feminine year
+    'zh' => '亥',
+    'en' => 'Hai',
+    'yue@latn' => 'ˍhɔi',
+    'name' => {'zh' => '豬', 'en' => 'Pig'},
+    'icon' => '🐖',
+    'han_hour' => '人定',
+  },
+);
+
+# We don't use the weird "meaningful" names found in https://zh.wikipedia.org/wiki/希伯來曆
+# even though they are short, because first, they're weird and unrecognizable, and also because
+# according to the next link the meanings are also wrong.
+#
+# Note that it's easier to run months starting from Nisan because then Adar II would be just 13
+# (cf. http://www.yashanet.com/library/hebrew-days-and-months.html ) but that gets weird if
+# the year number increments at Tishrei
+#
+# Or we could in theory do what some programmers do and make Adar II 8 so in a non-leap year
+# after 7 we'd get 9 (cf. https://www.qppstudio.net/webhelp_xv4/jewish-month-numbers.htm )
+#
+# But in theory Adar I is the leap month, not Adar II, so actually no matter what we do it gets weird
+use vars qw( %hebrew_months );
+%hebrew_months = (
+  'Nisan' => {
+    'zh' => '七',
+    'en' => 'Nisan',
+    'xx' => '7',
+  },
+  'Iyyar' => {
+    'zh' => '八',
+    'en' => 'Iyyar',
+    'xx' => '8',
+  },
+  'Sivan' => {
+    'zh' => '九',
+    'en' => 'Sivan',
+    'xx' => '9',
+  },
+  'Tamuz' => {
+    'zh' => '十',
+    'en' => 'Tammuz',
+    'xx' => '10',
+  },
+  'Av' => {
+    'zh' => '11',
+    'en' => 'Av',
+    'xx' => '11',
+  },
+  'Elul' => {
+    'zh' => '12',
+    'en' => 'Elul',
+    'xx' => '12',
+  },
+  'Tishrei' => {
+    'zh' => '正',
+    'en' => 'Tishrei',
+    'xx' => '1',
+  },
+  'Cheshvan' => {
+    'zh' => '二',
+    'en' => 'Cheshvan',
+    'xx' => '2',
+  },
+  'Kislev' => {
+    'zh' => '三',
+    'en' => 'Kislev',
+    'xx' => '3',
+  },
+  'Tevet' => {
+    'zh' => '四',
+    'en' => 'Tevet',
+    'xx' => '4',
+  },
+  "Sh'vat" => {
+    'zh' => '五',
+    'en' => 'Shevat',
+    'xx' => '5',
+  },
+  'Adar I' => {
+    'zh' => '閏六',
+    'en' => 'Adar I',
+    'xx' => '6a',
+  },
+  'Adar' => {
+    'zh' => '六',
+    'en' => 'Adar II',
+    'xx' => '6b',
+  },
+);
+
+use vars qw( @solar_terms %solar_terms );
+@solar_terms = (
+  undef,
+  {
+    'name' => {
+      'en' => 'Vernal Equinox',
+      'zh' => '春分',
+    },
+  }, {
+    'name' => {
+      'en' => 'Bright & Clear',
+      'zh' => '清明',
+    },
+  }, {
+    'name' => {
+      'en' => 'Corn Rain',
+      'zh' => '穀雨',
+    },
+  }, {
+    'name' => {
+      'en' => 'Summer Commences',
+      'zh' => '立夏',
+    },
+  }, {
+    'name' => {
+      'en' => 'Corn Forms',
+      'zh' => '小滿',
+    },
+  }, {
+    'name' => {
+      'en' => 'Corn on Ear',
+      'zh' => '芒種',
+    },
+  }, {
+    'name' => {
+      'en' => 'Summer Solstice',
+      'zh' => '夏至',
+    },
+  }, {
+    'name' => {
+      'en' => 'Moderate Heat',
+      'zh' => '小暑',
+    },
+  }, {
+    'name' => {
+      'en' => 'Great Heat',
+      'zh' => '大暑',
+    },
+  }, {
+    'name' => {
+      'en' => 'Autumn Commences',
+      'zh' => '立秋',
+    },
+  }, {
+    'name' => {
+      'en' => 'End of Heat',
+      'zh' => '處暑',
+    },
+  }, {
+    'name' => {
+      'en' => 'White Dew',
+      'zh' => '白露',
+    },
+  }, {
+    'name' => {
+      'en' => 'Autumnal Equinox',
+      'zh' => '秋分',
+    },
+  }, {
+    'name' => {
+      'en' => 'Cold Dew',
+      'zh' => '寒露',
+    },
+  }, {
+    'name' => {
+      'en' => 'Frost',
+      'zh' => '霜降',
+    },
+  }, {
+    'name' => {
+      'en' => 'Winter Commences',
+      'zh' => '立冬',
+    },
+  }, {
+    'name' => {
+      'en' => 'Light Snow',
+      'zh' => '小雪',
+    },
+  }, {
+    'name' => {
+      'en' => 'Heavy Snow',
+      'zh' => '大雪',
+    },
+  }, {
+    'name' => {
+      'en' => 'Winter Solstice',
+      'zh' => '冬至',
+    },
+  }, {
+    'name' => {
+      'en' => 'Moderate Cold',
+      'zh' => '小寒',
+    },
+  }, {
+    'name' => {
+      'en' => 'Severe Cold',
+      'zh' => '大寒',
+    },
+  }, {
+    'name' => {
+      'en' => 'Spring Commences',
+      'zh' => '立春',
+    },
+  }, {
+    'name' => {
+      'en' => 'Spring Showers',
+      'zh' => '雨水',
+    },
+  }, {
+    'name' => {
+      'en' => 'Insects Waken',
+      'zh' => '驚蟄',
+    },
+  }
+);
+%solar_terms = map { ($solar_terms[$_]->{'name'}->{'en'} => $_) } (1..$#solar_terms);
+
+sub use_chinese () {
+  return $lang =~ /^zh\b/i;
+}
+
+sub stem_name ($) {
+  my($n) = @_;
+  my $use_yue_latn = $lang eq 'en';
+  my $key = $use_yue_latn? 'yue@latn': $lang;
+  return $stems[$n - 1]->{$key};
+}
+
+sub branch_name ($) {
+  my($n) = @_;
+  my $use_yue_latn = $lang eq 'en';
+  my $key = $use_yue_latn? 'yue@latn': $lang;
+  return $branches[$n - 1]->{$key};
+}
+
+sub stem_branch_name ($) {
+  my($year) = @_;
+  $year -= 1;
+  $year %= 60;
+  my $use_yue_latn = $lang eq 'en';
+  my $key = $use_yue_latn? 'yue@latn': $lang;
+  return sprintf('%s%s%s', $stems[$year%10]->{$key}, ((use_chinese || $use_yue_latn)? '': '-'), $branches[$year%12]->{$key});
+}
+
+sub get_representation ($;$$) {
+  my($s, $specific_representation, $use_article) = @_;
+  my $prefix = $use_article && defined $s->{'article'}->{$lang}? sprintf('%s ', $s->{'article'}->{$lang}): '';
+  my $base = (defined $specific_representation? $specific_representation: $representation) =~ /^icon/? $s->{'icon'}: $s->{'name'}->{$lang};
+  return $prefix . $base;
+}
+
+sub start_of_day ($) {
+  my($t) = @_;
+  my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime $t;
+  return mktime(0, 0, 0, $mday, $mon, $year);
+}
+
+sub yesterday ($) {
+  my($t) = @_;
+  return start_of_day(start_of_day($t) - 12*3600);
+}
+
+sub tomorrow ($) {
+  my($t) = @_;
+  return start_of_day(start_of_day($t) + 36*3600);
+}
+
+sub estimate_sunrise ($) {
+  my($t) = @_;
+  my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime $t;
+  my $dt = DateTime->new(year => $year + 1900, month => $mon + 1, day => $mday) if $use_datetime_event_sunrise || $use_datetime_astro_sunrise;
+  my $tmp;
+  my $it;
+  if ($use_datetime_event_sunrise) {
+    my $sunrise = DateTime::Event::Sunrise->new(latitude => $lat, longitude => $lon, precise => 1);
+    $tmp = $sunrise->sunrise_sunset_span($dt)->start;
+    $it = $tmp->strftime('%s');
+  } elsif ($use_datetime_astro_sunrise) {
+    my $sunrise = DateTime::Astro::Sunrise->new($lat, $lon, undef, 1);
+    $tmp = ($sunrise->sunrise($dt))[0];
+    $it = $tmp->strftime('%s');
+  } else {
+    no integer;
+    my $tz = ($2 + $3/60) * ($1 eq '-'? -1: 1) if POSIX::strftime('%z', localtime $t) =~ /^([-\+])(\d\d)(\d\d)$/;
+    my($sunrise, $sunset) = Astro::Sunrise::sunrise($year + 1900, $mon + 1, $mday, $lon, $lat, $tz, $isdst);
+    $tmp = $sunrise;
+    $it = POSIX::mktime(0, $2, $1, $mday, $mon, $year) if $tmp =~ /^(\d\d):(\d\d)$/;
+  }
+  return $it;
+}
+
+sub estimate_sunset ($) {
+  my($t) = @_;
+  my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime $t;
+  my $dt = DateTime->new(year => $year + 1900, month => $mon + 1, day => $mday) if $use_datetime_event_sunrise || $use_datetime_astro_sunrise;
+  my $tmp;
+  my $it;
+  if ($use_datetime_event_sunrise) {
+    my $sunrise = DateTime::Event::Sunrise->new(latitude => $lat, longitude => $lon, precise => 1);
+    $tmp = $sunrise->sunrise_sunset_span($dt)->end;
+    $it = $tmp->strftime('%s');
+  } elsif ($use_datetime_astro_sunrise) {
+    my $sunrise = DateTime::Astro::Sunrise->new($lat, $lon, undef, 1);
+    $tmp = ($sunrise->sunrise($dt))[1];
+    $it = $tmp->strftime('%s');
+  } else {
+    # this should be the same as the else case in estimate_sunrise except the last line
+    no integer;
+    my $tz = ($2 + $3/60) * ($1 eq '-'? -1: 1) if POSIX::strftime('%z', localtime $t) =~ /^([-\+])(\d\d)(\d\d)$/;
+    my($sunrise, $sunset) = Astro::Sunrise::sunrise($year + 1900, $mon + 1, $mday, $lon, $lat, $tz, $isdst);
+    $tmp = $sunset;
+    $it = POSIX::mktime(0, $2, $1, $mday, $mon, $year) if $tmp =~ /^(\d\d):(\d\d)$/;
+  }
+  return $it;
+}
+
+sub trim ($) {
+  my($s) = @_;
+  $s =~ s/^\s+//;
+  $s =~ s/\s+$//;
+  return $s;
+}
+
+sub ordinal ($) {
+  my($n) = @_;
+  my $det1 = $n%10;
+  my $det2 = int($n/10)%10;
+  return sprintf '%d%s', $n, ($det2 == 1? 'th': $det1 == 1? 'st': $det1 == 2? 'nd': $det1 == 3? 'rd': 'th');
+}
+
+sub guess_city () {
+  my $input = '/etc/localtime';
+  my $det = readlink $input;
+  die "$input: $!\n" unless defined $det;
+  return $1 if $det =~ /([^\/]+)$/s;
+}
+
+sub guess_coordinates () {
+  my $it;
+  my $city = guess_city;
+  print STDERR "guessed city=($city)\n" if $debug;
+  my @cmd = qw(hebcal cities);
+  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  my $pid = open(INPUT, '-|');
+  die "$0: guess_coordinates: $cmd[0]: fork: $!\n" unless defined $pid;
+  if ($pid) {
+    my $re = quotemeta $city;
+    for (;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      chomp;
+      if ($s =~ /^$re \((\d+)d(\d+)' ([NS]) lat, (\d+)d(\d+)' [EW] long/) {
+	no integer;
+	$it = {
+	      'lat' => ($1 + $2/60)*($3 eq 'N'? 1: -1),
+	      'lon' => ($4 + $5/60)*($6 eq 'E'? 1: -1),
+	    };
+      }
+    last if defined $it;
+    }
+    close INPUT;
+  } else {
+    exec {$cmd[0]} @cmd;
+    die "$0: guess_coordinates: $cmd[0]: exec: $!\n";
+  }
+  return $it;
+}
+
+use vars qw( %chinese_digits );
+%chinese_digits = (
+  '一' => 1,
+  '二' => 2,
+  '三' => 3,
+  '四' => 4,
+  '五' => 5,
+  '六' => 6,
+  '七' => 7,
+  '八' => 8,
+  '九' => 9,
+  '十' => 10,
+  '廿' => 20,
+  '卅' => 30,
+);
+sub parse_chinese_number ($) {
+  my($s) = @_;
+  my($tens, $units) = ($chinese_digits{$1}, $chinese_digits{$2}) if $s =~ /^(\S?)(\S)$/;
+  return ($units == 10 && defined $tens)? $tens*10: $tens + $units;
+}
+
+sub parse_named_ordinal ($) {
+  # drop-in substitute of same-named function in 13500 using old code from foocal
+  my($n) = @_;
+  my $it;
+  my $lang = 'en'; # unlike the old code we're now always using English
+  my($stem, $branch) = split(/-/, $n);
+  for (my $det = 0; $det < 60; $det += 1) {
+    my($i, $j) = ($det%10, $det%12);
+    $it = $det + 1 if lc $stems[$i]->{$lang} eq lc $stem && lc $branches[$j]->{$lang} eq lc $branch;
+  last if defined $it;
+  }
+  return $it;
+}
+
+sub read_ini ($) {
+  my($input) = @_;
+  my $it;
+  local(*INPUT, $.);
+  if (open(INPUT, '<:utf8', $input)) {
+    for (my $section;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      chomp $s;
+      if ($s =~ /^\s*(?:[#\%;]|$)/) {
+	;
+      } elsif ($s =~ /^\s*\[\s*([^\[\]]+?)\s*\]\s*$/) {
+	$section = $1;
+      } elsif ($s =~ /^\s*([^=]+?)\s*=\s*(.*)/) {
+	if (defined $section) {
+	  $it->{$section}->{$1} = $2;
+	} else {
+	  $it->{$1} = $2;
+	}
+      } else {
+	warn "$input:$.: Warning: Unknown input \"$s\"\n";
+      }
+    }
+    close INPUT;
+  }
+  return $it;
+}
+
+
+
+
+
+
+# Quarters are weird. See https://zh.wikipedia.org/wiki/%E5%88%BB
+#                     and http://yywz.snnu.edu.cn/show.aspx?id=697&cid=26
+# Apparently the old Chinese system also used proportional hours... so we'll need to refactor things here at some point
+# http://www.twword.com/wiki/%E5%B9%B2%E6%94%AF%E7%B4%80%E6%B3%95
+sub determine_chinese_time ($) {
+  my($t) = @_;
+  my $it;
+  my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime $t;
+  my $midnight = start_of_day $t;
+  my $deciday;
+  # NOTE: according to one source (forgot which), the first hour (ˊdzi) spans [2300, 0100) but the new day still starts at 0000. Very odd :-/
+  # therefore the old adjustment for [2300, 0000) has been deleted
+  if (defined $coords) {
+    my $today = start_of_day $t;
+    my $yesterday = yesterday $t;
+    my $tomorrow = tomorrow $t;
+    my($daybreak, $slice_start, $slice_end, $starting_hour);
+    # Proportional hour is used in a very early system (Spring and Autumn Period / Warring States),
+    # but I don't even have an idea when the day starts (probably day before night) so we'll arbitrarily use sunrise as cutoff
+    if ($t < estimate_sunrise($today)) {
+      $daybreak = estimate_sunrise($yesterday);
+      $slice_start = estimate_sunset($yesterday);
+      $slice_end = estimate_sunrise($today);
+      $starting_hour = 6;
+    } elsif ($t < estimate_sunset($today)) {
+      $daybreak = estimate_sunrise($today);
+      $slice_start = $daybreak;
+      $slice_end = estimate_sunset($today);
+      $starting_hour = 1;
+    } else {
+      $daybreak = estimate_sunrise($today);
+      $slice_start = estimate_sunset($today);
+      $slice_end = estimate_sunrise($tomorrow);
+      $starting_hour = 6;
+    }
+    if ($slice_start && $slice_end) {
+      no integer;
+      my $slice = ($slice_end - $slice_start)/5;
+      $deciday = $starting_hour + ($t - $slice_start)/$slice;
+    }
+  }
+  my($greg_year, $greg_month, $greg_day) = ($year + 1900, $mon + 1, $mday);
+  my $relative_chinese_hour = eval { no integer; fmod(($t - ($midnight - 3600))/7200, 12) };
+  my $chinese_hour = $relative_chinese_hour + 1;
+  my $quarter;
+  my $centiday = eval { no integer; ($t - $midnight)/864 };
+  if ($enable_qing_quarters) {
+    $quarter = $min/15 + 1;
+    $quarter += 4 if $hour%2 == 0;
+  } else {
+    # NOTE: traditionally these aren't quarters, but number of centiday marks past the beginning of the hour
+    no integer;
+    #
+    # 0.5 hours maps exactly to 0 centidays. So to calculate the reporting origin, which is fractional.
+    # Each hour is 86400/12 seconds, each centiday is 86400/100 seconds, so each hour is 100/12 centidays
+    # In theory, each zero-based hour h begins exactly at ⌊h - 0.5⌋*100/12 centidays
+    # However, when h ∈ [0, 0.5) this gives unexpected results because the formula will give a negative result
+    # There's no easy way to fix this because reporting origins are hour-aligned, not half-hour aligned
+    # (so we can't even change ⌊h - 0.5⌋ to (⌊h*2 - 1⌋%24)/2 because this breaks for h > 1.0)
+    #
+    my $reporting_origin = POSIX::floor(($relative_chinese_hour < 0.5? 11.5: (int($relative_chinese_hour) - 0.5)) * 100 / 12);
+    print STDERR "relative_chinese_hour=$relative_chinese_hour => reporting_origin=$reporting_origin\n" if $debug;
+    $quarter = $centiday - int($reporting_origin);
+  }
+  $it = [undef, undef, undef, undef, $chinese_hour, $quarter, $centiday, $deciday, $wday, eval { no integer; $relative_chinese_hour < 0.5 }];
+  return $it;
+}
+
+
+
+sub usage (;$) {
+  my($st) = @_;
+  my $h = $st? *STDERR: *STDOUT;
+  print $h <<EOF;
+Usage: $0 [OPTION]...
+Display date and time information in a non-mainstream calendar.
+
+  -b, --bold                  Show unexpected dates and times in bold
+  -d, --decimals=N            Display N decimal places for fractional ancient
+                              Chinese centidays (used only when decaminutes
+                              are not enabled)
+      --disable-chinese       Do not display Chinese date and time
+      --disable-hebrew        Do not display Hebrew date and time
+  -g, --genmon                Terse format suitable as two-line genmon input
+      --iconic                Use zodiac symbols
+  -i, --italics               Show unexpected dates and times in italics
+  -M, --decaminutes           Enable display of ancient Chinese decaminutes
+                              (and disable display of fractional centidays)
+  -m, --minutes               Enable display of Western "planetary" minutes (and
+                              ancient Chinese minutes if decaminutes are enabled)
+      --nonproportional-watches
+                              Use watches that are aligned to Chinese hours
+  -p, --enable-planetary=all  Enable the Western "planetary" system and display
+                              current time in addition to the equivalent zodiac
+  -p, --enable-planetary=minimal
+                              Enable the Western "planetary" system but display
+                              only the zodiac corresponding to the current hour
+  -Q, --qing                  Same as --nonproportional-watches --qing-quarters
+      --qing-quarters         Use the Qing quarters system (identical to modern
+                              quarters) instead of the ancient centiday system
+  -s, --seconds               Enable display of Western "planetary" seconds
+  -u, --underline             Show unexpected dates and times underlined
+  -w, --sysline               Terse format suitable as a sysline .who file
+      --what-if=TIME          (FOR DEBUGGING ONLY) Pretend current time is TIME
+  -z, --chinese, --kanji      Use kanji instead of English
+  -3, --disable-4th-watch     Use 3 watches for Hebrew system. This is the default
+  -4, --enable-4th-watch      Use 4 watches for Hebrew system
+      --symbolic              Use zodiac names
+      --debug                 Produce debugging output
+
+Note that Chinese and Hebrew dates and times are always shown. Western "planetary"
+times are shown only when enabled.
+EOF
+  exit $st;
+}
+
+binmode STDIN, ':utf8';
+binmode STDOUT, ':utf8';
+binmode STDERR, ':utf8';
+
+$coords = guess_coordinates unless defined $coords;
+($lat, $lon) = ($coords->{'lat'}, $coords->{'lon'}) unless defined $lat;
+die "$0: Can't determine coordinates\n" unless defined $coords;
+
+if (!caller) {
+  Getopt::Long::config('bundling');
+  GetOptions(
+    'b|bold' => sub { ($em, $_em) = ($b, $_b); },
+    'debug' => sub { $debug += 1; },
+    'd|decimals=i' => \$decimals,
+    'disable-chinese' => sub { $enable_chinese = 0; },
+    'H|disable-hebrew' => sub { $enable_hebcal = 0; },
+    'i|italics' => sub { ($em, $_em) = ($i, $_i); },
+    'M|enable-decaminutes|decaminutes' => \$enable_decaminutes,
+    'm|enable-minutes|minutes' => \$enable_minutes,
+    's|enable-seconds|seconds' => \$enable_seconds,
+    'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
+    'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
+    'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
+    'p|enable-planetary=s' => sub {
+	  $enable_planetary = 1;
+	  die "You must specify either \"all\" or \"minimal\"\n" unless $_[1] =~ /^(?:all|full|min(?:imal(?:istic)?)?)/;
+	  $planetary_omit_details = 1 if $_[1] =~ /^min/;
+	},
+    'g|genmon' => \$genmon_mode,
+    'u|underline' => sub { ($em, $_em) = ($u, $_u); },
+    'w|sysline' => \$sysline_mode,
+    'z|zh|chinese|kanji' => sub { $lang = 'zh'; },
+    '3|disable-4th-hebrew-watch|disable-4th-watch' => sub { $enable_4th_hebrew_watch = 0; },
+    '4|enable-4th-hebrew-watch|enable-4th-watch' => \$enable_4th_hebrew_watch,
+    'iconic' => sub { $representation = 'icon' },
+    'symbolic' => sub { $representation = 'name' },
+    'help' => \&usage,
+  ) || usage(1);
+
+}
+
+for (;;) {
+  my $t0 = Time::HiRes::time;
+  my $c = determine_chinese_time $t0;
+  ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday) = @$c;
+  my($sec, $min, $hour) = localtime $t0;
+  my $t1 = Time::HiRes::time;
+
+  # Determine when we should wake up; try to make some effort to align it to a second boundary
+  no integer;
+  my $t2 = int($t0) + 1;
+  my $dt = $t2 - $t1;
+  printf STDERR "%10.2f = %02d:%02d:%02d - %02d %2.2f %2.2f %2.2f (∂t=%2.2f)\r", $t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $dt;
+  flush STDERR;
+  Time::HiRes::sleep $dt;
+}
+
+1;
