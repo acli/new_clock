@@ -1,6 +1,29 @@
 #!/usr/bin/perl
 # vi:set sw=2 ai sm:
 #
+# Re-implementation of the Javascript chiming clocks (sysline, silliness) in Perl
+# Copyright © 2021 by Ambrose Li
+# The primary purpose of this script is to avoid running the two chiming clock pages
+# as Firefox tabs, because Firefox (and all Chrome-based browsers) are now unfriendly
+# to Javascript pages that use audio as their primary UI. Firefox also leaks memory
+# really fast so it's best to not keep Firefox running for long periods of time.
+#
+# Eventually this script might provide a way to make the genmon script less CPU
+# intensive.
+#
+# ------
+#
+# Concept from the Javascript chiming clocks:
+# "Copyright © 2018 by Ambrose Li :-)"
+#
+# ------
+#
+# Mostly based on the genmon script for Chinese/Hebrew dates:
+# "Copyright 2016-2018, 2021 by Ambrose Li <ambrose.li@gmail.com>
+# The primary purpose of this script is to figure out the year number in the Chinese system
+# so that I can name my CV's without having to look up two web pages.
+# Everything else is just for kicks =P"
+#
 
 # see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
 # THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
@@ -928,21 +951,25 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   # Debug message
   printf STDERR "%10.2f = %02d:%02d:%02d - %02d %2.2f %2.2f %2.2f (∂t=%2.2f, ɛ=%2.2f) - next: %s\033[K\r",
       $t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $dt, $epsilon,
-      join(', ', map { sprintf '%s %s', $_->{'t'}, $_->{'id'} } @event);
+      join(', ', map { sprintf '%.2f (∂t=%.2f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event);
 
   # Try to compensate for the printf. This actually seems to make things worse
   my $t2 = Time::HiRes::time;
   $epsilon = $t2 - $t1;
 
   Time::HiRes::sleep $dt;
+  #sleep $dt;
 
   # Check if any event has been fired
   my $now = Time::HiRes::time;
+  my $dt_actual = $now - $t2;
+  printf STDERR "\nWARNING: tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
   for my $t (keys %events) {
     if ($now >= $t) {
       my $e = $events{$t};
       my $dt = $now - $t;
       printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $e->{'id'}, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+      $countdown = 0; # force a re-countdown
       delete $events{$t};
     }
   }
