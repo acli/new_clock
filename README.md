@@ -7,4 +7,4 @@ At some point it should ultimately serve as the back-end of my genmon plugin tha
 Creative Commons notice
 =======================
 This repo contains data derived from files licensed by CC-by-sa.
-For details please see [[the CREDITS file]](doc/CREDITS.md).
+For details please see [the CREDITS file](doc/CREDITS.md).
