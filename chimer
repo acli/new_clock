@@ -505,7 +505,7 @@ sub play_sound_file ($;$$$) {
   $volume = 50 unless defined $volume;
   if (@sinks) {
     for my $sink (@sinks) {
-      print STDERR "set sink $sink\n";
+      print STDERR "set sink $sink\n" if $debug;
       set_sink $sink;
       play_sound_file_real($input, $volume, $start, $end);
     }
