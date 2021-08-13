@@ -35,7 +35,7 @@
 use v5.12; # minimal for unicode string feature
 use v5.14; # //u modifier
 use utf8;
-use open qw( :encoding(UTF-8) :std );
+open qw( :encoding(UTF-8) :std );
 use charnames qw( :full :short );
 use feature "unicode_strings";
 
@@ -80,7 +80,7 @@ use vars qw( $enable_4th_hebrew_watch );
 
 use vars qw( $coords );
 use vars qw( $lat $lon );
-use vars qw( $sink );
+use vars qw( @sinks );
 
 use vars qw( $datadir );
 $datadir = "$1/data" if $0 =~ /^(.*?)\/[^\/]+$/;
@@ -297,12 +297,13 @@ sub guess_coordinates () {
   return $it;
 }
 
+# NOTE: modified to act like the current PHP version (root section goes to /, duplicate keys allowed and get stashed into an array)
 sub read_ini ($) {
   my($input) = @_;
   my $it;
   local(*INPUT, $.);
   if (open(INPUT, '<:utf8', $input)) {
-    for (my $section;;) {
+    for (my $section = '/';;) {
       my $s = scalar <INPUT>;
     last unless defined $s;
       chomp $s;
@@ -312,9 +313,11 @@ sub read_ini ($) {
 	$section = $1;
       } elsif ($s =~ /^\s*([^=]+?)\s*=\s*(.*)/) {
 	if (defined $section) {
-	  $it->{$section}->{$1} = $2;
+	  $it->{$section}->{$1} = [] unless defined $it->{$section}->{$1};
+	  push @{$it->{$section}->{$1}}, $2;
 	} else {
-	  $it->{$1} = $2;
+	  $it->{$1} = [] unless defined $it->{$1};
+	  push @{$it->{$1}}, $2;
 	}
       } else {
 	warn "$input:$.: Warning: Unknown input \"$s\"\n";
@@ -473,9 +476,13 @@ sub determine_events ($$$$$$$$$) {
   return wantarray? @it: \@it;
 }
 
-sub play_sound_file ($;$$$) {
+sub set_sink ($) {
+  my($sink) = @_;
+  $ENV{'PULSE_SINK'} = $sink if defined $sink;
+}
+
+sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
-  $volume = 50 unless defined $volume;
 
   # Fork and play it in the background
   my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
@@ -489,6 +496,20 @@ sub play_sound_file ($;$$$) {
     POSIX::close(0);
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
+  }
+}
+
+sub play_sound_file ($;$$$) {
+  my($input, $volume, $start, $end) = @_;
+  $volume = 50 unless defined $volume;
+  if (@sinks) {
+    for my $sink (@sinks) {
+      print STDERR "set sink $sink\n";
+      set_sink $sink;
+      play_sound_file_real($input, $volume, $start, $end);
+    }
+  } else {
+    play_sound_file_real($input, $volume, $start, $end);
   }
 }
 
@@ -650,8 +671,9 @@ $SIG{'CHLD'} = 'IGNORE';
 
 # Handle config file
 my $config = read_ini("$ENV{HOME}/.chimerrc");
-$sink = $config->{'sink'} if defined $config->{'sink'};
-$coords = {'lon' => $config->{'longitude'}, 'lat' => $config->{'latitude'}} if defined $config->{'longitude'} && defined $config->{'latitude'};
+@sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
+$coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
+    if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
 
 # Guess location if not specified in config file
 $coords = guess_coordinates unless defined $coords;
@@ -663,7 +685,7 @@ if (!caller) {
   Getopt::Long::config('bundling');
   GetOptions(
     'D|debug' => sub { $debug += 1; },
-    'd|sink' => \$sink,
+    'd|sink=s' => sub { @sinks = $_[1]; },
     'M|enable-decaminutes|decaminutes' => \$enable_decaminutes,
     'm|enable-minutes|minutes' => \$enable_minutes,
     's|enable-seconds|seconds' => \$enable_seconds,
@@ -680,7 +702,6 @@ if (!caller) {
   ) || usage(1);
 
 }
-$ENV{'PULSE_SINK'} = $sink if defined $sink;
 
 for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   my $t0 = Time::HiRes::time;
