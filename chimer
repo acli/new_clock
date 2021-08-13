@@ -102,6 +102,87 @@ use vars qw( @watch_chime_pattern );
    [1, '.'		],		# test chime Y
 );
 
+use vars qw( @midi_number_to_note %note_to_midi_number );
+@midi_number_to_note = (
+  'c0', 'c#0', 'd0', 'd#0', 'e0', 'f0', 'f#0', 'g0', 'g#0', 'a0', 'a#0', 'b0',
+  'c1', 'c#1', 'd1', 'd#1', 'e1', 'f1', 'f#1', 'g1', 'g#1', 'a1', 'a#1', 'b1',
+  'c2', 'c#2', 'd2', 'd#2', 'e2', 'f2', 'f#2', 'g2', 'g#2', 'a2', 'a#2', 'b2',
+  'c3', 'c#3', 'd3', 'd#3', 'e3', 'f3', 'f#3', 'g3', 'g#3', 'a3', 'a#3', 'b3',
+  'c4', 'c#4', 'd4', 'd#4', 'e4', 'f4', 'f#4', 'g4', 'g#4', 'a4', 'a#4', 'b4',
+  'c5', 'c#5', 'd5', 'd#5', 'e5', 'f5', 'f#5', 'g5', 'g#5', 'a5', 'a#5', 'b5',
+  'c6', 'c#6', 'd6', 'd#6', 'e6', 'f6', 'f#6', 'g6', 'g#6', 'a6', 'a#6', 'b6',
+  'c7', 'c#7', 'd7', 'd#7', 'e7', 'f7', 'f#7', 'g7', 'g#7', 'a7', 'a#7', 'b7',
+  'c8', 'c#8', 'd8', 'd#8', 'e8', 'f8', 'f#8', 'g8', 'g#8', 'a8', 'a#8', 'b8',
+  'c9', 'c#9', 'd9', 'd#9', 'e9', 'f9', 'f#9', 'g9', 'g#9', 'a9', 'a#9', 'b9',
+);
+%note_to_midi_number = map { $midi_number_to_note[$_] => $_ } 0..$#midi_number_to_note;
+
+use vars qw( %scale );
+%scale = (
+  'c4'	=> '582141__strangehorizon__g01-c-4-gong.wav',
+  'c#4'	=> '582140__strangehorizon__g02-c-4-gong.wav',
+  'd4'	=> '582139__strangehorizon__g03-d-4-gong.wav',
+  'd#4'	=> '582138__strangehorizon__g04-d-4-gong.wav',
+  'e4'	=> '582145__strangehorizon__g05-e-4-gong.wav',
+  'f4'	=> '582144__strangehorizon__g06-f-4-gong.wav',
+  'f#4'	=> '582143__strangehorizon__g07-f-4-gong.wav',
+  'g4'	=> '582142__strangehorizon__g08-g-4-gong.wav',
+  'g#4'	=> '582147__strangehorizon__g09-g-4-gong.wav',
+  'a4'	=> '582146__strangehorizon__g10-a-4-gong.wav',
+  'a#4'	=> '582156__strangehorizon__g11-a-4-gong.wav',
+  'b4'	=> '582155__strangehorizon__g12-b-4-gong.wav',
+  'c5'	=> '582154__strangehorizon__g13-c-5-gong.wav',
+  'c#5'	=> '582153__strangehorizon__g14-c-5-gong.wav',
+  'd5'	=> '582160__strangehorizon__g15-d-5-gong.wav',
+  'd#5'	=> '582159__strangehorizon__g16-d-5-gong.wav',
+  'e5'	=> '582158__strangehorizon__g17-e-5-gong.wav',
+  'f5'	=> '582157__strangehorizon__g18-f-5-gong.wav',
+  'f#5'	=> '582162__strangehorizon__g19-f-5-gong.wav',
+  'g5'	=> '582161__strangehorizon__g20-g-5-gong.wav',
+);
+use vars qw( $p1 $p2 $p3 $p4 $p5 $rest $strike );
+$p1 = [
+    ['g#4', 1],
+    ['f#4', 1],
+    ['e4', 1],
+    ['b3', 1.5],
+    ['r', 1.5],
+  ];
+$p2 = [
+    ['e4', 1],
+    ['g#4', 1],
+    ['f#4', 1],
+    ['b3', 1.5],
+    ['r', 1.5],
+  ];
+$p3 = [
+    ['e4', 1],
+    ['f#4', 1],
+    ['g#4', 1],
+    ['e4', 1.5],
+    ['r', 1.5],
+  ];
+$p4 = [
+    ['g#4', 1],
+    ['e4', 1],
+    ['f#4', 1],
+    ['b3', 1.5],
+    ['r', 1.5],
+  ];
+$p5 = [
+    ['b3', 1],
+    ['f#4', 1],
+    ['g#4', 1],
+    ['e4', 1.5],
+    ['r', 1.5],
+  ];
+$rest = [
+    ['r', 1],
+  ];
+$strike = [
+    ['f3', 1.5],
+    ['r', 1.5],
+  ];
 
 sub start_of_day ($) {
   my($t) = @_;
@@ -389,33 +470,75 @@ sub determine_events ($$$$$$$$$) {
   return wantarray? @it: \@it;
 }
 
-sub play_sound_file ($;$) {
-  my($input, $volume) = @_;
+sub play_sound_file ($;$$$) {
+  my($input, $volume, $start, $end) = @_;
   $volume = 50 unless defined $volume;
 
   # Fork and play it in the background
-  $ENV{'PULSE_SINK'} = 'alsa_output.pci-0000_00_14.2.analog-stereo'; # FIXME
-  my @cmd = ('mpv', '--no-video', '--really-quiet', '--volume', $volume, $input);
+  $ENV{'PULSE_SINK'} = 'alsa_output.pci-0000_00_14.2.analog-stereo' unless $debug; # FIXME
+  my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
+  push @cmd, ('--start', $start) if defined $start;
+  push @cmd, ('--end', $end) if defined $end;
+  push @cmd, $input;
+  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
+    POSIX::close(0);
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
   }
 }
 
-sub strike_gong () {
-  play_sound_file "$datadir/582159__strangehorizon__g16-d-5-gong.wav", 40;
+sub strike_gong (;$) {
+  my($note) = @_;
+  $note = 'd#5' if !defined $note || !defined $scale{$note};
+  play_sound_file sprintf('%s/%s', $datadir, $scale{$note}), 40;
+}
+
+sub announce_quarter_hour_by_carillon ($) {
+  my($quarter) = @_;
+  my @tune;
+  print STDERR "Pretending to announce quarter hour for quarter $quarter\n";
+  if ($quarter == 1) {
+    @tune = @$p1;
+  } elsif ($quarter == 2) {
+    @tune = (@$p2, @$p3);
+  } elsif ($quarter == 3) {
+    @tune = (@$p4, @$p5, @$p1);
+  } else {
+    @tune = (@$p2, @$p3, @$p4, @$p5);
+  }
+  for my $spec (@tune) {
+    my($note, $time) = @$spec;
+    if ($note ne 'r') {
+      $note = $midi_number_to_note[$note_to_midi_number{$note} + 11]; # or just shift it by one
+      strike_gong $note;
+    }
+    Time::HiRes::sleep $time;
+  }
 }
 
 sub announce_quarter_hour ($) {
   my($quarter) = @_;
+  my @tune;
   print STDERR "Pretending to announce quarter hour for quarter $quarter\n";
+  if ($quarter == 1) {
+    ;
+  } elsif ($quarter == 2) {
+    play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 29, 33;
+  } elsif ($quarter == 3) {
+    ;
+  } else {
+    ;
+  }
 }
 
 sub announce_hour ($) {
   my($hour) = @_;
+  my $f = sub { my($x) = @_; no integer; 8 + (26 - 8)/12 * $x + ($x > 6) };
   print STDERR "Pretending to announce hour for hour $hour\n";
+  play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 8, &$f($hour);
 }
 
 sub announce_night_watch ($$) {
@@ -524,15 +647,21 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   # Determine what should happen next
   no integer;
   my @event = determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size);
+  my $next_event;
   for my $event (@event) {
-    $events{+$event->{'t'}} = $event;
+    # Don't trust floating point calculations - don't use t as key, use id instead
+    $events{+$event->{'id'}} = $event;
   }
-  for my $t (keys %events) {
+  for my $id (keys %events) {
+    my $e = $events{$id};
+    my $t = $e->{'t'};
     if ($t0 - $t > 0.25) { # just do it if we missed it by just a fraction of a second
-      printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $events{$t}->{'id'}, $t, $t0, $t0 - $t;
-      delete $events{$t};
+      printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $id, $t, $t0, $t0 - $t;
+      delete $events{$id};
     }
   }
+  # reconstitute the @event array
+  @event = sort { $a->{'t'} <=> $b->{'t'} } map { $events{$_} } keys %events;
 
   # Determine when we should wake up; try to make some effort to align it to a second boundary
   my $t1 = Time::HiRes::time;
@@ -556,15 +685,15 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   my $now = Time::HiRes::time;
   my $dt_actual = $now - $t2;
   printf STDERR "\nWARNING: tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
-  for my $t (keys %events) {
+  for my $id (keys %events) {
+    my $e = $events{$id};
+    my $t = $e->{'t'};
     if ($now >= $t) {
-      my $e = $events{$t};
       my $dt = $now - $t;
-      my $id = $e->{'id'};
       printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
       do_event $id;
       $countdown = 0; # force a re-countdown
-      delete $events{$t};
+      delete $events{$id};
     }
   }
 

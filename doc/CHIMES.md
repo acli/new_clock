@@ -12,6 +12,8 @@ https://freesound.org/people/acclivity/sounds/19561/
 https://freesound.org/people/inchadney/sounds/121203/
 - pros: clear cuckoo sound, cc-by-sa
 - cons: maybe a little soft
+- citation: Walter, T. [Thomas]. 2011. Birds: Cuckoo.wav [Audio file].
+  Retrieved from https://freesound.org/people/inchadney/sounds/121203/
 
 https://freesound.org/people/reinsamba/sounds/35053/
 - pros: clear cuckoo sound, cc-by-sa
