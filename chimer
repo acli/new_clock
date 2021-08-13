@@ -79,11 +79,14 @@ use vars qw( $enable_decaminutes $enable_minutes );
 use vars qw( $enable_4th_hebrew_watch );
 
 use vars qw( $coords );
-
 use vars qw( $lat $lon );
+use vars qw( $sink );
 
 use vars qw( $datadir );
 $datadir = "$1/data" if $0 =~ /^(.*?)\/[^\/]+$/;
+
+# number of times we try sleeping for 1 second until we sleep until the target event
+sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
 
 # night watch chime patterns
 sub LONG_STRIKE  () { 1.5 }
@@ -277,7 +280,7 @@ sub guess_coordinates () {
       my $s = scalar <INPUT>;
     last unless defined $s;
       chomp;
-      if ($s =~ /^$re \((\d+)d(\d+)' ([NS]) lat, (\d+)d(\d+)' [EW] long/) {
+      if ($s =~ /^$re \((\d+)d(\d+)' ([NS]) lat, (\d+)d(\d+)' ([EW]) long/) {
 	no integer;
 	$it = {
 	      'lat' => ($1 + $2/60)*($3 eq 'N'? 1: -1),
@@ -475,7 +478,6 @@ sub play_sound_file ($;$$$) {
   $volume = 50 unless defined $volume;
 
   # Fork and play it in the background
-  $ENV{'PULSE_SINK'} = 'alsa_output.pci-0000_00_14.2.analog-stereo' unless $debug; # FIXME
   my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
   push @cmd, ('--start', $start) if defined $start;
   push @cmd, ('--end', $end) if defined $end;
@@ -492,8 +494,26 @@ sub play_sound_file ($;$$$) {
 
 sub strike_gong (;$) {
   my($note) = @_;
-  $note = 'd#5' if !defined $note || !defined $scale{$note};
-  play_sound_file sprintf('%s/%s', $datadir, $scale{$note}), 40;
+  if ($note ne 'r') {
+    $note = 'd#5' if !defined $note || !defined $scale{$note};
+    play_sound_file sprintf('%s/%s', $datadir, $scale{$note}), 32;
+  }
+}
+
+sub carillon_transpose ($) {
+  my($note) = @_;
+  my $it = $midi_number_to_note[$note_to_midi_number{$note} + 11] if $note ne 'r'; # or just shift it by one
+  return defined $it? $it: $note;
+}
+
+sub strike_tune (@) {
+  my @tune = @_;
+  printf STDERR "Trying to strike %s\n", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
+  for my $spec (@tune) {
+    my($note, $time) = @$spec;
+    strike_gong carillon_transpose $note;
+    Time::HiRes::sleep $time;
+  }
 }
 
 sub announce_quarter_hour_by_carillon ($) {
@@ -509,36 +529,45 @@ sub announce_quarter_hour_by_carillon ($) {
   } else {
     @tune = (@$p2, @$p3, @$p4, @$p5);
   }
-  for my $spec (@tune) {
-    my($note, $time) = @$spec;
-    if ($note ne 'r') {
-      $note = $midi_number_to_note[$note_to_midi_number{$note} + 11]; # or just shift it by one
-      strike_gong $note;
-    }
-    Time::HiRes::sleep $time;
+  strike_tune @tune;
+}
+
+sub announce_quarter_hour_by_cuckoo ($) {
+  my($quarter) = @_;
+  if ($quarter == 2) {
+    print STDERR "Cuckoo trying to announce quarter $quarter\n";
+    play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 29, 33;
+  } else {
+    print STDERR "Cuckoo does not announce quarter $quarter\n";
   }
 }
 
 sub announce_quarter_hour ($) {
   my($quarter) = @_;
-  my @tune;
-  print STDERR "Pretending to announce quarter hour for quarter $quarter\n";
-  if ($quarter == 1) {
-    ;
-  } elsif ($quarter == 2) {
-    play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 29, 33;
-  } elsif ($quarter == 3) {
-    ;
-  } else {
-    ;
+  announce_quarter_hour_by_carillon($quarter);
+}
+
+sub announce_hour_by_carillon ($) {
+  my($hour) = @_;
+  my @tune = (@$strike) x $hour;
+  strike_tune @tune;
+}
+
+sub announce_hour_by_cuckoo ($) {
+  my($hour) = @_;
+  my $f = sub { my($x) = @_; no integer; 8 + (26 - 8)/12 * $x + ($x > 6) };
+  print STDERR "Cuckoo trying to announce hour $hour\n";
+  play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 8, &$f($hour);
+  for my $dt ((undef, 1.4, 1.4, 1.3,  1.4, 1.4, 2.1,
+                      1.8, 1.6, 1.6,  1.6, 1.6, 1.6)[1..$hour]) {
+    strike_gong 'c#4';
+    Time::HiRes::sleep($dt);
   }
 }
 
 sub announce_hour ($) {
   my($hour) = @_;
-  my $f = sub { my($x) = @_; no integer; 8 + (26 - 8)/12 * $x + ($x > 6) };
-  print STDERR "Pretending to announce hour for hour $hour\n";
-  play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 8, &$f($hour);
+  announce_hour_by_carillon($hour);
 }
 
 sub announce_night_watch ($$) {
@@ -580,6 +609,7 @@ sub usage (;$) {
 Usage: $0 [OPTION]...
 Display date and time information in a non-mainstream calendar.
 
+  -d, --sink SINK             Use the specified SINK for audio
       --disable-hebrew        Do not display Hebrew date and time
   -M, --decaminutes           Enable display of ancient Chinese decaminutes
                               (and disable display of fractional centidays)
@@ -596,6 +626,9 @@ Display date and time information in a non-mainstream calendar.
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
   -s, --seconds               Enable display of Western "planetary" seconds
+      --test-hour HOUR        Play hourly chime for HOUR (1..12)
+      --test-quarter QUARTER  Play quarter chime for QUARTER (0..3)
+      --test-watch WATCH      Play night watch chime for WATCH (1..5)
   -v, --verbose               Explain what is being done
   -3, --disable-4th-watch     Use 3 watches for Hebrew system. This is the default
   -4, --enable-4th-watch      Use 4 watches for Hebrew system
@@ -613,21 +646,33 @@ binmode STDOUT, ':utf8';
 binmode STDERR, ':utf8';
 
 select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
+$SIG{'CHLD'} = 'IGNORE';
 
+# Handle config file
+my $config = read_ini("$ENV{HOME}/.chimerrc");
+$sink = $config->{'sink'} if defined $config->{'sink'};
+$coords = {'lon' => $config->{'longitude'}, 'lat' => $config->{'latitude'}} if defined $config->{'longitude'} && defined $config->{'latitude'};
+
+# Guess location if not specified in config file
 $coords = guess_coordinates unless defined $coords;
 ($lat, $lon) = ($coords->{'lat'}, $coords->{'lon'}) unless defined $lat;
 die "$0: Can't determine coordinates\n" unless defined $coords;
 
+# Check command-line arguments
 if (!caller) {
   Getopt::Long::config('bundling');
   GetOptions(
-    'debug' => sub { $debug += 1; },
+    'D|debug' => sub { $debug += 1; },
+    'd|sink' => \$sink,
     'M|enable-decaminutes|decaminutes' => \$enable_decaminutes,
     'm|enable-minutes|minutes' => \$enable_minutes,
     's|enable-seconds|seconds' => \$enable_seconds,
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
+    'test-hour=i' => sub { exit announce_hour(($_[1] - 1) % 12 + 1) },
+    'test-quarter=i' => sub { exit announce_quarter_hour($_[1] % 4) },
+    'test-watch=i' => sub { exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
     '3|disable-4th-hebrew-watch|disable-4th-watch' => sub { $enable_4th_hebrew_watch = 0; },
     '4|enable-4th-hebrew-watch|enable-4th-watch' => \$enable_4th_hebrew_watch,
     'v|verbose' => \$verbose_p,
@@ -635,8 +680,7 @@ if (!caller) {
   ) || usage(1);
 
 }
-
-sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
+$ENV{'PULSE_SINK'} = $sink if defined $sink;
 
 for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   my $t0 = Time::HiRes::time;
