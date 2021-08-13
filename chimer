@@ -942,7 +942,8 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
     if ($now >= $t) {
       my $e = $events{$t};
       my $dt = $now - $t;
-      print STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $e->{'id'}, $t, $now, ($dt? "$dt s late": "on time");
+      printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $e->{'id'}, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+      delete $events{$t};
     }
   }
 
