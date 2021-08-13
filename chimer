@@ -68,6 +68,7 @@ use Data::Dumper;
 
 use vars qw( $fake );
 use vars qw( $debug );
+use vars qw( $verbose_p );
 use vars qw( $enable_seconds );
 use vars qw( $enable_nonproportional_watches );
 use vars qw( $enable_qing_quarters );
@@ -348,14 +349,17 @@ sub determine_events ($$$$$$$$$) {
   } elsif ($next_quarter == 3) {
     $prechime_length = 15;
   }
-  push @it, {
-    't' => $t_next_quarter_chime - $prechime_length,
-    'id' => "q$next_hour.$next_quarter",
-    'type' => 'quarter',
-    'comment' => "hour $next_hour quarter $next_quarter prechime",
-  };
+  if ($t_next_quarter_chime - $prechime_length >= $t0) {
+    push @it, {
+      't' => $t_next_quarter_chime - $prechime_length,
+      'id' => "q$next_quarter",
+      'type' => 'quarter',
+      'comment' => "hour $next_hour quarter $next_quarter prechime",
+    };
+  }
 
   # Shang-era proportional-deciday-based night watch chimes
+  # 1 watch is exactly 1 deciday, which is not actually 1/10 of a day but 1/5 of the current proportional moitie
   if ($deciday > 5 && $deciday < 6) { # 5 is the last deciday in the "day" moitie
     my $t_first_watch = $t0 + (6 - $deciday)*$deciday_size;
     push @it, {
@@ -365,11 +369,13 @@ sub determine_events ($$$$$$$$$) {
       'comment' => 'watch 1',
     };
   } elsif ($deciday >= 6) {
-    my $zero_based_next_watch_number = (int(5*($deciday - 6)) + 1)%25;
-    if ($zero_based_next_watch_number) {
-      my $next_watch = int($zero_based_next_watch_number/5) + 1;
-      my $next_fifth_of_watch = $zero_based_next_watch_number%5 + 1;
-      my $t_next_fifth_of_watch = $t0 + fmod($deciday, 0.2)*$deciday_size;
+    my $decidays_into_night = $deciday - 6;
+    my $subwatches_into_night = 5*$decidays_into_night;
+    my $zero_based_next_subwatch = (int($subwatches_into_night) + 1)%25;
+    if ($zero_based_next_subwatch) {
+      my $next_watch = int($zero_based_next_subwatch/5) + 1;
+      my $next_fifth_of_watch = $zero_based_next_subwatch%5 + 1;
+      my $t_next_fifth_of_watch = $t0 + (1 - fmod($subwatches_into_night, 1)) * ($deciday_size/5);
       push @it, {
 	't' => $t_next_fifth_of_watch,
 	'id' => "w$next_watch.$next_fifth_of_watch",
@@ -454,12 +460,13 @@ if (!caller) {
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     '3|disable-4th-hebrew-watch|disable-4th-watch' => sub { $enable_4th_hebrew_watch = 0; },
     '4|enable-4th-hebrew-watch|enable-4th-watch' => \$enable_4th_hebrew_watch,
+    'v|verbose' => \$verbose_p,
     'help' => \&usage,
   ) || usage(1);
 
 }
 
-sub COUNTDOWN () { 10 }
+sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
 
 for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   my $t0 = Time::HiRes::time;
@@ -484,9 +491,9 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   $dt = 0 if $dt < 0;
 
   # Debug message
-  printf STDERR "%10.2f = %02d:%02d:%02d - %02d %2.2f %2.2f %2.2f (∂t=%2.2f, ɛ=%2.2f) - next: %s\033[K\r",
-      $t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $dt, $epsilon,
-      join(', ', map { sprintf '%.2f (∂t=%.2f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event);
+  printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (∂t=%2.2f, ɛ=%2.2f) > %s\033[K\r",
+      $t0, $chinese_hour, $quarter, $centiday, $deciday, $dt, $epsilon,
+      join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
 
   # Try to compensate for the printf. This actually seems to make things worse
   my $t2 = Time::HiRes::time;
