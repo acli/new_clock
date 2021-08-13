@@ -463,7 +463,7 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   $dt = 0 if $dt < 0;
 
   # Debug message
-  printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (∂t=%2.2f, ɛ=%2.2f) > %s\033[K\r",
+  printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f, ε=%2.2f) > %s\033[K\r",
       $t0, $chinese_hour, $quarter, $centiday, $deciday, $dt, $epsilon,
       join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
 
