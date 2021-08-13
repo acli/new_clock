@@ -13,8 +13,8 @@
 #
 # This re-implementation uses the following sounds:
 #
-# Alto Gong, Metal Hit, B (H1).wav" by InspectorJ (www.jshaw.co.uk) of Freesound.org
-# https://freesound.org/people/InspectorJ/sounds/411576/
+# strangehorizon. (2021). "Tuned Chau Gongs: g16_D#5-gong.wav" (audio file).
+# Retrieved from https://freesound.org/people/strangehorizon/sounds/582159/
 #
 # ------
 #
@@ -81,6 +81,9 @@ use vars qw( $enable_4th_hebrew_watch );
 use vars qw( $coords );
 
 use vars qw( $lat $lon );
+
+use vars qw( $datadir );
+$datadir = "$1/data" if $0 =~ /^(.*?)\/[^\/]+$/;
 
 # night watch chime patterns
 sub LONG_STRIKE  () { 1.5 }
@@ -386,11 +389,13 @@ sub determine_events ($$$$$$$$$) {
   return wantarray? @it: \@it;
 }
 
-sub play_sound_file ($) {
-  my($input) = @_;
+sub play_sound_file ($;$) {
+  my($input, $volume) = @_;
+  $volume = 50 unless defined $volume;
+
   # Fork and play it in the background
   $ENV{'PULSE_SINK'} = 'alsa_output.pci-0000_00_14.2.analog-stereo'; # FIXME
-  my @cmd = ('mpv', '--no-video', '--really-quiet', '--volume', 50, $input);
+  my @cmd = ('mpv', '--no-video', '--really-quiet', '--volume', $volume, $input);
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
@@ -400,7 +405,7 @@ sub play_sound_file ($) {
 }
 
 sub strike_gong () {
-  play_sound_file '411576__inspectorj__alto-gong-metal-hit-b-h1.wav';
+  play_sound_file "$datadir/582159__strangehorizon__g16-d-5-gong.wav", 40;
 }
 
 sub announce_quarter_hour ($) {
