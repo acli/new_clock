@@ -46,8 +46,6 @@ use POSIX;
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 
-use Data::Dumper;
-
 use vars qw( $use_datetime_event_sunrise );
 use vars qw( $use_datetime_astro_sunrise );
 use vars qw( $use_astro_sunrise );
@@ -66,26 +64,14 @@ BEGIN {
 use Getopt::Long;
 use Data::Dumper;
 
-use vars qw( $fake );
 use vars qw( $debug );
 use vars qw( $verbose_p );
 use vars qw( $enable_seconds );
 use vars qw( $enable_nonproportional_watches );
 use vars qw( $enable_qing_quarters );
-use vars qw( $enable_chinese );
-use vars qw( $enable_hebcal );
 use vars qw( $enable_planetary $planetary_omit_details );
-use vars qw( $enable_chinese $lang );
 use vars qw( $enable_decaminutes $enable_minutes );
 use vars qw( $enable_4th_hebrew_watch );
-use vars qw( $decimals );
-use vars qw( $sysline_mode );
-use vars qw( $genmon_mode );
-$enable_chinese = 1;
-$enable_hebcal = 1;
-$decimals = 2;
-$lang = 'en';
-
 
 use vars qw( $coords );
 
@@ -396,15 +382,7 @@ sub usage (;$) {
 Usage: $0 [OPTION]...
 Display date and time information in a non-mainstream calendar.
 
-  -b, --bold                  Show unexpected dates and times in bold
-  -d, --decimals=N            Display N decimal places for fractional ancient
-                              Chinese centidays (used only when decaminutes
-                              are not enabled)
-      --disable-chinese       Do not display Chinese date and time
       --disable-hebrew        Do not display Hebrew date and time
-  -g, --genmon                Terse format suitable as two-line genmon input
-      --iconic                Use zodiac symbols
-  -i, --italics               Show unexpected dates and times in italics
   -M, --decaminutes           Enable display of ancient Chinese decaminutes
                               (and disable display of fractional centidays)
   -m, --minutes               Enable display of Western "planetary" minutes (and
@@ -420,10 +398,7 @@ Display date and time information in a non-mainstream calendar.
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
   -s, --seconds               Enable display of Western "planetary" seconds
-  -u, --underline             Show unexpected dates and times underlined
-  -w, --sysline               Terse format suitable as a sysline .who file
-      --what-if=TIME          (FOR DEBUGGING ONLY) Pretend current time is TIME
-  -z, --chinese, --kanji      Use kanji instead of English
+  -v, --verbose               Explain what is being done
   -3, --disable-4th-watch     Use 3 watches for Hebrew system. This is the default
   -4, --enable-4th-watch      Use 4 watches for Hebrew system
       --symbolic              Use zodiac names
@@ -449,9 +424,6 @@ if (!caller) {
   Getopt::Long::config('bundling');
   GetOptions(
     'debug' => sub { $debug += 1; },
-    'd|decimals=i' => \$decimals,
-    'disable-chinese' => sub { $enable_chinese = 0; },
-    'H|disable-hebrew' => sub { $enable_hebcal = 0; },
     'M|enable-decaminutes|decaminutes' => \$enable_decaminutes,
     'm|enable-minutes|minutes' => \$enable_minutes,
     's|enable-seconds|seconds' => \$enable_seconds,
