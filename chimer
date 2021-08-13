@@ -187,27 +187,6 @@ sub guess_coordinates () {
   return $it;
 }
 
-use vars qw( %chinese_digits );
-%chinese_digits = (
-  '一' => 1,
-  '二' => 2,
-  '三' => 3,
-  '四' => 4,
-  '五' => 5,
-  '六' => 6,
-  '七' => 7,
-  '八' => 8,
-  '九' => 9,
-  '十' => 10,
-  '廿' => 20,
-  '卅' => 30,
-);
-sub parse_chinese_number ($) {
-  my($s) = @_;
-  my($tens, $units) = ($chinese_digits{$1}, $chinese_digits{$2}) if $s =~ /^(\S?)(\S)$/;
-  return ($units == 10 && defined $tens)? $tens*10: $tens + $units;
-}
-
 sub read_ini ($) {
   my($input) = @_;
   my $it;
@@ -313,11 +292,12 @@ sub determine_events ($$$$$$$$$) {
   no integer;
 
   # Western quarter-hour chime
-  # Calculate the next two chimes just in case we're in that awkward half-minute before the next one and we have a night watch
+  # Make absolutely sure we have a chime event, in case it gets thrown out because we're too close to the actual next quarter hour
   my $seconds_since_hour_change = 60*$min + $sec;
   my $t_next_quarter_chime = int($t0) + (900 - $seconds_since_hour_change%900);
   my $next_quarter = (int($seconds_since_hour_change / 900) + 1)%4;
   my $next_hour = (($next_quarter? $hour: $hour + 1) + 11)%12 + 1;
+  my $quarter_chime_event_pushed_p = 0;
   die "Calculation error, next quarter $t_next_quarter_chime is in the past" if $t_next_quarter_chime < $t0;
   die "Calculation error, next quarter $t_next_quarter_chime more than 15 minutes away" if $t_next_quarter_chime - $t0 > 900;
   for (my $i = 0; $i < 2; $i += 1,
@@ -347,7 +327,9 @@ sub determine_events ($$$$$$$$$) {
 	'type' => 'quarter',
 	'comment' => "hour $next_hour quarter $next_quarter prechime",
       };
+      $quarter_chime_event_pushed_p = 1;
     }
+  last if $quarter_chime_event_pushed_p;
   }
 
   # Shang-era proportional-deciday-based night watch chimes
