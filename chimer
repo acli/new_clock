@@ -483,6 +483,7 @@ sub set_sink ($) {
 
 sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
+  $input = "$1.mp3" if !-f $input && $input =~ /^(.*?)\.wav$/ && -f "$1.mp3";
 
   # Fork and play it in the background
   my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
