@@ -51,6 +51,9 @@ use POSIX;
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 
+use vars qw( @restart_cmd );
+@restart_cmd = ($0, @ARGV); # save this because GetOpt will clear @ARGV
+
 use vars qw( $use_datetime_event_sunrise );
 use vars qw( $use_datetime_astro_sunrise );
 use vars qw( $use_astro_sunrise );
@@ -743,7 +746,7 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
 
   # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
   if ($t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300) {
-    my @cmd = ($0, @ARGV);
+    my @cmd = @restart_cmd;
     print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
     exec { $cmd[0] } @cmd;
     print STDERR "WARNING: restart failed: $!\n";

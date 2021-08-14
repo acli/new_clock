@@ -6,6 +6,16 @@ https://freesound.org/people/strangehorizon/packs/32761/
 
 https://www.fluidsynth.org/
 - pros: one subprocess only for each sink
+- fluidsynth numbers seem to be off by one in bank 0, 0-14 is tubular bells, 8-14 is church bells (doesn't really work, it strikes twice)
+
+Wood options
+============
+using MIDI drum kit:
+- 31 (sticks)
+- 60 (high bongo)
+- 61 (low bongo)
+- 76 (high wood block)
+- 77 (low wood block)
 
 Cuckoo options
 ==============
