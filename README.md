@@ -2,7 +2,11 @@ This script sounds Westminster-style chimes every quarter hour.
 In addition,
 between sundown and sunrise,
 it sounds chimes every 1/5 of a night watch (0.2 proportional decimal hours)
-according to old Shang-era rules for calculating proportional decimal hours.
+using traditional chiming patterns for night watches and
+according to the old Shang-era rule of one night watch equalling one decimal hour.
+
+Certain runtime parameters can be configured through a per-user config file,
+currently hard-coded to be $HOME/.chimerrc
 
 Aims
 ----
