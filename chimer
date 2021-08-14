@@ -82,6 +82,11 @@ use vars qw( $coords );
 use vars qw( $lat $lon );
 use vars qw( @sinks );
 
+sub MAX_UPTIME_ALLOWED () { 3600 }
+
+use vars qw( $boottime );
+$boottime = Time::HiRes::time;
+
 use vars qw( $datadir );
 $datadir = "$1/data" if $0 =~ /^(.*?)\/[^\/]+$/;
 
@@ -607,6 +612,7 @@ sub announce_night_watch ($$) {
       }
       Time::HiRes::sleep GAP unless $i + 1 == $repeats;
     }
+    exit(0);
   }
 }
 
@@ -734,6 +740,14 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
   my $dt = $t_next - $t1 + $epsilon;
   $dt = 0 if $dt < 0;
+
+  # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
+  if ($t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300) {
+    my @cmd = ($0, @ARGV);
+    print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
+    exec { $cmd[0] } @cmd;
+    print STDERR "WARNING: restart failed: $!\n";
+  }
 
   # Debug message
   printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f, ε=%2.2f) > %s\033[K\r",
