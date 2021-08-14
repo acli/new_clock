@@ -1,6 +1,10 @@
-This script is a work-in-progress that is replacing my two Javascript chiming clocks.
-The main aims are to avoid using Firefox for clock chimes,
+This script is intended to replace my two Javascript chiming clocks,
+with the aims to avoid using Firefox for clock chimes
 and to reduce sound distortion issues caused by RTP broadcasts.
+
+It’s still a work-in-progress but is already usable,
+although it requires running many copies of mpv at the same time,
+which can potentially be a problem.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
 
@@ -11,7 +15,5 @@ Please get them yourself from the links listed in the CREDITS file,
 place the wav files in the “raw” directory and run make to generate the mp3 files.
 (mpv must be installed.)
 
-Creative Commons notice
------------------------
-This repo contains data derived from files licensed by CC-by-sa.
+One of these sound files is licensed through Creative Commons (CC-by-sa).
 For details please see [the CREDITS file](doc/CREDITS.md).
