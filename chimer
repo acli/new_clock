@@ -72,6 +72,7 @@ BEGIN {
 use Getopt::Long;
 use Data::Dumper;
 
+use vars qw( $config );
 use vars qw( $debug );
 use vars qw( $verbose_p );
 use vars qw( $enable_seconds );
@@ -419,11 +420,13 @@ sub determine_events ($$$$$$$$$) {
   my($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size) = @_;
   my @it;
   no integer;
+  my $global_delay = $config->{'/'}->{'delay'}->[0] if defined $config->{'/'}->{'delay'};
+  $global_delay = 0 unless defined $global_delay;
 
   # Western quarter-hour chime
   # Make absolutely sure we have a chime event, in case it gets thrown out because we're too close to the actual next quarter hour
   my $seconds_since_hour_change = 60*$min + $sec;
-  my $t_next_quarter_chime = int($t0) + (900 - $seconds_since_hour_change%900);
+  my $t_next_quarter_chime = int($t0) + (900 - $seconds_since_hour_change%900) + $global_delay;
   my $next_quarter = (int($seconds_since_hour_change / 900) + 1)%4;
   my $next_hour = (($next_quarter? $hour: $hour + 1) + 11)%12 + 1;
   my $quarter_chime_event_pushed_p = 0;
@@ -478,7 +481,7 @@ sub determine_events ($$$$$$$$$) {
     if ($zero_based_next_subwatch) {
       my $next_watch = int($zero_based_next_subwatch/5) + 1;
       my $next_fifth_of_watch = $zero_based_next_subwatch%5 + 1;
-      my $t_next_fifth_of_watch = $t0 + (1 - fmod($subwatches_into_night, 1)) * ($deciday_size/5);
+      my $t_next_fifth_of_watch = $t0 + (1 - fmod($subwatches_into_night, 1)) * ($deciday_size/5) + $global_delay;
       push @it, {
 	't' => $t_next_fifth_of_watch,
 	'id' => "w$next_watch.$next_fifth_of_watch",
@@ -547,6 +550,9 @@ sub play_sound_file_real ($;$$$) {
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
+    my $sink = $ENV{'PULSE_SINK'};
+    my $dt = $config->{$sink}->{'delay'}->[0] if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
+    Time::HiRes::sleep $dt if $dt > 0;
     POSIX::close(0);
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
@@ -571,7 +577,7 @@ sub strike_gong (;$) {
   my($note) = @_;
   if ($note ne 'r') {
     $note = 'd#5' if !defined $note || !defined $scale{$note};
-    play_sound_file sprintf('%s/%s', $datadir, $scale{$note}), 32;
+    play_sound_file sprintf('%s/%s', $datadir, $scale{$note}), 50;
   }
 }
 
@@ -736,7 +742,7 @@ select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDER
 $SIG{'CHLD'} = 'IGNORE';
 
 # Handle config file
-my $config = read_ini("$ENV{HOME}/.chimerrc");
+$config = read_ini("$ENV{HOME}/.chimerrc");
 @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
 $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
     if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
