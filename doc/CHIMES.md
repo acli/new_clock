@@ -2,6 +2,10 @@ Gong options
 ============
 https://freesound.org/people/strangehorizon/packs/32761/
 - pros: the whole scale, public domain (cc0)
+- cons: need lots of mpv subprocesses to play chime melodies
+
+https://www.fluidsynth.org/
+- pros: one subprocess only for each sink
 
 Cuckoo options
 ==============
