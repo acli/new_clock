@@ -1,8 +1,18 @@
-This script is intended to replace my two Javascript chiming clocks,
-with the aims to avoid using Firefox for clock chimes
-and to reduce sound distortion issues caused by RTP broadcasts.
+This script sounds Westminster-style chimes every quarter hour.
+In addition,
+between sundown and sunrise,
+it sounds chimes every 1/5 of a night watch (0.2 proportional decimal hours)
+according to old Shang-era rules for calculating proportional decimal hours.
 
-It’s still a work-in-progress but is already usable,
+Aims
+----
+It’s intended to replace my two Javascript chiming clocks,
+with the aims of avoiding using Firefox for clock chimes
+and reducing sound distortion issues caused by RTP broadcasts.
+
+Status
+------
+This is still a work-in-progress but is already usable,
 although it requires running many copies of mpv at the same time,
 which can potentially be a problem.
 
