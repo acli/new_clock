@@ -92,8 +92,11 @@ sub MAX_UPTIME_ALLOWED () { 3600 }
 use vars qw( $boottime );
 $boottime = Time::HiRes::time;
 
-use vars qw( $datadir );
-$datadir = "$1/data" if $0 =~ /^(.*?)\/[^\/]+$/;
+use vars qw( $basedir $datadir );
+$basedir = $1 if $0 =~ /^(.*?)\/+[^\/]+$/;
+$basedir =~ s/(?:^|\/+)bin$//;
+$basedir = '.' if $basedir eq '';
+$datadir = "$basedir/data";
 
 # number of times we try sleeping for 1 second until we sleep until the target event
 sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
