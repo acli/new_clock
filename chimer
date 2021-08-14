@@ -84,6 +84,7 @@ use vars qw( $enable_4th_hebrew_watch );
 use vars qw( $coords );
 use vars qw( $lat $lon );
 use vars qw( @sinks );
+use vars qw( %synth );
 
 sub MAX_UPTIME_ALLOWED () { 3600 }
 
@@ -104,12 +105,12 @@ sub GAP          () { 5 }
 # gap needs to be long enough to hear it, but short enough to not mistake it for a long strike. This is HARD
 use vars qw( @watch_chime_pattern );
 @watch_chime_pattern = ( # v. https://zh.wikipedia.org/wiki/打更 (q.v.)
-   [3, '- .'		],
+   [3, '— .'		],
    [2, '. .'		],
-   [3, '- . .'		],
-   [4, '- . . .'	],
-   [5, '- . . . .'	],
-   [1, '-'		],		# test chime X
+   [3, '— . .'		],
+   [4, '— . . .'	],
+   [5, '— . . . .'	],
+   [1, '—'		],		# test chime X
    [1, '.'		],		# test chime Y
 );
 
@@ -194,6 +195,13 @@ $strike = [
     ['f3', 1.5],
     ['r', 1.5],
   ];
+
+use vars qw( $_gensym );
+sub gensym () {
+  my $it = sprintf('g%d', $_gensym);
+  $_gensym += 1;
+  return $it;
+}
 
 sub start_of_day ($) {
   my($t) = @_;
@@ -489,6 +497,43 @@ sub set_sink ($) {
   $ENV{'PULSE_SINK'} = $sink if defined $sink;
 }
 
+sub send_midi_command ($) {
+  my($cmd) = @_;
+  my $sink = $ENV{'PULSE_SINK'};
+  connect_synth() unless defined $synth{$sink};
+  my $h = $synth{$sink}->{'fh'};
+  no strict 'refs';
+  print $h "$cmd\n";
+}
+
+sub connect_synth () {
+  my $sink = $ENV{'PULSE_SINK'};
+  if (!defined $synth{$sink}) {
+    no strict 'refs';
+    print STDERR "Connecting synth for sink $sink\n" if $debug || $verbose_p;
+    my @cmd = ('fluidsynth', '-a', 'pulseaudio', '--midi-channels', '3', '--audio-file-format', 's16', '/usr/share/sounds/sf2/FluidR3_GM.sf2');
+    my $h = gensym;
+    my $pid = open($h, '|-');
+    die "$0: connect_synth: $cmd[0]: fork: $!\n" unless defined $pid;
+    if (!$pid) {
+      exec { $cmd[0] } @cmd;
+      die "$0: connect_synth: $cmd[0]: exec: $!\n";
+    }
+    select((select($h), $| = 1)[0]);
+    $synth{$sink} = {'fh' => $h, 'pid' => $pid};
+    send_midi_command "select 1 1 0 14";
+    send_midi_command "select 2 1 128 48";
+  }
+  return $synth{$sink};
+}
+
+sub connect_synths () {
+  for my $sink (@sinks) {
+    set_sink $sink;
+    connect_synth;
+  }
+}
+
 sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
   $input = "$1.mp3" if !-f $input && $input =~ /^(.*?)\.wav$/ && -f "$1.mp3";
@@ -530,6 +575,17 @@ sub strike_gong (;$) {
   }
 }
 
+sub strike_bell ($) {
+  my($note) = @_;
+  if ($note ne 'r') {
+    send_midi_command sprintf('noteon 1 %d 127', $note_to_midi_number{$note});
+  }
+}
+
+sub strike_stick () {
+  send_midi_command sprintf('noteon 2 31 127');
+}
+
 sub carillon_transpose ($) {
   my($note) = @_;
   my $it = $midi_number_to_note[$note_to_midi_number{$note} + 11] if $note ne 'r'; # or just shift it by one
@@ -542,6 +598,7 @@ sub strike_tune (@) {
   for my $spec (@tune) {
     my($note, $time) = @$spec;
     strike_gong carillon_transpose $note;
+    #strike_bell $note;
     Time::HiRes::sleep $time;
   }
 }
@@ -683,6 +740,7 @@ my $config = read_ini("$ENV{HOME}/.chimerrc");
 @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
 $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
     if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
+#connect_synths;
 
 # Guess location if not specified in config file
 $coords = guess_coordinates unless defined $coords;
@@ -701,6 +759,8 @@ if (!caller) {
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
+    'test' => sub {
+	},
     'test-hour=i' => sub { exit announce_hour(($_[1] - 1) % 12 + 1) },
     'test-quarter=i' => sub { exit announce_quarter_hour($_[1] % 4) },
     'test-watch=i' => sub { exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
@@ -711,6 +771,7 @@ if (!caller) {
   ) || usage(1);
 
 }
+
 
 for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
   my $t0 = Time::HiRes::time;
@@ -746,6 +807,11 @@ for (my $epsilon = 0, my $countdown = COUNTDOWN, my %events;;) {
 
   # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
   if ($t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300) {
+    for my $synth (values %synth) {
+      my $pid = $synth->{'pid'};
+      print STDERR "DEBUG: killing synth $pid\033[K\n" if $debug;
+      kill 'HUP', $pid;
+    }
     my @cmd = @restart_cmd;
     print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
     exec { $cmd[0] } @cmd;
