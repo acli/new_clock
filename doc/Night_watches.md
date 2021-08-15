@@ -6,10 +6,20 @@ that was in use during the Shang era.
 These proportional hours had names:
 
 - daytime hours: morning, forenoon, midday, afternoon, evening
-- nighttime hours: A, B, C, D, E (no kidding)
+  (ˈdziu, ˌjy (?), ˈdzuŋ, ˈbou, ˍdzik)
+- nighttime hours: A, B, C, D, E
+  (ˉgap, ˍjyt, ˊbiŋ, ˈdiŋ, ˍmou)
+  (no kidding)
 
-In this system, the five night watches are the hours A, B, C, D and E.
-Each watch is subdivided into five equal parts which could be called subwatches.
+In this system, the five night watches, numbered 1, 2, 3, 4 and 5
+(ˈjɐtˈgaŋ, ˍjiˈgaŋ, ˈsamˈgaŋ, ˉseiˈgaŋ, ˏŋˈgaŋ),
+were the hours A, B, C, D and E.
+
+Each watch was subdivided into five equal parts
+which we could call subwatches.
+The beginnings of these five subwatches were called
+points, numbered 1, 2, 3, 4 and 5
+(ˈjɐtˊdim, ˍjiˊdim, ˈsamˊdim, ˉseiˊdim, ˏŋˊdim).
 
 The system was later realigned to modern duodecimal hour boundaries,
 but it’s superfluous to announce night watches of this later kind
@@ -18,7 +28,7 @@ This is why this script follows the older, original system.
 (Also, it’s useful to know “it’s now sundown”, etc.)
 
 This script uses chimes that follow the patterns described by
-[Wikipedia](https://zh.wikipedia.org/wiki/打更):
+[the Wikipedia article for Chinese night watches](https://zh.wikipedia.org/wiki/打更):
 
 - 1st watch: long, short (struck 3 times)
 - 2nd watch: short, short (struck 2 times)
