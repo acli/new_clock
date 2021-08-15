@@ -11,14 +11,14 @@ These proportional hours had names:
   (ˉgap, ˍjyt, ˊbiŋ, ˈdiŋ, ˍmou)
   (no kidding)
 
-In this system, the five night watches, numbered 1, 2, 3, 4 and 5
+In this system, the five night watches, numbered 1, 2, 3, 4, 5
 (ˈjɐtˈgaŋ, ˍjiˈgaŋ, ˈsamˈgaŋ, ˉseiˈgaŋ, ˏŋˈgaŋ),
-were the hours A, B, C, D and E.
+were the hours A, B, C, D, E.
 
 Each watch was subdivided into five equal parts
 which we could call subwatches.
 The beginnings of these five subwatches were called
-points, numbered 1, 2, 3, 4 and 5
+points, numbered 1, 2, 3, 4, 5
 (ˈjɐtˊdim, ˍjiˊdim, ˈsamˊdim, ˉseiˊdim, ˏŋˊdim).
 
 The system was later realigned to modern duodecimal hour boundaries,
@@ -30,14 +30,14 @@ This is why this script follows the older, original system.
 This script uses chimes that follow the patterns described by
 [the Wikipedia article for Chinese night watches](https://zh.wikipedia.org/wiki/打更):
 
-- 1st watch: long, short (struck 3 times)
-- 2nd watch: short, short (struck 2 times)
-- 3rd watch: long, short, short (struck 3 times)
-- 4th watch: long, short, short, short (struck 4 times)
-- 5th watch: long, short, short, short, short (struck 5 times)
+- 1st watch: long–short, struck 3 times
+- 2nd watch: short–short, struck 2 times
+- 3rd watch: long–short–short, struck 3 times
+- 4th watch: long–short–short–short, struck 4 times
+- 5th watch: long–short–short–short–short, struck 5 times
 
-All these except the first follow a pattern; the first is different
-clearly because striking a gong once is too easy to miss,
-so they used a pattern that didn’t fit.
+All these except the first follow a recognizable pattern.
+Striking a gong just once is too easy to miss,
+so they used a pattern that didn’t fit:
 The odd one out is the first watch.
 
