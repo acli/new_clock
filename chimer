@@ -104,9 +104,9 @@ $datadir = "$basedir/data";
 sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
 
 # night watch chime patterns
-sub LONG_STRIKE  () { 1.5 }
-sub SHORT_STRIKE () { 0.75 }
-sub GAP          () { 5 }
+sub LONG_STRIKE  () { 1.75 }
+sub SHORT_STRIKE () { 0.875 }
+sub GAP          () { 3.5 }
 # watch chime patterns: repetitions, pattern
 # gap needs to be long enough to hear it, but short enough to not mistake it for a long strike. This is HARD
 use vars qw( @watch_chime_pattern );
@@ -535,8 +535,7 @@ sub set_sink ($) {
 }
 
 sub set_test_sink () {
-  my $sink = $config->{'test'}->{'sink'}->[0] if defined $config->{'test'} && defined $config->{'test'}->{'sink'};
-  set_sink $sink if defined $sink;
+  $config->{'/'}->{'sink'} = defined $config->{'test'}->{'sink'}? $config->{'test'}->{'sink'}: undef;
 }
 
 sub set_sink_volume ($$) {
@@ -683,7 +682,8 @@ sub strike_bell ($) {
 }
 
 sub strike_stick () {
-  send_midi_command sprintf('noteon 2 31 127');
+  #send_midi_command sprintf('noteon 2 31 127');
+  play_sound_file sprintf('%s/319878__theriavirra__drumsticks-pro-mark-l-a-special-dc-march-sticks-no4.mp3', $datadir), 70;
 }
 
 sub carillon_transpose ($) {
@@ -758,21 +758,21 @@ sub announce_hour ($) {
 
 sub announce_night_watch ($$) {
   my($watch, $subwatch) = @_;
-  # Fork and play it in the background
-  my $h = fork;
-  die "fork: $!\n" unless defined $h;
-  if ($h == 0) {
-    my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
-    for (my $i = 0; $i < $repeats; $i += 1) {
-      print STDERR "DEBUG: pattern is $pattern\n" if $debug;
-      for my $length (split(/\s+/, $pattern)) {
-	$length = ($length eq '.'? SHORT_STRIKE: LONG_STRIKE);
+  my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
+  no integer;
+  for (my $i = 0, my $sleep = 0; $i < $repeats; $i += 1) {
+    print STDERR "DEBUG: pattern is $pattern\n" if $debug;
+    for my $length (split(/\s+/, $pattern)) {
+      Time::HiRes::sleep($sleep);
+      if ($length eq '.') {
+	strike_stick;
+	$sleep = SHORT_STRIKE;
+      } else {
 	strike_gong;
-	Time::HiRes::sleep $length;
+	$sleep = LONG_STRIKE;
       }
-      Time::HiRes::sleep GAP unless $i + 1 == $repeats;
     }
-    exit(0);
+    $sleep += GAP;
   }
 }
 
@@ -787,6 +787,21 @@ sub do_event ($) {
   } else {
     print STDERR "Unknown event $id ignored\n";
   }
+}
+
+sub restart_script_real () {	# NOTE: this function exists only to silence the "Statement unlikely to be reached" warning
+  for my $pid (keys %children) {
+    print STDERR "DEBUG: killing synth $pid\033[K\n" if $debug;
+    kill 'TERM', $pid;
+  }
+  my @cmd = @restart_cmd;
+  print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
+  exec { $cmd[0] } @cmd;
+}
+
+sub restart_script () {
+  restart_script_real;
+  print STDERR "WARNING: restart failed: $!\n";
 }
 
 sub usage (;$) {
@@ -850,12 +865,8 @@ binmode STDERR, ':utf8';
 
 select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
 
-$SIG{CHLD} = sub { # copied from perlipc
-    local ($!, $?);
-    while ( (my $pid = waitpid(-1, WNOHANG)) > 0 ) {
-      delete $children{$pid};
-    }
-  };
+# SIGCHLD handler must be IGNORE, otherwise Time::HiRes::sleep will fail randomly
+$SIG{CHLD} = 'IGNORE';
 
 # Handle config file
 $config = read_ini("$ENV{HOME}/.chimerrc");
@@ -881,12 +892,12 @@ if (!caller) {
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
-    'test' => sub {
-    strike_tune(['c4', 1], ['d4', 1], ['e4', 1], ['f4', 1], ['g4', 1]);
+    'test' => sub { set_test_sink;
+    exit strike_tune(['c4', 1], ['d4', 1], ['e4', 1], ['f4', 1], ['g4', 1]);
 	},
-    'test-hour=i' => sub { exit announce_hour(($_[1] - 1) % 12 + 1) },
-    'test-quarter=i' => sub { exit announce_quarter_hour($_[1] % 4) },
-    'test-watch=i' => sub { exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
+    'test-hour=i' => sub { set_test_sink; exit announce_hour(($_[1] - 1) % 12 + 1) },
+    'test-quarter=i' => sub { set_test_sink; exit announce_quarter_hour($_[1] % 4) },
+    'test-watch=i' => sub { set_test_sink; exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
     '3|disable-4th-hebrew-watch|disable-4th-watch' => sub { $enable_4th_hebrew_watch = 0; },
     '4|enable-4th-hebrew-watch|enable-4th-watch' => \$enable_4th_hebrew_watch,
     'v|verbose' => \$verbose_p,
@@ -901,6 +912,14 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   my $c = determine_chinese_time $t0;
   ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
   my($sec, $min, $hour) = localtime $t0;
+
+  # Detect terminated child processes
+  for my $pid (keys %children) {
+    if (!kill 0, $pid || waitpid($pid, WNOHANG) == $pid) {
+      print STDERR "\nDEBUG: child process $pid has exited";
+      delete $children{$pid};
+    }
+  }
 
   # Determine what should happen next
   no integer;
@@ -930,16 +949,7 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   $dt = 0 if $dt < 0;
 
   # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
-  if ($t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300) {
-    for my $pid (keys %children) {
-      print STDERR "DEBUG: killing synth $pid\033[K\n" if $debug;
-      kill 'TERM', $pid;
-    }
-    my @cmd = @restart_cmd;
-    print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
-    exec { $cmd[0] } @cmd;
-    print STDERR "WARNING: restart failed: $!\n";
-  }
+  restart_script if $t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300;
 
   # Debug message
   printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f) > %s\033[K\r",
