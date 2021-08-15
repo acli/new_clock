@@ -480,24 +480,49 @@ sub determine_events ($$$$$$$$$) {
       'comment' => 'watch 1',
     };
   } elsif ($deciday >= 6) {
-    my $decidays_into_night = $deciday - 6;
-    my $subwatches_into_night = 5*$decidays_into_night;
-    my $zero_based_next_subwatch = (int($subwatches_into_night) + 1)%25;
+    my $decidays_into_the_night = $deciday - 6;
+    my $subwatches_into_the_night = 5*$decidays_into_the_night;
+    my $zero_based_next_subwatch = (int($subwatches_into_the_night) + 1)%25;
     if ($zero_based_next_subwatch) {
       my $next_watch = int($zero_based_next_subwatch/5) + 1;
-      my $next_fifth_of_watch = $zero_based_next_subwatch%5 + 1;
-      my $t_next_fifth_of_watch = $t0 + (1 - fmod($subwatches_into_night, 1)) * ($deciday_size/5) + $global_delay;
+      my $next_subwatch = $zero_based_next_subwatch%5 + 1;
+      my $t_next_subwatch = $t0 + (1 - fmod($subwatches_into_the_night, 1)) * ($deciday_size/5) + $global_delay;
       push @it, {
-	't' => $t_next_fifth_of_watch,
-	'id' => "w$next_watch.$next_fifth_of_watch",
+	't' => $t_next_subwatch,
+	'id' => "w$next_watch.$next_subwatch",
 	'type' => 'watch',
-	'comment' => "watch $next_watch.$next_fifth_of_watch",
+	'comment' => "watch $next_watch.$next_subwatch",
       };
+      # Check if we should delay this because it would run into the middle of a quarter hour chime
+      my $delay = 0;
+      for my $event (@it) {
+	my $t = $event->{'t'};
+	if ($event->{'id'} =~ /^[qh]/ && (($t - 30 <= $t_next_subwatch + $delay && $t_next_subwatch + $delay <= $t)
+				      || ($t <= $t_next_subwatch + $delay && $t_next_subwatch + $delay <= $t + 30))) {
+	  $delay = ($t + 30) - $t_next_subwatch;
+	  $it[$#it]->{'delay'} = $delay;
+	}
+      }
     }
   }
 
   @it = sort { $a->{'t'} <=> $b->{'t'} } @it;
   return wantarray? @it: \@it;
+}
+
+sub in_range ($$) {
+  my($n, $range_spec) = @_;
+  my $it = 0;
+  for my $subrange_spec (split(/\s*,\s*/, $range_spec)) {
+    die "in_range: Malformed element \"$subrange_spec\" in \"$range_spec\"" unless $subrange_spec =~ /^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$/;
+    if (defined $2) {
+      $it = $1 <= $n && $n <= $2;
+    } else {
+      $it = $1 == $n;
+    }
+  last if $it;
+  }
+  return $it;
 }
 
 sub get_sink () {
@@ -525,9 +550,35 @@ sub set_sink_volumes ($$$$) {
   my($hour, $min, $sec, $deciday) = @_;
   for my $sink (@sinks) {
     no integer;
-    my $adj = 1.0;
-    $adj *= 0.9 if $deciday < 1 || $deciday > 5;
-    $adj *= 0.9 if $hour < 9 || $hour > 8;
+    my $adj;
+    if (defined $config->{$sink} && defined $config->{$sink}->{'volumes'}) {
+      for my $directive (map { split /\s*,\s*/ } @{$config->{$sink}->{'volumes'}}) {
+	if ($directive =~ /^hours?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+	  my($times, $volume) = ($1, $2);
+	  if ($volume < 0 || $volume > 1) {
+	    print STDERR "CONFIG ERROR: out of range volume $volume specified in [$sink] volumes\n";
+	  } elsif (in_range($hour + $min/60 + $sec/3600, $times)) {
+	    $adj = $volume;
+	  }
+	} elsif ($directive =~ /^decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+	  my($times, $volume) = ($1, $2);
+	  if ($volume < 0 || $volume > 1) {
+	    print STDERR "CONFIG ERROR: out of range volume $volume specified in [$sink] volumes\n";
+	  } elsif (in_range($deciday, $times)) {
+	    $adj = $volume;
+	  }
+	} else {
+	  print STDERR "CONFIG ERROR: unrecognized directive \"$directive\" in [$sink] volumes\n";
+	}
+      last if defined $adj;
+      }
+      $adj = 1.0 unless defined $adj;
+    } else {
+      # Default adjustment for "night"
+      $adj = 1.0;
+      $adj *= 0.9 if $deciday < 1 || $deciday > 5;
+      $adj *= 0.9 if $hour < 9 || $hour > 8;
+    }
     print STDERR "Volume adjusted to $adj for sink $sink\n" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
   }
@@ -771,6 +822,22 @@ EOF
   exit $st;
 }
 
+###############################################################################
+# BEGIN test cases
+for my $test ([1,	'1',		1],
+	      [1,	'2',		0],
+	      [1,	'1-2',		1],
+	      [1,	'2, 1',		1],
+	      [2,	'1-2',		1],
+	      [2,	'1-3',		1],
+	      [5,	'1, 3-8, 10',	1]) {
+  my($n, $range_spec, $expected_result) = @$test;
+  my $actual_result = in_range($n, $range_spec);
+  die "in_range($n, \"$range_spec\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+}
+# END test cases
+###############################################################################
+
 binmode STDIN, ':utf8';
 binmode STDOUT, ':utf8';
 binmode STDERR, ':utf8';
@@ -809,6 +876,7 @@ if (!caller) {
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'test' => sub {
+    set_sink_volumes(0,0,0,0);
 	},
     'test-hour=i' => sub { exit announce_hour(($_[1] - 1) % 12 + 1) },
     'test-quarter=i' => sub { exit announce_quarter_hour($_[1] % 4) },
@@ -839,13 +907,14 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   for my $id (keys %pending_events) {
     my $e = $pending_events{$id};
     my $t = $e->{'t'};
+    $t += $e->{'delay'} if defined $e->{'delay'};
     if ($t0 - $t > 60) { # just do it if we missed it by just a fraction of a second, actually it's fine even if it's a whole minute
       printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $id, $t, $t0, $t0 - $t;
       delete $pending_events{$id};
     }
   }
   # reconstitute the @event array
-  @event = sort { $a->{'t'} <=> $b->{'t'} } map { $pending_events{$_} } keys %pending_events;
+  @event = sort { $a->{'t'} + $a->{'delay'} <=> $b->{'t'} + $b->{'delay'} } map { $pending_events{$_} } keys %pending_events;
 
   # Determine when we should wake up; try to make some effort to align it to a second boundary
   my $t1 = Time::HiRes::time;
@@ -881,6 +950,7 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   for my $id (keys %pending_events) {
     my $e = $pending_events{$id};
     my $t = $e->{'t'};
+    $t += $e->{'delay'} if defined $e->{'delay'};
     if ($now < $t) {
       ;
     } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)

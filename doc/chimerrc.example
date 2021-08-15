@@ -1,0 +1,22 @@
+sink = tunnel.host2.local.alsa_output.usb-Creative_Technology_Ltd_Creative_Xmod-00.analog-surround-21
+sink = alsa_output.pci-0000_00_14.2.analog-stereo
+
+; compensation for latency compensation below
+delay = -0.5
+
+latitude = 43.63
+longitude = -79.4
+
+[alsa_output.pci-0000_00_14.2.analog-stereo]
+; compensation for network latency
+delay = 0.5
+
+; turn down volume during "night"
+volumes =   hour 23: 0.8, deciday 7: 0.85
+volumes = deciday 8: 0.8,                 deciday 9-10: 0.75
+volumes =                                     hour 3-8: 0.75
+
+[tunnel.host2.local.alsa_output.usb-Creative_Technology_Ltd_Creative_Xmod-00.analog-surround-21]
+volumes = hour 9: 0.5, hour 10: 0.9
+volumes =            deciday 6: 0.9, deciday 7: 0.85, deciday 8-10: 0.8
+volumes =                                                 hour 0-6: 0.8, hour 7-8: 0.85
