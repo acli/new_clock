@@ -916,7 +916,7 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   # Detect terminated child processes
   for my $pid (keys %children) {
     if (!kill 0, $pid || waitpid($pid, WNOHANG) == $pid) {
-      print STDERR "\nDEBUG: child process $pid has exited";
+      print STDERR "\nDEBUG: child process $pid has exited" if $debug;
       delete $children{$pid};
     }
   }
