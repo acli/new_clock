@@ -89,7 +89,7 @@ use vars qw( @sinks );
 use vars qw( %synth );
 use vars qw( %children );
 
-sub MAX_UPTIME_ALLOWED () { 3600 }
+sub MAX_UPTIME_ALLOWED () { 14400 }
 
 use vars qw( $boottime );
 $boottime = Time::HiRes::time;
@@ -836,7 +836,7 @@ sub restart_script_real () {	# NOTE: this function exists only to silence the "S
     kill 'TERM', $pid;
   }
   my @cmd = @restart_cmd;
-  print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
+  print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $verbose_p || $debug;
   exec { $cmd[0] } @cmd;
 }
 
@@ -848,6 +848,7 @@ sub restart_script () {
 sub safe_to_restart_p () {
   my @cmd = ('perl', '-cw', $restart_cmd[0]);
   print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  local $SIG{'CHLD'} = 'DEFAULT'; # need this to check exit status
   return 0 == system { $cmd[0] } @cmd;
 }
 
