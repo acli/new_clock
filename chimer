@@ -528,7 +528,7 @@ sub set_sink_volumes ($$$$) {
     my $adj = 1.0;
     $adj *= 0.9 if $deciday < 1 || $deciday > 5;
     $adj *= 0.9 if $hour < 9 || $hour > 8;
-    print STDERR "\nVolume adjusted to $adj for sink $sink\n" if $verbose_p;
+    print STDERR "Volume adjusted to $adj for sink $sink\n" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
   }
 }
