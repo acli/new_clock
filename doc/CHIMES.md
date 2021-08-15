@@ -6,6 +6,8 @@ https://freesound.org/people/strangehorizon/packs/32761/
 
 https://www.fluidsynth.org/
 - pros: one subprocess only for each sink
+- cons: if we have more than one sink configured, running two copies of fluidsynth at the same time will cause massive distortion.
+  It might be possible to pre-generate a sound file and then use mpv to play that pregenerated file when an event fires.
 - fluidsynth numbers seem to be off by one in bank 0, 0-14 is tubular bells, 8-14 is church bells (doesn't really work, it strikes twice)
 
 Wood options

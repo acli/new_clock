@@ -598,7 +598,12 @@ sub connect_synth () {
   if (!defined $synth{$sink}) {
     no strict 'refs';
     print STDERR "Connecting synth for sink $sink\n" if $debug || $verbose_p;
-    my @cmd = ('fluidsynth', '-a', 'pulseaudio', '--midi-channels', '3', '--audio-file-format', 's16', '/usr/share/sounds/sf2/FluidR3_GM.sf2');
+    my @cmd = ('fluidsynth', '-a', 'pulseaudio',
+			     '-g', '1',
+			     '--midi-channels', '3',
+			     '--audio-file-format', 's8',
+			     '/usr/share/sounds/sf2/FluidR3_GM.sf2');
+
     my $h = gensym;
     my $pid = open($h, '|-');
     die "$0: connect_synth: $cmd[0]: fork: $!\n" unless defined $pid;
@@ -620,6 +625,7 @@ sub connect_synths () {
     set_sink $sink;
     connect_synth;
   }
+  sleep 5; # wait a bit for the synth to become ready
 }
 
 sub play_sound_file_real ($;$$$) {
@@ -876,7 +882,7 @@ if (!caller) {
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'test' => sub {
-    set_sink_volumes(0,0,0,0);
+    strike_tune(['c4', 1], ['d4', 1], ['e4', 1], ['f4', 1], ['g4', 1]);
 	},
     'test-hour=i' => sub { exit announce_hour(($_[1] - 1) % 12 + 1) },
     'test-quarter=i' => sub { exit announce_quarter_hour($_[1] % 4) },
