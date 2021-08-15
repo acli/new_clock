@@ -1,3 +1,8 @@
+; Example config file for the chimer script
+; This is essentially just a Windows-style INI file
+
+; We want to send our chimes to two specific "sinks" (PulseAudio-speak for "output devices")
+; Warning: Sending to more than one sink will increase system load, possibly drastically
 sink = tunnel.host2.local.alsa_output.usb-Creative_Technology_Ltd_Creative_Xmod-00.analog-surround-21
 sink = alsa_output.pci-0000_00_14.2.analog-stereo
 
@@ -5,11 +10,14 @@ sink = alsa_output.pci-0000_00_14.2.analog-stereo
 ; here we can have negative values
 delay = -0.5
 
-; geographical location is needed to determine sunrise and sundown, here we have generic coordinates for "Toronto"
+; geographical location must be provided (needed to determine sunrise and sundown)
+; here we have generic coordinates for "Toronto" (these numbers are copied from the "hebcal cities" command)
 latitude = 43.63
 longitude = -79.4
 
-; PulseAudio calls this the alsa_output.pci-0000_00_14.2.analog-stereo sink, we just call it "studio"
+; --- sink #1 -----------------------------------------------------------------
+; PulseAudio calls this the alsa_output.pci-0000_00_14.2.analog-stereo sink, we just call it the "studio"
+; the label is only used if you run the script in verbose (-v) and/or debug (--debug) mode
 [alsa_output.pci-0000_00_14.2.analog-stereo]
 label = studio
 
@@ -31,6 +39,10 @@ volumes =                  deciday 7: 0.85
 volumes =  deciday 8: 0.8,                 deciday 9-10: 0.75
 volumes =                                      hour 3-8: 0.75
 
+; these speakers are way too loud at full volume so always turn it down a bit
+volumes = hour 0-23: 0.9
+
+; --- sink #2 -----------------------------------------------------------------
 [tunnel.host2.local.alsa_output.usb-Creative_Technology_Ltd_Creative_Xmod-00.analog-surround-21]
 label = family room
 volumes = hour 9: 0.5, hour 10: 0.9
