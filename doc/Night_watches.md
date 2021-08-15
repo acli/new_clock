@@ -5,7 +5,7 @@ from the proportional decimal hour system
 that was in use during the Shang era
 (when the five hours of the night were simply called A, B, C, D, and E).
 
-The system was later realigned to modern duodecimal hours boundaries,
+The system was later realigned to modern duodecimal hour boundaries,
 but it’s superfluous to announce these later kind of night watches
 if we’re already sounding Westminster-style chimes.
 This is why this script follows the older, original system.
