@@ -48,6 +48,7 @@ use strict;
 use integer;
 
 use POSIX;
+use POSIX ":sys_wait_h"; # for nonblocking read
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 
@@ -86,6 +87,7 @@ use vars qw( $coords );
 use vars qw( $lat $lon );
 use vars qw( @sinks );
 use vars qw( %synth );
+use vars qw( %children );
 
 sub MAX_UPTIME_ALLOWED () { 3600 }
 
@@ -498,14 +500,42 @@ sub determine_events ($$$$$$$$$) {
   return wantarray? @it: \@it;
 }
 
+sub get_sink () {
+  return $ENV{'PULSE_SINK'};
+}
+
 sub set_sink ($) {
   my($sink) = @_;
   $ENV{'PULSE_SINK'} = $sink if defined $sink;
 }
 
+sub set_test_sink () {
+  my $sink = $config->{'test'}->{'sink'}->[0] if defined $config->{'test'} && defined $config->{'test'}->{'sink'};
+  set_sink $sink if defined $sink;
+}
+
+sub set_sink_volume ($$) {
+  my($sink, $volume);
+  my @cmd = ('pactl', 'set-sink-volume', $sink, int($volume));
+  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  system { $cmd[0] } @cmd;
+}
+
+sub set_sink_volumes ($$$$) {
+  my($hour, $min, $sec, $deciday) = @_;
+  for my $sink (@sinks) {
+    no integer;
+    my $adj = 1.0;
+    $adj *= 0.9 if $deciday < 1 || $deciday > 5;
+    $adj *= 0.9 if $hour < 9 || $hour > 8;
+    print STDERR "\nVolume adjusted to $adj for sink $sink\n" if $verbose_p;
+    set_sink_volume $sink, 65535 * $adj;
+  }
+}
+
 sub send_midi_command ($) {
   my($cmd) = @_;
-  my $sink = $ENV{'PULSE_SINK'};
+  my $sink = get_sink;
   connect_synth() unless defined $synth{$sink};
   my $h = $synth{$sink}->{'fh'};
   no strict 'refs';
@@ -513,7 +543,7 @@ sub send_midi_command ($) {
 }
 
 sub connect_synth () {
-  my $sink = $ENV{'PULSE_SINK'};
+  my $sink = get_sink;
   if (!defined $synth{$sink}) {
     no strict 'refs';
     print STDERR "Connecting synth for sink $sink\n" if $debug || $verbose_p;
@@ -527,6 +557,7 @@ sub connect_synth () {
     }
     select((select($h), $| = 1)[0]);
     $synth{$sink} = {'fh' => $h, 'pid' => $pid};
+    $children{$pid} = $sink;
     send_midi_command "select 1 1 0 14";
     send_midi_command "select 2 1 128 48";
   }
@@ -542,24 +573,27 @@ sub connect_synths () {
 
 sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
+  my $sink = get_sink;
   $input = "$1.mp3" if !-f $input && $input =~ /^(.*?)\.wav$/ && -f "$1.mp3";
 
   # Fork and play it in the background
   my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
   push @cmd, ('--start', $start) if defined $start;
   push @cmd, ('--end', $end) if defined $end;
+  push @cmd, ("--ao=pulse::$sink") if $sink;
   push @cmd, $input;
   print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
-    my $sink = $ENV{'PULSE_SINK'};
+    my $sink = get_sink;
     my $dt = $config->{$sink}->{'delay'}->[0] if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
     Time::HiRes::sleep $dt if $dt > 0;
     POSIX::close(0);
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
   }
+  $children{$h} = 1;
 }
 
 sub play_sound_file ($;$$$) {
@@ -742,7 +776,13 @@ binmode STDOUT, ':utf8';
 binmode STDERR, ':utf8';
 
 select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
-$SIG{'CHLD'} = 'IGNORE';
+
+$SIG{CHLD} = sub { # copied from perlipc
+    local ($!, $?);
+    while ( (my $pid = waitpid(-1, WNOHANG)) > 0 ) {
+      delete $children{$pid};
+    }
+  };
 
 # Handle config file
 $config = read_ini("$ENV{HOME}/.chimerrc");
@@ -782,7 +822,7 @@ if (!caller) {
 }
 
 
-for (my $countdown = COUNTDOWN, my %events;;) {
+for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   my $t0 = Time::HiRes::time;
   my $c = determine_chinese_time $t0;
   ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
@@ -794,18 +834,18 @@ for (my $countdown = COUNTDOWN, my %events;;) {
   my $next_event;
   for my $event (@event) {
     # Don't trust floating point calculations - don't use t as key, use id instead
-    $events{+$event->{'id'}} = $event;
+    $pending_events{+$event->{'id'}} = $event;
   }
-  for my $id (keys %events) {
-    my $e = $events{$id};
+  for my $id (keys %pending_events) {
+    my $e = $pending_events{$id};
     my $t = $e->{'t'};
-    if ($t0 - $t > 0.25) { # just do it if we missed it by just a fraction of a second
+    if ($t0 - $t > 60) { # just do it if we missed it by just a fraction of a second, actually it's fine even if it's a whole minute
       printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $id, $t, $t0, $t0 - $t;
-      delete $events{$id};
+      delete $pending_events{$id};
     }
   }
   # reconstitute the @event array
-  @event = sort { $a->{'t'} <=> $b->{'t'} } map { $events{$_} } keys %events;
+  @event = sort { $a->{'t'} <=> $b->{'t'} } map { $pending_events{$_} } keys %pending_events;
 
   # Determine when we should wake up; try to make some effort to align it to a second boundary
   my $t1 = Time::HiRes::time;
@@ -816,10 +856,9 @@ for (my $countdown = COUNTDOWN, my %events;;) {
 
   # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
   if ($t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300) {
-    for my $synth (values %synth) {
-      my $pid = $synth->{'pid'};
+    for my $pid (keys %children) {
       print STDERR "DEBUG: killing synth $pid\033[K\n" if $debug;
-      kill 'HUP', $pid;
+      kill 'TERM', $pid;
     }
     my @cmd = @restart_cmd;
     print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $debug;
@@ -839,15 +878,22 @@ for (my $countdown = COUNTDOWN, my %events;;) {
   my $now = Time::HiRes::time;
   my $dt_actual = $now - $t2;
   printf STDERR "\nWARNING: tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
-  for my $id (keys %events) {
-    my $e = $events{$id};
+  for my $id (keys %pending_events) {
+    my $e = $pending_events{$id};
     my $t = $e->{'t'};
-    if ($now >= $t) {
+    if ($now < $t) {
+      ;
+    } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
+      printf STDERR "\nERROR: EVENT %s (%d) already fired at %d (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
+      delete $pending_events{$id};
+    } else {
       my $dt = $now - $t;
       printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+      set_sink_volumes($hour, $min, $sec, $deciday);
       do_event $id;
       $countdown = 0; # force a re-countdown
-      delete $events{$id};
+      $completed_events{$id} = $now;
+      delete $pending_events{$id};
     }
   }
 
