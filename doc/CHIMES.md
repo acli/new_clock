@@ -19,6 +19,16 @@ using MIDI drum kit:
 - 76 (high wood block)
 - 77 (low wood block)
 
+https://freesound.org/people/Theriavirra/sounds/269735/
+https://freesound.org/people/Theriavirra/sounds/269750/
+- relatively long enough
+
+https://freesound.org/people/Theriavirra/sounds/319918/
+- possibly too short
+
+https://freesound.org/people/Theriavirra/sounds/269738/
+- too short
+
 Cuckoo options
 ==============
 https://freesound.org/people/acclivity/sounds/19561/

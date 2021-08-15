@@ -350,6 +350,35 @@ sub read_ini ($) {
   return $it;
 }
 
+use vars qw( $sun_re $mon_re $tue_re $wed_re $thu_re $fri_re $sat_re $dow_re $dow_range_re );
+$sun_re = '(?:\b(?:U|Sun(?:day)?)\b)';
+$mon_re = '(?:\b(?:M|Mon(?:day)?)\b)';
+$tue_re = '(?:\b(?:T|Tue(?:s(?:day)?)?)\b)';
+$wed_re = '(?:\b(?:W|Wed(?:nes(?:day)?)?)\b)';
+$thu_re = '(?:\b(?:R|Thu(?:r(?:s(?:day)?)?)?)\b)';
+$fri_re = '(?:\b(?:F|Fri(?:day)?)\b)';
+$sat_re = '(?:\b(?:S|Sat(?:urday)?)\b)';
+$dow_re = "(?:$sun_re|$mon_re|$tue_re|$wed_re|$thu_re|$fri_re|$sat_re)";
+$dow_range_re = "(?:$dow_re(?:-$dow_re)?)";
+
+sub parse_dow ($) {
+  my($s) = @_;
+  local($`, $&, $');
+  return $s =~ /^$sun_re$/? 0:
+	 $s =~ /^$mon_re$/? 1:
+	 $s =~ /^$tue_re$/? 2:
+	 $s =~ /^$wed_re$/? 3:
+	 $s =~ /^$thu_re$/? 4:
+	 $s =~ /^$fri_re$/? 5:
+	 $s =~ /^$sat_re$/? 6: undef;
+}
+
+sub parse_dow_range ($) {
+  my($s) = @_;
+  local($`, $&, $', $1, $2);
+  return ($s =~ /^\w+$/)? parse_dow($s): ($s =~ /^(\w+)-(\w+)$/)? sprintf('%s-%s', parse_dow($1), parse_dow($2)): defined $s? 'ERROR': undef;
+}
+
 
 # Quarters are weird. See https://zh.wikipedia.org/wiki/%E5%88%BB
 #                     and http://yywz.snnu.edu.cn/show.aspx?id=697&cid=26
@@ -513,6 +542,7 @@ sub determine_events ($$$$$$$$$) {
 sub in_range ($$) {
   my($n, $range_spec) = @_;
   my $it = 0;
+  no integer;
   for my $subrange_spec (split(/\s*,\s*/, $range_spec)) {
     die "in_range: Malformed element \"$subrange_spec\" in \"$range_spec\"" unless $subrange_spec =~ /^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$/;
     if (defined $2) {
@@ -545,29 +575,40 @@ sub set_sink_volume ($$) {
   system { $cmd[0] } @cmd;
 }
 
-sub set_sink_volumes ($$$$) {
-  my($hour, $min, $sec, $deciday) = @_;
+sub set_sink_volumes ($$$$$) {
+  my($hour, $min, $sec, $deciday, $wday) = @_;
   for my $sink (@sinks) {
+    my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
     no integer;
     my $adj;
     if (defined $config->{$sink} && defined $config->{$sink}->{'volumes'}) {
       for my $directive (map { split /\s*,\s*/ } @{$config->{$sink}->{'volumes'}}) {
-	if ($directive =~ /^hours?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
-	  my($times, $volume) = ($1, $2);
-	  if ($volume < 0 || $volume > 1) {
-	    print STDERR "CONFIG ERROR: out of range volume $volume specified in [$sink] volumes\n";
-	  } elsif (in_range($hour + $min/60 + $sec/3600, $times)) {
-	    $adj = $volume;
-	  }
-	} elsif ($directive =~ /^decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
-	  my($times, $volume) = ($1, $2);
-	  if ($volume < 0 || $volume > 1) {
-	    print STDERR "CONFIG ERROR: out of range volume $volume specified in [$sink] volumes\n";
-	  } elsif (in_range($deciday, $times)) {
-	    $adj = $volume;
-	  }
+	my($target_dow, $target_times, $target_volume, $dow_in_range_p, $time_in_range_p);
+	if ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {		# integer to integer
+	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
+	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
+	  $time_in_range_p = in_range($hour, $target_times);
+	} elsif ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
+	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
+	  $time_in_range_p = in_range($hour + $min/60 + $sec/3600, $target_times);
+	} elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {	# integer to integer
+	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
+	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
+	  $time_in_range_p = in_range(int($deciday), $target_times);
+	} elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
+	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
+	  $time_in_range_p = in_range($deciday, $target_times);
 	} else {
 	  print STDERR "CONFIG ERROR: unrecognized directive \"$directive\" in [$sink] volumes\n";
+	}
+	if (!defined $target_volume || !defined $time_in_range_p || !$time_in_range_p) {
+	  ;
+	} elsif ($target_volume >= 0 && $target_volume <= 1) {
+	  $adj = $target_volume;
+	} else {
+	  print STDERR "CONFIG ERROR: out of range volume $target_volume in [$sink] volumes\n";
 	}
       last if defined $adj;
       }
@@ -578,7 +619,7 @@ sub set_sink_volumes ($$$$) {
       $adj *= 0.9 if $deciday < 1 || $deciday > 5;
       $adj *= 0.9 if $hour < 9 || $hour > 8;
     }
-    print STDERR "Volume adjusted to $adj for sink $sink\n" if $debug || $verbose_p;
+    print STDERR "Volume adjusted to $adj for $label\n" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
   }
 }
@@ -683,7 +724,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   #send_midi_command sprintf('noteon 2 31 127');
-  play_sound_file sprintf('%s/319878__theriavirra__drumsticks-pro-mark-l-a-special-dc-march-sticks-no4.mp3', $datadir), 70;
+  play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
 }
 
 sub carillon_transpose ($) {
@@ -804,6 +845,12 @@ sub restart_script () {
   print STDERR "WARNING: restart failed: $!\n";
 }
 
+sub safe_to_restart_p () {
+  my @cmd = ('perl', '-cw', $restart_cmd[0]);
+  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  return 0 == system { $cmd[0] } @cmd;
+}
+
 sub usage (;$) {
   my($st) = @_;
   my $h = $st? *STDERR: *STDOUT;
@@ -851,6 +898,8 @@ for my $test ([1,	'1',		1],
 	      [1,	'2, 1',		1],
 	      [2,	'1-2',		1],
 	      [2,	'1-3',		1],
+	      [2.5,	'1-2',		0],
+	      [2.5,	'1-3',		1],
 	      [5,	'1, 3-8, 10',	1]) {
   my($n, $range_spec, $expected_result) = @$test;
   my $actual_result = in_range($n, $range_spec);
@@ -911,7 +960,7 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   my $t0 = Time::HiRes::time;
   my $c = determine_chinese_time $t0;
   ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
-  my($sec, $min, $hour) = localtime $t0;
+  (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
 
   # Detect terminated child processes
   for my $pid (keys %children) {
@@ -949,7 +998,7 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
   $dt = 0 if $dt < 0;
 
   # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
-  restart_script if $t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300;
+  restart_script if $t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300 && safe_to_restart_p;
 
   # Debug message
   printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f) > %s\033[K\r",
@@ -975,7 +1024,7 @@ for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     } else {
       my $dt = $now - $t;
       printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
-      set_sink_volumes($hour, $min, $sec, $deciday);
+      set_sink_volumes($hour, $min, $sec, $deciday, $wday);
       do_event $id;
       $countdown = 0; # force a re-countdown
       $completed_events{$id} = $now;
