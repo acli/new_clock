@@ -7,6 +7,7 @@ Retrieved from https://freesound.org/people/reinsamba/sounds/35053/
 strangehorizon. (2021). Tuned Chau Gongs [Audio file].
 Retrieved from https://freesound.org/people/strangehorizon/packs/32761/
 - These recordings are public domain (cc0) and are used for Westminster-style chimes
+  and for night watches
 
 Theriavirra. (2015). Drumsticks [Stagg Maple SM5A] powerclick №4a..wav [Audio file].
 Retrieved from https://freesound.org/people/Theriavirra/sounds/269735/
