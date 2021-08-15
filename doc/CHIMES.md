@@ -4,11 +4,29 @@ https://freesound.org/people/strangehorizon/packs/32761/
 - pros: the whole scale, public domain (cc0)
 - cons: need lots of mpv subprocesses to play chime melodies
 
+Bell options
+============
+We can use gongs, but it sounds a little off
+
 https://www.fluidsynth.org/
 - pros: one subprocess only for each sink
 - cons: if we have more than one sink configured, running two copies of fluidsynth at the same time will cause massive distortion.
   It might be possible to pre-generate a sound file and then use mpv to play that pregenerated file when an event fires.
 - fluidsynth numbers seem to be off by one in bank 0, 0-14 is tubular bells, 8-14 is church bells (doesn't really work, it strikes twice)
+
+https://freesound.org/people/sandyrb/packs/6993/
+- pros: fairly clear, cc-by-sa, Canadian
+- cons: possibly too loud (possible distortion), 15-semitone range not enough for Westminster chimes
+
+https://freesound.org/people/Samulis/packs/21054/
+- pros: very clear, cc-by-sa
+- cons: not enough range (only 4 notes)
+
+https://freesound.org/people/Samulis/packs/12231/
+- pros: very clear, cc-by-sa, little to no distortion even with the f (loud) samples
+- cons: not enough range in version on Freesound
+  (will investigate full [VSCO library on main site](https://vis.versilstudios.com/vsco-community.html))
+
 
 Wood options
 ============

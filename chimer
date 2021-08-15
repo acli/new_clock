@@ -730,9 +730,10 @@ sub strike_stick () {
 sub carillon_transpose ($) {
   my($note) = @_;
   # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
-  # We therefore need to at least transpose it up by 1 semitone to bring b3 to c4, 
-  # or we can transpose it up up to 11 semitones to bring g#4 to g5
-  my $it = $midi_number_to_note[$note_to_midi_number{$note} + 6] if $note ne 'r';
+  # for just the melody, or [f3, g#4], or [41, 56], if we count also the strikes that count the hours
+  # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
+  # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 4 to 7 semitones.
+  my $it = $midi_number_to_note[$note_to_midi_number{$note} + 4] if $note ne 'r';
   return defined $it? $it: $note;
 }
 
