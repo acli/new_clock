@@ -761,7 +761,7 @@ sub announce_night_watch ($$) {
   my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
   no integer;
   for (my $i = 0, my $sleep = 0; $i < $repeats; $i += 1) {
-    print STDERR "DEBUG: pattern is $pattern\n" if $debug;
+    printf STDERR "Striking %s\n", $pattern if $debug || $verbose_p;
     for my $length (split(/\s+/, $pattern)) {
       Time::HiRes::sleep($sleep);
       if ($length eq '.') {
