@@ -4,6 +4,9 @@ it also sounds chimes every 1/5 of a [Chinese night watch](doc/Night_watches.md)
 using traditional chiming patterns for night watches and
 according to the old rule of one night watch equalling one decimal hour.
 
+The script makes some effort in preventing
+the two kinds of chimes from clashing with each other.
+
 Certain runtime parameters can be configured through a per-user config file,
 currently hard-coded to be $HOME/.chimerrc
 
