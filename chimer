@@ -593,6 +593,7 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
   my($directive, $hour, $min, $sec, $deciday, $wday) = @_;
   my($target_dow, $target_times, $target_volume, $dow_in_range_p, $time_in_range_p);
   my($result, $error);
+  no integer;
   if ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {		# integer to integer
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range($hour, $target_times);
