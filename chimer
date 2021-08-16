@@ -1037,7 +1037,7 @@ if (!caller) {
     'help' => \&usage,
   ) || usage(1);
 
-  printf STDERR "chimer booted in %s mode at %.2f, requested method being %s\n", $boottime, $mode, $method if $verbose_p || $debug;
+  printf STDERR "chimer booted at %.2f in %s mode using %s\n", $boottime, $mode, $method if $verbose_p || $debug;
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = Time::HiRes::time;
     my $c = determine_chinese_time $t0;
