@@ -15,6 +15,10 @@ delay = -0.5
 latitude = 43.63
 longitude = -79.4
 
+; default mode is carillon, which uses Westminster-style chimes
+; you can change it to cuckoo, which sort of works but doesn't really chime like a real cuckoo clock
+mode = carillon
+
 ; --- sink #1 -----------------------------------------------------------------
 ; PulseAudio calls this the alsa_output.pci-0000_00_14.2.analog-stereo sink, we just call it the "studio"
 ; the label is only used if you run the script in verbose (-v) and/or debug (--debug) mode

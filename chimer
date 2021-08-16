@@ -103,6 +103,16 @@ $datadir = "$basedir/data";
 # number of times we try sleeping for 1 second until we sleep until the target event
 sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
 
+sub MODE__SYSLINE   () { 'sysline' }
+sub MODE__CUCKOO    () { 'cuckoo' }
+sub MODE__CARILLON  () { 'carillon' }
+sub METHOD__SAMPLES () { 'samples' }
+sub METHOD__SYNTH   () { 'synth' }
+
+use vars qw( $mode $method );
+$mode   = MODE__CARILLON;
+$method = METHOD__SAMPLES;
+
 # night watch chime patterns
 sub LONG_STRIKE  () { 1.75 }
 sub SHORT_STRIKE () { 0.875 }
@@ -565,8 +575,11 @@ sub set_sink ($) {
   $ENV{'PULSE_SINK'} = $sink if defined $sink;
 }
 
-sub set_test_sink () {
+sub set_test_params () {
   @sinks = @{$config->{'test'}->{'sink'}} if defined $config->{'test'}->{'sink'};
+  $mode = $config->{'test'}->{'mode'}->[0] if defined $config->{'test'}->{'mode'};
+  $method = $config->{'test'}->{'method'}->[0] if defined $config->{'test'}->{'method'};
+  printf STDERR "test params set at %.2f: mode=%s, method=%s\n", $boottime, $mode, $method if $verbose_p || $debug;
 }
 
 sub set_sink_volume ($$) {
@@ -735,7 +748,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   #send_midi_command sprintf('noteon 2 31 127');
-  play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 90;
+  play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
 }
 
 sub carillon_transpose ($) {
@@ -778,7 +791,8 @@ sub announce_quarter_hour_by_cuckoo ($) {
   my($quarter) = @_;
   if ($quarter == 2) {
     print STDERR "Cuckoo announcing quarter $quarter\n" if $debug || $verbose_p;
-    play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 29, 33;
+    strike_gong 'c#4';
+    play_sound_file "$datadir/121203__inchadney__cuckoo.wav", 100, 1.25, 3.05;
   } else {
     print STDERR "Cuckoo does not announce quarter $quarter\n" if $debug || $verbose_p;
   }
@@ -786,7 +800,11 @@ sub announce_quarter_hour_by_cuckoo ($) {
 
 sub announce_quarter_hour ($) {
   my($quarter) = @_;
-  announce_quarter_hour_by_carillon($quarter);
+  if ($mode eq MODE__CUCKOO) {
+    announce_quarter_hour_by_cuckoo($quarter);
+  } else {
+    announce_quarter_hour_by_carillon($quarter);
+  }
 }
 
 sub announce_hour_by_carillon ($) {
@@ -797,19 +815,22 @@ sub announce_hour_by_carillon ($) {
 
 sub announce_hour_by_cuckoo ($) {
   my($hour) = @_;
-  my $f = sub { my($x) = @_; no integer; 8 + (26 - 8)/12 * $x + ($x > 6) };
+  my $f = sub { my($x) = @_; no integer; 1.5 + 1.55*$x };
   print STDERR "Cuckoo announcing hour $hour\n" if $debug || $verbose_p;
-  play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 8, &$f($hour);
-  for my $dt ((undef, 1.4, 1.4, 1.3,  1.4, 1.4, 2.1,
-                      1.8, 1.6, 1.6,  1.6, 1.6, 1.6)[1..$hour]) {
+  play_sound_file "$datadir/121203__inchadney__cuckoo.wav", 100, 1.25, &$f($hour);
+  for (my $i = 0; $i < $hour; $i += 1) {
     #strike_gong 'c#4';
-    Time::HiRes::sleep($dt);
+    Time::HiRes::sleep(1.5);
   }
 }
 
 sub announce_hour ($) {
   my($hour) = @_;
-  announce_hour_by_carillon($hour);
+  if ($mode eq MODE__CUCKOO) {
+    announce_hour_by_cuckoo($hour);
+  } else {
+    announce_hour_by_carillon($hour);
+  }
 }
 
 sub announce_night_watch ($$) {
@@ -1004,19 +1025,19 @@ if (!caller) {
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
-    'test' => sub { set_test_sink;
+    'test' => sub { set_test_params;
     exit strike_tune(['c4', 1], ['d4', 1], ['e4', 1], ['f4', 1], ['g4', 1]);
 	},
-    'test-hour=i' => sub { set_test_sink; exit announce_hour(($_[1] - 1) % 12 + 1) },
-    'test-quarter=i' => sub { set_test_sink; exit announce_quarter_hour($_[1] % 4) },
-    'test-watch=i' => sub { set_test_sink; exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
+    'test-hour=i' => sub { set_test_params; exit announce_hour(($_[1] - 1) % 12 + 1) },
+    'test-quarter=i' => sub { set_test_params; exit announce_quarter_hour($_[1] % 4) },
+    'test-watch=i' => sub { set_test_params; exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
     '3|disable-4th-hebrew-watch|disable-4th-watch' => sub { $enable_4th_hebrew_watch = 0; },
     '4|enable-4th-hebrew-watch|enable-4th-watch' => \$enable_4th_hebrew_watch,
     'v|verbose' => \$verbose_p,
     'help' => \&usage,
   ) || usage(1);
 
-  printf STDERR "chimer booted at %.2f, main loop started at %.2f\n", $boottime, Time::HiRes::time if $verbose_p || $debug;
+  printf STDERR "chimer booted in %s mode at %.2f, requested method being %s\n", $boottime, $mode, $method if $verbose_p || $debug;
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = Time::HiRes::time;
     my $c = determine_chinese_time $t0;
