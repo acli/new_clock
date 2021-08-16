@@ -11,15 +11,13 @@ These proportional hours had names:
   (ˉgap, ˍjyt, ˊbiŋ, ˈdiŋ, ˍmou)
   [(no kidding)](https://books.google.ca/books?id=QG-BDwAAQBAJ&pg=PT135&lpg=PT135&dq=%22%E5%8D%81%E6%99%82%E5%88%B6%22&source=bl&ots=ENC5L7th9-&sig=ACfU3U3aJYsGu7cDqL9gC7JllOcae0sQdw&hl=fr&sa=X&ved=2ahUKEwjOqcyp-LTyAhV2FjQIHbhPAXYQ6AF6BQi0AhAD#v=onepage&q=%22%E5%8D%81%E6%99%82%E5%88%B6%22&f=false)
 
-In this system, the five night watches, numbered 1, 2, 3, 4, 5
-(ˈjɐtˈgaŋ, ˍjiˈgaŋ, ˈsamˈgaŋ, ˉseiˈgaŋ, ˏŋˈgaŋ),
+In this system, the five night watches (ˈgaŋ), numbered 1, 2, 3, 4, 5,
 were the hours A, B, C, D, E.
 
 Each watch was subdivided into five equal parts
 which we could call subwatches.
 The beginnings of these five subwatches were called
-points, numbered 1, 2, 3, 4, 5
-(ˈjɐtˊdim, ˍjiˊdim, ˈsamˊdim, ˉseiˊdim, ˏŋˊdim).
+points (ˊdim), numbered 1, 2, 3, 4, 5.
 
 The system was later realigned to modern duodecimal hour boundaries,
 but it’s superfluous to announce night watches of this later kind
