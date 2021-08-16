@@ -47,6 +47,9 @@ https://freesound.org/people/Theriavirra/sounds/319918/
 https://freesound.org/people/Theriavirra/sounds/269738/
 - too short
 
+https://freesound.org/people/Seidhepriest/sounds/234364/
+- cons: nc
+
 Cuckoo options
 ==============
 https://freesound.org/people/acclivity/sounds/19561/

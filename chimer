@@ -492,6 +492,7 @@ sub determine_events ($$$$$$$$$) {
 	'id' => "q$next_quarter",
 	'type' => 'quarter',
 	'comment' => "hour $next_hour quarter $next_quarter prechime",
+	'anticipating' => $prechime_length,
       };
       $quarter_chime_event_pushed_p = 1;
     }
@@ -591,6 +592,8 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range($deciday, $target_times);
+  } elsif ($directive =~ /^\d+(?:\.\d+)?$/) {	# just a number
+    ($target_dow, $time_in_range_p, $target_volume) = (undef, 1, $1);
   } else {
     $error = "unrecognized directive \"$directive\"";
   }
@@ -612,10 +615,10 @@ sub set_sink_volumes ($$$$$) {
     no integer;
     my $adj;
     my $reason;
-    if (defined $config->{$sink} && defined $config->{$sink}->{'volumes'}) {
-      for my $directive (map { split /\s*,\s*/ } @{$config->{$sink}->{'volumes'}}) {
+    if (defined $config->{$sink} && defined $config->{$sink}->{'volume'}) {
+      for my $directive (map { split /\s*,\s*/ } @{$config->{$sink}->{'volume'}}) {
 	my($candidate_adj, $error) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
-	($adj, $reason) = ($candidate_adj, "because $directive") if defined $candidate_adj;
+	($adj, $reason) = ($candidate_adj, "because of volume rule \"$directive\"") if defined $candidate_adj;
 	print STDERR "CONFIG ERROR: $error in [$sink] volumes\n" if defined $error;
       last if defined $adj;
       }
