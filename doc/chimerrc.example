@@ -42,12 +42,20 @@ volume = hour 22-23: 0.8
 ; days of the week can be specified as U, M, T, W, R, F, S (if you don't get U and R you didn't study at Waterloo :-)
 volume = M-F hour 9.0-17.0: 0.7
 
+; remote school on Tuesday, Thursday and Friday at 6pm
+; if you use Waterloo style single-letter codes you can just run them together without using a comma (this is how they do it at UW)
+volume = TRF hour 18-21: 0
+
 ; every day during the 2nd fifth of the time between sundown and sunrise
 ; decidays are numbered 1 to 10 (1 to 5 are daytime, 6 to 10 are nighttime, and 8 the proverbial "middle of the night")
 volume =                  deciday 7: 0.85
 
 volume =  deciday 8: 0.8,                 deciday 9-10: 0.75
 volume =                                      hour 3-8: 0.75
+
+; sleep in on weekends
+; Sat-Sun is a valid range and will work correctly, as is Fri-Mon
+volume = Sat-Sun hour 9-11: 0.75
 
 ; these speakers are way too loud at full volume so always turn it down a bit
 volume =  0.9
