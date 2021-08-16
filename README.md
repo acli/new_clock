@@ -1,7 +1,7 @@
 This script sounds Westminster-style chimes every quarter hour.
 In addition,
 between sundown and sunrise,
-it sounds chimes every 1/5 of a night watch (0.2 proportional decimal hours)
+it sounds chimes every 1/5 of a [night watch](doc/Night_watches.md) (0.2 proportional decimal hours)
 using traditional chiming patterns for night watches and
 according to the old Shang-era rule of one night watch equalling one decimal hour.
 
