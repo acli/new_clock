@@ -389,7 +389,7 @@ $thu_re = '(?:\b(?:R|Thu(?:r(?:s(?:day)?)?)?)\b)';
 $fri_re = '(?:\b(?:F|Fri(?:day)?)\b)';
 $sat_re = '(?:\b(?:S|Sat(?:urday)?)\b)';
 $dow_re = "(?:$sun_re|$mon_re|$tue_re|$wed_re|$thu_re|$fri_re|$sat_re)";
-$dow_range_re = "(?:$dow_re(?:-$dow_re)?)";
+$dow_range_re = "(?:[UMTWRFS]+|(?:$dow_re(?:\s*[-,]\s*$dow_re)*))";
 
 sub parse_dow ($) {
   my($s) = @_;
@@ -405,8 +405,22 @@ sub parse_dow ($) {
 
 sub parse_dow_range ($) {
   my($s) = @_;
-  local($`, $&, $', $1, $2);
-  return ($s =~ /^\w+$/)? parse_dow($s): ($s =~ /^(\w+)-(\w+)$/)? sprintf('%s-%s', parse_dow($1), parse_dow($2)): defined $s? 'ERROR': undef;
+  my $it;
+  if (defined $s) {
+    local($`, $&, $', $1, $2);
+    if ($s =~ /^[UMTWRFS]+$/) { # Waterloo style single-letter codes
+      $it = join(',', map { parse_dow($_) } split(//, $s));
+    } else {
+      $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_dow(substr($_, 1))): parse_dow($_) } split(/(?=[-,]|$)/, $s));
+      $it = 'ERROR' unless $it =~ /^\d+(?:[-,]\d+)*$/;
+
+      # Handle looparounds like Fri-Sun or Sat-Tue
+      $it =~ s/\b([1-6])-([1-6])\b/ $1 < $2? $&: "$1-6,0-$2" /ge;
+      $it =~ s/\b(?<!-)([1-5])-0\b/\1-6,0/g;
+      $it =~ s/\b(?<!-)(6)-0\b/\1,0/g;
+    }
+  }
+  return $it;
 }
 
 
@@ -627,7 +641,7 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range($deciday, $target_times);
   } elsif ($directive =~ /^\d+(?:\.\d+)?$/) {	# just a number
-    ($target_dow, $time_in_range_p, $target_volume) = (undef, 1, $1);
+    ($target_dow, $time_in_range_p, $target_volume) = (undef, 1, $directive);
   } else {
     $error = "unrecognized directive \"$directive\"";
   }
@@ -650,7 +664,7 @@ sub set_sink_volumes ($$$$$) {
     my $adj;
     my $reason;
     if (defined $config->{$sink} && defined $config->{$sink}->{'volume'}) {
-      for my $directive (map { split /\s*,\s*/ } @{$config->{$sink}->{'volume'}}) {
+      for my $directive (map { split /(?:^|(?<=\d))\s*,\s*/ } @{$config->{$sink}->{'volume'}}) {
 	my($candidate_adj, $error) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
 	($adj, $reason) = ($candidate_adj, "because of volume rule \"$directive\"") if defined $candidate_adj;
 	print STDERR "CONFIG ERROR: $error in [$sink] volumes\n" if defined $error;
@@ -949,6 +963,7 @@ EOF
 
 ###############################################################################
 # BEGIN test cases
+{ no integer;
 for my $test ([1,	'1',		1],
 	      [1,	'2',		0],
 	      [1,	'1-2',		1],
@@ -994,20 +1009,30 @@ for my $test (['Sunday',		0],
   ($expected_result, $actual_result) = (defined $expected_result, $s =~ /^$dow_re$/);
   die "\"$s\" =~ /\$dow_re/: test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
   # dow_range_re
+  ($expected_result, $actual_result) = ($expected_result, $s =~ /^$dow_range_re$/);
   die "\"$s\" =~ /\$dow_range_re/: test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
 }
 for my $test (['Thursday',		'4'],
 	      ['M-R',			'1-4'],
 	      ['Tues-Wed',		'2-3'],
+	      ['Mon,Tues-Wed',		'1,2-3'],
+	      ['Fri-Sun',		'5-6,0'],
+	      ['Fri-Tue',		'5-6,0-2'],
+	      ['TRF',			'2,4,5'],
 	      ['someday',		'ERROR']) {
   my($s, $expected_result) = @$test;
   my $actual_result = parse_dow_range($s);
-  die "parse_dow_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+  die "parse_dow_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
+  # dow_range_re
+  ($expected_result, $actual_result) = (defined $expected_result && $expected_result ne 'ERROR', $s =~ /^$dow_range_re$/);
+  die "\"$s\" =~ /\$dow_range_re/: test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
 }
-for my $test (['Thursday hour 19.75-22: 0.25',	21, 30, 0, 1.66, 0, undef, undef]) {
+for my $test (['Thursday hour 19.75-22: 0.25',	21, 30, 0, 1.66, 0, undef, undef],
+	      ['0.5',                           12, 30, 0, 3.20, 0, 0.5,   undef]) {
   my($directive, $hour, $min, $sec, $deciday, $wday, $expected_result1, $expected_result2) = @$test;
   my($actual_result1, $actual_result2) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
   die "determine_volume_from_directive_and_time(\"$directive\", $hour, $min, $sec, $deciday, $wday): test failed: expected ($expected_result1, $expected_result2) but got ($actual_result1, $actual_result2)\n" unless $expected_result1 == $actual_result1 && $expected_result2 eq $actual_result2;
+}
 }
 # END test cases
 ###############################################################################
