@@ -24,6 +24,16 @@ which can potentially be a problem.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
 
+Dependencies
+------------
+- Pulseaudio-based Linux system
+- Perl 5 with Unicode support (5.14 or later)
+- [mpv](https://github.com/mpv-player/mpv)
+  to play audio samples
+- [hebcal](https://github.com/hebcal/hebcal)
+  to guess geographical location
+  (not needed if you specify your geographical location in the config file)
+
 Sound files
 -----------
 I’ve decided to not check in any of the sound files because they are too large.
