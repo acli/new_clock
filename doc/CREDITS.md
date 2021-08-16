@@ -1,6 +1,6 @@
 References
 ==========
-[Gossner, S.], ed. (2019).
+[Gossner, S.](https://github.com/sgossner/), ed. (2019).
 Versilian Community Sample Library [Data set].
 Retrieved from https://github.com/sgossner/VCSL
 - These recordings are public domain (cc0) and are used for Westminster-style chimes
