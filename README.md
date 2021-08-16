@@ -33,6 +33,11 @@ Dependencies
 - [hebcal](https://github.com/hebcal/hebcal)
   to guess geographical location
   (not needed if you specify your geographical location in the config file)
+- DateTime::Event::Sunrise,
+  DateTime::Astro::Sunrise,
+  or Astro::Sunrise
+  Perl module, to calculate sunrise and sundown
+  (not all three are equally tested)
 
 Sound files
 -----------
