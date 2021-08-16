@@ -379,6 +379,22 @@ sub read_ini ($) {
   return $it;
 }
 
+use vars qw( $deciday_1_re $deciday_2_re $deciday_3_re $deciday_4_re $deciday_5_re );
+use vars qw( $deciday_6_re $deciday_7_re $deciday_8_re $deciday_9_re $deciday_10_re );
+use vars qw( $clocktime_re $deciday_re );
+$clocktime_re = '(?:(?:0?\d|1\d|2[0-3]):[0-5]\d|24:00)';
+$deciday_1_re = '\b(?:morning|ˈ?dziu)\b';
+$deciday_2_re = '\b(?:forenoon|ˌ?jy)\b';
+$deciday_3_re = '\b(?:midday|ˈ?dzuŋ)\b';
+$deciday_4_re = '\b(?:afternoon|ˈbou)\b';
+$deciday_5_re = '\b(?:evening|ˍdzik)\b';
+$deciday_6_re = '\b(?:A|ˉ?gap)\b';
+$deciday_7_re = '\b(?:B|ˍ?jyt)\b';
+$deciday_8_re = '\b(?:C|ˊ?biŋ)\b';
+$deciday_9_re = '\b(?:D|ˈ?diŋ)\b';
+$deciday_10_re = '\b(?:E|ˍ?mou)\b';
+$deciday_re = "(?:$deciday_1_re|$deciday_2_re|$deciday_3_re|$deciday_4_re|$deciday_5_re|$deciday_6_re|$deciday_7_re|$deciday_8_re|$deciday_9_re|$deciday_10_re)";
+
 use vars qw( $sun_re $mon_re $tue_re $wed_re $thu_re $fri_re $sat_re $dow_re $dow_range_re );
 $sun_re = '(?:\b(?:U|Sun(?:day)?)\b)';
 $mon_re = '(?:\b(?:M|Mon(?:day)?)\b)';
@@ -402,6 +418,30 @@ sub parse_dow ($) {
 	 $s =~ /^$sat_re$/? 6: undef;
 }
 
+
+sub parse_clocktime ($) {
+  my($s) = @_;
+  local($`, $&, $', $1, $2);
+  no integer;
+  return $s =~ /^(?=$clocktime_re$)(\d+):(\d\d)/? $1 + $2/60: undef;
+}
+
+sub parse_named_deciday ($) {
+  my($s) = @_;
+  local($`, $&, $', $1, $2);
+  no integer;
+  return $s =~ /^$deciday_1_re$/? 1:
+	 $s =~ /^$deciday_2_re$/? 2:
+	 $s =~ /^$deciday_3_re$/? 3:
+	 $s =~ /^$deciday_4_re$/? 4:
+	 $s =~ /^$deciday_5_re$/? 5:
+	 $s =~ /^$deciday_6_re$/? 6:
+	 $s =~ /^$deciday_7_re$/? 7:
+	 $s =~ /^$deciday_8_re$/? 8:
+	 $s =~ /^$deciday_9_re$/? 9:
+	 $s =~ /^$deciday_10_re$/? 10: undef
+}
+
 sub parse_dow_range ($) {
   my($s) = @_;
   my $it;
@@ -418,6 +458,38 @@ sub parse_dow_range ($) {
       $it =~ s/\b(?<!-)([1-5])-0\b/\1-6,0/g;
       $it =~ s/\b(?<!-)(6)-0\b/\1,0/g;
     }
+  }
+  return $it;
+}
+
+sub parse_clocktime_range ($) {
+  my($s) = @_;
+  my $it;
+  if (defined $s) {
+    local($`, $&, $', $1, $2);
+    $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_clocktime(substr($_, 1))): parse_clocktime($_) } split(/(?=[-,]|$)/, $s));
+    $it = 'ERROR' unless $it =~ /^\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*$/;
+
+    # Handle looparounds like 23:00-07:00
+    no integer;
+    $it =~ s/\b(\d+(?:.\d+)?)-(0)\b/ $1 < $2? $&: "$1-24" /ge;
+    $it =~ s/\b(\d+(?:.\d+)?)-(\d+(?:.\d+)?)\b/ $1 < $2? $&: "$1-24,0-$2" /ge;
+  }
+  return $it;
+}
+
+sub parse_named_deciday_range ($) {
+  my($s) = @_;
+  my $it;
+  if (defined $s) {
+    local($`, $&, $', $1, $2);
+    $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_named_deciday(substr($_, 1))): parse_named_deciday($_) } split(/(?=[-,]|$)/, $s));
+    $it = 'ERROR' unless $it =~ /^\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*$/;
+
+    # Handle looparounds like C-morning
+    no integer;
+    $it =~ s/\b(\d+)-(1)\b/ $1 < $2? $&: "$1-10,1" /ge;
+    $it =~ s/\b(\d+)-(\d+)\b/ $1 < $2? $&: "$1-10,1-$2" /ge;
   }
   return $it;
 }
@@ -599,6 +671,22 @@ sub in_range ($$) {
   return $it;
 }
 
+sub in_semi_closed_range ($$) {
+  my($n, $range_spec) = @_;
+  my $it = 0;
+  no integer;
+  for my $subrange_spec (split(/\s*,\s*/, $range_spec)) {
+    die "in_range: Malformed element \"$subrange_spec\" in \"$range_spec\"" unless $subrange_spec =~ /^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?$/;
+    if (defined $2) {
+      $it = $1 <= $n && $n < $2;
+    } else {
+      $it = $1 == $n;
+    }
+  last if $it;
+  }
+  return $it;
+}
+
 sub get_sink () {
   return $ENV{'PULSE_SINK'};
 }
@@ -639,6 +727,12 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range($deciday, $target_times);
+  } elsif ($directive =~ /^(?:($dow_range_re)\s+)?($clocktime_re-$clocktime_re)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+    ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
+    $time_in_range_p = in_semi_closed_range($deciday, parse_clocktime_range $target_times);
+  } elsif ($directive =~ /^(?:($dow_range_re)\s+)?($deciday_re(?:\s*-\s*$deciday_re)?)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+    ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
+    $time_in_range_p = in_range(int($deciday), parse_named_deciday_range $target_times);
   } elsif ($directive =~ /^\d+(?:\.\d+)?$/) {	# just a number
     ($target_dow, $time_in_range_p, $target_volume) = (undef, 1, $directive);
   } else {
@@ -1026,8 +1120,47 @@ for my $test (['Thursday',		'4'],
   ($expected_result, $actual_result) = (defined $expected_result && $expected_result ne 'ERROR', $s =~ /^$dow_range_re$/);
   die "\"$s\" =~ /\$dow_range_re/: test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
 }
-for my $test (['Thursday hour 19.75-22: 0.25',	21, 30, 0, 1.66, 0, undef, undef],
-	      ['0.5',                           12, 30, 0, 3.20, 0, 0.5,   undef]) {
+for my $test (['A',		6],
+	      ['B',		7],
+	      ['E',		10],
+	      ['morning',	1],
+	      ['midday',	3],
+	      ['evening',	5]) {
+  my($name, $expected_result) = @$test;
+  my $actual_result = parse_named_deciday($name);
+  die "parse_named_deciday(\"$name\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+}
+for my $test (['00:00',		0.0],
+	      ['07:30',		7.5],
+	      ['19:15',		19.25],
+	      ['24:00',		24.0]) {
+  my($name, $expected_result) = @$test;
+  my $actual_result = parse_clocktime($name);
+  die "parse_clocktime(\"$name\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+}
+for my $test (['00:00',		'0'],
+	      ['12:00-12:30',	'12-12.5'],
+	      ['12:00-00:00',	'12-24'],
+	      ['23:00-7:00',	'23-24,0-7']) {
+  my($s, $expected_result) = @$test;
+  my $actual_result = parse_clocktime_range($s);
+  die "parse_clocktime_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
+}
+for my $test (['morning',		'1'],
+	      ['morning-evening',	'1-5'],
+	      ['evening-B',		'5-7'],
+	      ['midday,A',		'3,6'],
+	      ['C-morning',		'8-10,1']) {
+  my($s, $expected_result) = @$test;
+  my $actual_result = parse_named_deciday_range($s);
+  die "parse_named_deciday_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
+}
+for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef],
+	      ['Thursday 19:45-22:00: 0.25',	21, 30,  0, 6.66, 0, undef, undef],
+	      ['morning: 0.5',			17, 53, 36, 5.14, 0, undef, undef],
+	      ['E-evening: 0.75',		17, 53,  0, 5.14, 0, 0.75,  undef],
+	      ['A: 0.5',			21, 30,  0, 6.66, 0, 0.5,   undef],
+	      ['0.5',                           12, 30,  0, 3.20, 0, 0.5,   undef]) {
   my($directive, $hour, $min, $sec, $deciday, $wday, $expected_result1, $expected_result2) = @$test;
   my($actual_result1, $actual_result2) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
   die "determine_volume_from_directive_and_time(\"$directive\", $hour, $min, $sec, $deciday, $wday): test failed: expected ($expected_result1, $expected_result2) but got ($actual_result1, $actual_result2)\n" unless $expected_result1 == $actual_result1 && $expected_result2 eq $actual_result2;
