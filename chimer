@@ -1122,11 +1122,11 @@ if (!caller) {
       if ($now < $t) {
 	;
       } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
-	printf STDERR "\nERROR: EVENT %s (%d) already fired at %d (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
+	printf STDERR "\nERROR: EVENT %s (%.2f) already fired at %.2f (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
 	delete $pending_events{$id};
       } else {
 	my $dt = $now - $t;
-	printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+	printf STDERR "\nEVENT %s (%.2f) fired at %.2f (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
 	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	do_event $id;
 	$countdown = 0; # force a re-countdown
