@@ -575,41 +575,48 @@ sub set_sink_volume ($$) {
   system { $cmd[0] } @cmd;
 }
 
+sub determine_volume_from_directive_and_time ($$$$$$) {
+  my($directive, $hour, $min, $sec, $deciday, $wday) = @_;
+  my($target_dow, $target_times, $target_volume, $dow_in_range_p, $time_in_range_p);
+  my($result, $error);
+  if ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {		# integer to integer
+    ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
+    $time_in_range_p = in_range($hour, $target_times);
+  } elsif ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+    ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
+    $time_in_range_p = in_range($hour + $min/60 + $sec/3600, $target_times);
+  } elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {	# integer to integer
+    ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
+    $time_in_range_p = in_range(int($deciday), $target_times);
+  } elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
+    ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
+    $time_in_range_p = in_range($deciday, $target_times);
+  } else {
+    $error = "unrecognized directive \"$directive\"";
+  }
+  $dow_in_range_p = !defined $target_dow || in_range($wday, parse_dow_range($target_dow)) if !defined $error;
+  if (defined $error || !$dow_in_range_p || !defined $time_in_range_p || !$time_in_range_p) {
+    ;
+  } elsif ($target_volume >= 0 && $target_volume <= 1) {
+    $result = $target_volume;
+  } else {
+    $error = "out of range volume $target_volume";
+  }
+  return wantarray? ($result, $error): [$result, $error];
+}
+
 sub set_sink_volumes ($$$$$) {
   my($hour, $min, $sec, $deciday, $wday) = @_;
   for my $sink (@sinks) {
     my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
     no integer;
     my $adj;
+    my $reason;
     if (defined $config->{$sink} && defined $config->{$sink}->{'volumes'}) {
       for my $directive (map { split /\s*,\s*/ } @{$config->{$sink}->{'volumes'}}) {
-	my($target_dow, $target_times, $target_volume, $dow_in_range_p, $time_in_range_p);
-	if ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {		# integer to integer
-	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
-	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
-	  $time_in_range_p = in_range($hour, $target_times);
-	} elsif ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
-	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
-	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
-	  $time_in_range_p = in_range($hour + $min/60 + $sec/3600, $target_times);
-	} elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {	# integer to integer
-	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
-	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
-	  $time_in_range_p = in_range(int($deciday), $target_times);
-	} elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
-	  ($target_dow, $target_times, $target_volume) = (parse_dow_range($1), $2, $3);
-	  $dow_in_range_p = !defined $target_dow || in_range($wday, $target_dow);
-	  $time_in_range_p = in_range($deciday, $target_times);
-	} else {
-	  print STDERR "CONFIG ERROR: unrecognized directive \"$directive\" in [$sink] volumes\n";
-	}
-	if (!defined $target_volume || !defined $time_in_range_p || !$time_in_range_p) {
-	  ;
-	} elsif ($target_volume >= 0 && $target_volume <= 1) {
-	  $adj = $target_volume;
-	} else {
-	  print STDERR "CONFIG ERROR: out of range volume $target_volume in [$sink] volumes\n";
-	}
+	my($candidate_adj, $error) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
+	($adj, $reason) = ($candidate_adj, "because $directive") if defined $candidate_adj;
+	print STDERR "CONFIG ERROR: $error in [$sink] volumes\n" if defined $error;
       last if defined $adj;
       }
       $adj = 1.0 unless defined $adj;
@@ -619,7 +626,8 @@ sub set_sink_volumes ($$$$$) {
       $adj *= 0.9 if $deciday < 1 || $deciday > 5;
       $adj *= 0.9 if $hour < 9 || $hour > 8;
     }
-    print STDERR "Volume adjusted to $adj for $label\n" if $debug || $verbose_p;
+    $reason = 'by default' if defined $adj && !defined $reason;
+    print STDERR "Volume adjusted to $adj for $label $reason\n" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
   }
 }
@@ -910,6 +918,53 @@ for my $test ([1,	'1',		1],
   my $actual_result = in_range($n, $range_spec);
   die "in_range($n, \"$range_spec\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
 }
+for my $test (['Sunday',		0],
+	      ['Monday',		1],
+	      ['Tuesday',		2],
+	      ['Wednesday',		3],
+	      ['Thursday',		4],
+	      ['Friday',		5],
+	      ['Saturday',		6],
+	      ['Sun',			0],
+	      ['Mon',			1],
+	      ['Tue',			2],
+	      ['Tues',			2],
+	      ['Wed',			3],
+	      ['Thu',			4],
+	      ['Thur',			4],
+	      ['Thurs',			4],
+	      ['Fri',			5],
+	      ['Sat',			6],
+	      ['Sun',			0],
+	      ['M',			1],
+	      ['T',			2],
+	      ['W',			3],
+	      ['R',			4],
+	      ['F',			5],
+	      ['S',			6],
+	      ['someday',		undef]) {
+  my($s, $expected_result) = @$test;
+  my $actual_result = parse_dow($s);
+  die "parse_dow(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+  # dow_re
+  ($expected_result, $actual_result) = (defined $expected_result, $s =~ /^$dow_re$/);
+  die "\"$s\" =~ /\$dow_re/: test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+  # dow_range_re
+  die "\"$s\" =~ /\$dow_range_re/: test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+}
+for my $test (['Thursday',		'4'],
+	      ['M-R',			'1-4'],
+	      ['Tues-Wed',		'2-3'],
+	      ['someday',		'ERROR']) {
+  my($s, $expected_result) = @$test;
+  my $actual_result = parse_dow_range($s);
+  die "parse_dow_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
+}
+for my $test (['Thursday hour 19.75-22: 0.25',	21, 30, 0, 1.66, 0, undef, undef]) {
+  my($directive, $hour, $min, $sec, $deciday, $wday, $expected_result1, $expected_result2) = @$test;
+  my($actual_result1, $actual_result2) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
+  die "determine_volume_from_directive_and_time(\"$directive\", $hour, $min, $sec, $deciday, $wday): test failed: expected ($expected_result1, $expected_result2) but got ($actual_result1, $actual_result2)\n" unless $expected_result1 == $actual_result1 && $expected_result2 eq $actual_result2;
+}
 # END test cases
 ###############################################################################
 
@@ -958,87 +1013,86 @@ if (!caller) {
     'help' => \&usage,
   ) || usage(1);
 
-}
+  printf STDERR "chimer booted at %.2f, main loop started at %.2f\n", $boottime, Time::HiRes::time if $verbose_p || $debug;
+  for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
+    my $t0 = Time::HiRes::time;
+    my $c = determine_chinese_time $t0;
+    ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
+    (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
 
-
-for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
-  my $t0 = Time::HiRes::time;
-  my $c = determine_chinese_time $t0;
-  ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
-  (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
-
-  # Detect terminated child processes
-  for my $pid (keys %children) {
-    if (!kill 0, $pid || waitpid($pid, WNOHANG) == $pid) {
-      print STDERR "\nDEBUG: child process $pid has exited" if $debug;
-      delete $children{$pid};
+    # Detect terminated child processes
+    for my $pid (keys %children) {
+      if (!kill 0, $pid || waitpid($pid, WNOHANG) == $pid) {
+	print STDERR "\nDEBUG: child process $pid has exited" if $debug;
+	delete $children{$pid};
+      }
     }
-  }
 
-  # Determine what should happen next
-  no integer;
-  my @event = determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size);
-  my $next_event;
-  for my $event (@event) {
-    # Don't trust floating point calculations - don't use t as key, use id instead
-    $pending_events{+$event->{'id'}} = $event;
-  }
-  for my $id (keys %pending_events) {
-    my $e = $pending_events{$id};
-    my $t = $e->{'t'};
-    $t += $e->{'delay'} if defined $e->{'delay'};
-    if ($t0 - $t > 60) { # just do it if we missed it by just a fraction of a second, actually it's fine even if it's a whole minute
-      printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $id, $t, $t0, $t0 - $t;
-      delete $pending_events{$id};
+    # Determine what should happen next
+    no integer;
+    my @event = determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size);
+    my $next_event;
+    for my $event (@event) {
+      # Don't trust floating point calculations - don't use t as key, use id instead
+      $pending_events{+$event->{'id'}} = $event;
     }
-  }
-  # reconstitute the @event array
-  @event = sort { $a->{'t'} + $a->{'delay'} <=> $b->{'t'} + $b->{'delay'} } map { $pending_events{$_} } keys %pending_events;
-
-  # Determine when we should wake up; try to make some effort to align it to a second boundary
-  my $t1 = Time::HiRes::time;
-  my $dt0 = $event[0]->{'t'} - $t1;
-  my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
-  my $dt = $t_next - $t1;
-  $dt = 0 if $dt < 0;
-
-  # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
-  restart_script if $t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300 && safe_to_restart_p;
-
-  # Debug message
-  printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f) > %s\033[K\r",
-      $t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
-      join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
-
-  my $t2 = Time::HiRes::time;
-  Time::HiRes::sleep $dt;
-
-  # Check if any event should be fired
-  my $now = Time::HiRes::time;
-  my $dt_actual = $now - $t2;
-  printf STDERR "\nWARNING: tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
-  for my $id (keys %pending_events) {
-    my $e = $pending_events{$id};
-    my $t = $e->{'t'};
-    $t += $e->{'delay'} if defined $e->{'delay'};
-    if ($now < $t) {
-      ;
-    } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
-      printf STDERR "\nERROR: EVENT %s (%d) already fired at %d (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
-      delete $pending_events{$id};
-    } else {
-      my $dt = $now - $t;
-      printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
-      set_sink_volumes($hour, $min, $sec, $deciday, $wday);
-      do_event $id;
-      $countdown = 0; # force a re-countdown
-      $completed_events{$id} = $now;
-      delete $pending_events{$id};
+    for my $id (keys %pending_events) {
+      my $e = $pending_events{$id};
+      my $t = $e->{'t'};
+      $t += $e->{'delay'} if defined $e->{'delay'};
+      if ($t0 - $t > 60) { # just do it if we missed it by just a fraction of a second, actually it's fine even if it's a whole minute
+	printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $id, $t, $t0, $t0 - $t;
+	delete $pending_events{$id};
+      }
     }
-  }
+    # reconstitute the @event array
+    @event = sort { $a->{'t'} + $a->{'delay'} <=> $b->{'t'} + $b->{'delay'} } map { $pending_events{$_} } keys %pending_events;
 
-  $countdown -= 1;
-  $countdown = COUNTDOWN if $countdown < 0;
+    # Determine when we should wake up; try to make some effort to align it to a second boundary
+    my $t1 = Time::HiRes::time;
+    my $dt0 = $event[0]->{'t'} - $t1;
+    my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
+    my $dt = $t_next - $t1;
+    $dt = 0 if $dt < 0;
+
+    # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
+    restart_script if $t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300 && safe_to_restart_p;
+
+    # Debug message
+    printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f) > %s\033[K\r",
+	$t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
+	join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
+
+    my $t2 = Time::HiRes::time;
+    Time::HiRes::sleep $dt;
+
+    # Check if any event should be fired
+    my $now = Time::HiRes::time;
+    my $dt_actual = $now - $t2;
+    printf STDERR "\nWARNING: tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
+    for my $id (keys %pending_events) {
+      my $e = $pending_events{$id};
+      my $t = $e->{'t'};
+      $t += $e->{'delay'} if defined $e->{'delay'};
+      if ($now < $t) {
+	;
+      } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
+	printf STDERR "\nERROR: EVENT %s (%d) already fired at %d (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
+	delete $pending_events{$id};
+      } else {
+	my $dt = $now - $t;
+	printf STDERR "\nEVENT %s (%d) fired at %d (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
+	do_event $id;
+	$countdown = 0; # force a re-countdown
+	$completed_events{$id} = $now;
+	delete $pending_events{$id};
+      }
+    }
+
+    $countdown -= 1;
+    $countdown = COUNTDOWN if $countdown < 0;
+  }
 }
 
 1;
