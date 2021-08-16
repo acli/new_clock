@@ -2,14 +2,14 @@ Night watches
 =============
 The Chinese night watch system was originally derived
 from the proportional decimal hour system
-that was in use during the Shang era.
+that was in use during the Spring and Autumn and Warring States periods (c. 770–221 BC).
 These proportional hours had names:
 
 - daytime hours: morning, forenoon, midday, afternoon, evening
   (ˈdziu, ˌjy (?), ˈdzuŋ, ˈbou, ˍdzik)
 - nighttime hours: A, B, C, D, E
   (ˉgap, ˍjyt, ˊbiŋ, ˈdiŋ, ˍmou)
-  (no kidding)
+  [(no kidding)](https://books.google.ca/books?id=QG-BDwAAQBAJ&pg=PT135&lpg=PT135&dq=%22%E5%8D%81%E6%99%82%E5%88%B6%22&source=bl&ots=ENC5L7th9-&sig=ACfU3U3aJYsGu7cDqL9gC7JllOcae0sQdw&hl=fr&sa=X&ved=2ahUKEwjOqcyp-LTyAhV2FjQIHbhPAXYQ6AF6BQi0AhAD#v=onepage&q=%22%E5%8D%81%E6%99%82%E5%88%B6%22&f=false)
 
 In this system, the five night watches, numbered 1, 2, 3, 4, 5
 (ˈjɐtˈgaŋ, ˍjiˈgaŋ, ˈsamˈgaŋ, ˉseiˈgaŋ, ˏŋˈgaŋ),

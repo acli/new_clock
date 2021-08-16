@@ -509,7 +509,7 @@ sub determine_events ($$$$$$$$$) {
   last if $quarter_chime_event_pushed_p;
   }
 
-  # Shang-era proportional-deciday-based night watch chimes
+  # Spring-and-Autumn-era proportional-deciday-based night watch chimes
   # 1 watch is exactly 1 deciday, which is not actually 1/10 of a day but 1/5 of the current proportional moitie
   if ($deciday > 5 && $deciday < 6) { # 5 is the last deciday in the "day" moitie
     my $t_first_watch = $t0 + (6 - $deciday)*$deciday_size;
