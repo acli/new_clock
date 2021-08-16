@@ -7,7 +7,7 @@ Versilian Community Sample Library [Data set].
 Retrieved from https://github.com/sgossner/VCSL
 - These recordings are public domain (cc0) and are used for Westminster-style chimes
   and for night watches
-- The only files needed are
+- You only need
   [claves_ff.mp3](https://github.com/sgossner/VCSL/blob/master/Idiophones/Struck%20Idiophones/Claves/Legacy/claves_ff.wav)
   (in [the “Idiophones/Struck Idiophones“ folder](https://github.com/sgossner/VCSL/tree/master/Idiophones/Struck%20Idiophones/Claves/Legacy)),
   for the short strike in night watch annoucements,
@@ -21,8 +21,9 @@ Tuned Chau Gongs [Data set].
 Retrieved from https://freesound.org/people/strangehorizon/packs/32761/
 - These recordings are public domain (cc0) and are used for Westminster-style chimes
   and for night watches
-- The entire set used to be needed (for the Westminster chime),
-  but currently you technically only need [the D#5 gong](https://freesound.org/people/strangehorizon/sounds/582159/)
+- You technically only need
+  [the D#5 gong](https://freesound.org/people/strangehorizon/sounds/582159/)
+  (The entire set used to be needed for the Westminster chime)
 
 [Walter, <span title=Thomas>T.</span>](https://freesound.org/people/inchadney/) (2011).
 Birds: Cuckoo.wav [Audio file].
