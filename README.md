@@ -38,11 +38,10 @@ Dependencies
   or Astro::Sunrise
   Perl module, to calculate sunrise and sundown
   (not all three are equally tested)
+- Sound files listed in the [CREDITS file](doc/CREDITS.md)
+  (not provided because they are large and this is still a work-in-progress)
 
-Sound files
------------
-I’ve decided to not check in any of the sound files because they are too large.
-Please get them yourself from the links listed in the CREDITS file,
+Please
 place the wav files in the “raw” directory and run make to generate the mp3 files.
 (mpv must be installed.)
 
