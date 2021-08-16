@@ -145,8 +145,8 @@ use vars qw( @midi_number_to_note %note_to_midi_number );
 );
 %note_to_midi_number = map { $midi_number_to_note[$_] => $_ } 0..$#midi_number_to_note;
 
-use vars qw( %scale );
-%scale = (
+use vars qw( %gong_scale %chime_scale );
+%gong_scale = (
   'c4'	=> '582141__strangehorizon__g01-c-4-gong.wav',
   'c#4'	=> '582140__strangehorizon__g02-c-4-gong.wav',
   'd4'	=> '582139__strangehorizon__g03-d-4-gong.wav',
@@ -167,6 +167,26 @@ use vars qw( %scale );
   'f5'	=> '582157__strangehorizon__g18-f-5-gong.wav',
   'f#5'	=> '582162__strangehorizon__g19-f-5-gong.wav',
   'g5'	=> '582161__strangehorizon__g20-g-5-gong.wav',
+);
+%chime_scale = (
+  'c4'	=> 'chimes_C1.ogg',
+  'c#4'	=> 'chimes_C#1.ogg',
+  'd4'	=> 'chimes_D1.ogg',
+  'd#4'	=> 'chimes_D#1.ogg',
+  'e4'	=> 'chimes_E1.ogg',
+  'f4'	=> 'chimes_F1.ogg',
+  'f#4'	=> 'chimes_F#1.ogg',
+  'g4'	=> 'chimes_G1.ogg',
+  'g#4'	=> 'chimes_G#1.ogg',
+  'a4'	=> 'chimes_A1.ogg',
+  'a#4'	=> 'chimes_A#1.ogg',
+  'b4'	=> 'chimes_B1.ogg',
+  'c5'	=> 'chimes_C2.ogg',
+  'c#5'	=> 'chimes_C#2.ogg',
+  'd5'	=> 'chimes_D2.ogg',
+  'd#5'	=> 'chimes_D#2.ogg',
+  'e5'	=> 'chimes_E2.ogg',
+  'f5'	=> 'chimes_F2.ogg',
 );
 use vars qw( $p1 $p2 $p3 $p4 $p5 $rest $strike );
 $p1 = [
@@ -731,15 +751,16 @@ sub play_sound_file ($;$$$) {
 sub strike_gong (;$) {
   my($note) = @_;
   if ($note ne 'r') {
-    $note = 'd#5' if !defined $note || !defined $scale{$note};
-    play_sound_file sprintf('%s/%s', $datadir, $scale{$note}), 50;
+    $note = 'd#5' if !defined $note || !defined $gong_scale{$note};
+    play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
   }
 }
 
 sub strike_bell ($) {
   my($note) = @_;
   if ($note ne 'r') {
-    send_midi_command sprintf('noteon 1 %d 127', $note_to_midi_number{$note});
+    $note = 'd#5' if !defined $note || !defined $chime_scale{$note};
+    play_sound_file sprintf('%s/%s', $datadir, $chime_scale{$note}), 100;
   }
 }
 
@@ -749,13 +770,9 @@ sub strike_stick () {
   play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
 }
 
-sub carillon_transpose ($) {
-  my($note) = @_;
-  # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
-  # for just the melody, or [f3, g#4], or [41, 56], if we count also the strikes that count the hours
-  # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
-  # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 7 to 11 semitones.
-  my $it = $midi_number_to_note[$note_to_midi_number{$note} + 8] if $note ne 'r';
+sub transpose_note ($;$) {
+  my($note, $shift) = @_;
+  my $it = $midi_number_to_note[$note_to_midi_number{$note} + $shift] if $note ne 'r';
   return defined $it? $it: $note;
 }
 
@@ -764,8 +781,13 @@ sub strike_tune (@) {
   printf STDERR "Striking %s\n", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
   for my $spec (@tune) {
     my($note, $time) = @$spec;
-    strike_gong carillon_transpose $note;
-    #strike_bell $note;
+    # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
+    # for just the melody, or [f3, g#4], or [41, 56], if we count also the strikes that count the hours
+    # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
+    # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 7 to 11 semitones.
+    # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 7 to 9 semitones.
+    #strike_gong transpose_note $note, 8;
+    strike_bell transpose_note $note, 7;
     Time::HiRes::sleep $time;
   }
 }

@@ -1,5 +1,8 @@
 # vi: set ai sm:
-targets=$(patsubst raw/%.wav,data/%.mp3,$(wildcard raw/*.wav))
+mp3_targets=$(patsubst raw/%.wav,data/%.mp3,$(wildcard raw/*.wav))
+ogg_targets=$(patsubst raw/%,data/%,$(wildcard raw/*.ogg))
+
+targets=$(mp3_targets) $(ogg_targets)
 
 all: $(targets)
 
@@ -8,7 +11,7 @@ all: $(targets)
 data/%.mp3: raw/%.wav config/%.volume
 	mpv --volume "`cat config/$*.volume`" $< -o $@ --no-video
 
-data/%.mp3: raw/%.mp3
+data/%: raw/%
 	ln $< $@
 
 PHONEY: all

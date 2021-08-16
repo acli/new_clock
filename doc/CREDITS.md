@@ -3,7 +3,8 @@ References
 [Gossner, S.], ed. (2019).
 Versilian Community Sample Library [Data set].
 Retrieved from https://github.com/sgossner/VCSL
-- These recordings are public domain (cc0) and are used for night watches
+- These recordings are public domain (cc0) and are used for Westminster-style chimes
+  and for night watches
 
 [reinsamba](https://freesound.org/people/reinsamba/). (2007).
 birdsong: cuckoo_2007_04_17.wav [Audio file].
