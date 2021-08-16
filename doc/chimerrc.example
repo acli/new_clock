@@ -31,8 +31,12 @@ delay = 0.5
 ; turn down volume during "night"
 ; volumes are matched one by one, the first matching one wins
 
+; note that the script changes the actual hardware volume (because we want chimes to be played at a known volume)
+; if you don't specify any volume the script will *change the hardware volume to 1* (full volume)
+
 ; Sunday 9:30am to 10:30am
 ; hours are in 24-hour format, from 0 to 23
+; note that days of the week are case-sensitive (sunday will not work, it must be Sunday)
 volume = Sunday hour 9.5-10.5: 0.1
 
 ; every day from 22:00 to 23:59
