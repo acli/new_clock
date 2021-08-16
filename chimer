@@ -193,43 +193,42 @@ $p1 = [
     ['g#4', 1],
     ['f#4', 1],
     ['e4', 1],
-    ['b3', 1.5],
-    ['r', 1.5],
+    ['b3', 2],
+    ['r', 1],
   ];
 $p2 = [
     ['e4', 1],
     ['g#4', 1],
     ['f#4', 1],
-    ['b3', 1.5],
-    ['r', 1.5],
+    ['b3', 2],
+    ['r', 1],
   ];
 $p3 = [
     ['e4', 1],
     ['f#4', 1],
     ['g#4', 1],
-    ['e4', 1.5],
-    ['r', 1.5],
+    ['e4', 2],
+    ['r', 1],
   ];
 $p4 = [
     ['g#4', 1],
     ['e4', 1],
     ['f#4', 1],
-    ['b3', 1.5],
-    ['r', 1.5],
+    ['b3', 2],
+    ['r', 1],
   ];
 $p5 = [
     ['b3', 1],
     ['f#4', 1],
     ['g#4', 1],
-    ['e4', 1.5],
-    ['r', 1.5],
+    ['e4', 2],
+    ['r', 1],
   ];
 $rest = [
     ['r', 1],
   ];
 $strike = [
-    ['f3', 1.5],
-    ['r', 1.5],
+    ['e3', 4],
   ];
 
 use vars qw( $_gensym );
@@ -796,12 +795,12 @@ sub strike_tune (@) {
   for my $spec (@tune) {
     my($note, $time) = @$spec;
     # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
-    # for just the melody, or [f3, g#4], or [41, 56], if we count also the strikes that count the hours
+    # for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
     # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
-    # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 7 to 11 semitones.
-    # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 7 to 9 semitones.
+    # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
+    # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
     #strike_gong transpose_note $note, 8;
-    strike_bell transpose_note $note, 7;
+    strike_bell transpose_note $note, 8;
     Time::HiRes::sleep $time;
   }
 }
