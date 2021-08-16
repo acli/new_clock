@@ -684,12 +684,8 @@ sub connect_synth () {
   return $synth{$sink};
 }
 
-sub connect_synths () {
-  for my $sink (@sinks) {
-    set_sink $sink;
-    connect_synth;
-  }
-  sleep 5; # wait a bit for the synth to become ready
+sub generate_sound_clips () {
+  # FIXME - unimplemented
 }
 
 sub play_sound_file_real ($;$$$) {
@@ -748,7 +744,8 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   #send_midi_command sprintf('noteon 2 31 127');
-  play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
+  #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
+  play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
 }
 
 sub carillon_transpose ($) {
@@ -1038,6 +1035,7 @@ if (!caller) {
   ) || usage(1);
 
   printf STDERR "chimer booted at %.2f in %s mode using %s\n", $boottime, $mode, $method if $verbose_p || $debug;
+  generate_sound_clips if $method eq METHOD__SYNTH;
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = Time::HiRes::time;
     my $c = determine_chinese_time $t0;

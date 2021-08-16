@@ -8,5 +8,8 @@ all: $(targets)
 data/%.mp3: raw/%.wav config/%.volume
 	mpv --volume "`cat config/$*.volume`" $< -o $@ --no-video
 
+data/%.mp3: raw/%.mp3
+	ln $< $@
+
 PHONEY: all
 DELETE_ON_ERROR:
