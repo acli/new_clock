@@ -1,5 +1,7 @@
 References
 ==========
+The script uses the following audio recordings:
+
 [Gossner, S.](https://github.com/sgossner/), ed. (2019).
 Versilian Community Sample Library [Data set].
 Retrieved from https://github.com/sgossner/VCSL

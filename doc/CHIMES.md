@@ -1,11 +1,19 @@
+Chime options
+=============
+Unlike Javascript (or Python), there is no native support in Perl to process audio.
+The script currently uses [mpv](http://mpv.io) to play audio recordings,
+and multiple copies of mpv are needed to play a chime melody.
+This is clearly not ideal since resource usage is unpredictable
+so there’s both a danger of thrashing and audio distortion.
+
 Gong options
-============
+------------
 https://freesound.org/people/strangehorizon/packs/32761/
 - pros: the whole scale, public domain (cc0)
 - cons: need lots of mpv subprocesses to play chime melodies
 
 Bell options
-============
+------------
 We can use gongs, but it sounds a little off
 
 https://www.fluidsynth.org/
@@ -29,7 +37,7 @@ https://freesound.org/people/Samulis/packs/12231/
 
 
 Wood options
-============
+------------
 using MIDI drum kit:
 - 31 (sticks)
 - 60 (high bongo)
@@ -52,7 +60,7 @@ https://freesound.org/people/Seidhepriest/sounds/234364/
 
 
 Cuckoo options
-==============
+--------------
 https://freesound.org/people/acclivity/sounds/19561/
 - pros: *very* clear cuckoo sound
 - cons: cc-by-sa-nc
@@ -81,6 +89,6 @@ https://freesound.org/people/RTB45/sounds/234921/
 
 
 Chime melody options
-====================
+--------------------
 https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
 - This page contains the actual melodies; the Wikipedia page for the Whittington chimes seems to be a word-for-word plagiarized copy
