@@ -735,7 +735,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   #send_midi_command sprintf('noteon 2 31 127');
-  play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
+  play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 90;
 }
 
 sub carillon_transpose ($) {
