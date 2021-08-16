@@ -50,6 +50,7 @@ https://freesound.org/people/Theriavirra/sounds/269738/
 https://freesound.org/people/Seidhepriest/sounds/234364/
 - cons: nc
 
+
 Cuckoo options
 ==============
 https://freesound.org/people/acclivity/sounds/19561/
@@ -77,3 +78,9 @@ https://freesound.org/people/jgrzinich/sounds/364983/
 https://freesound.org/people/RTB45/sounds/234921/
 - pros: cc-by-sa
 - cons: noisy background (wind)
+
+
+Chime melody options
+====================
+https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
+- This page contains the actual melodies; the Wikipedia page for the Whittington chimes seems to be a word-for-word plagiarized copy
