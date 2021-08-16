@@ -566,7 +566,7 @@ sub set_sink ($) {
 }
 
 sub set_test_sink () {
-  $config->{'/'}->{'sink'} = defined $config->{'test'}->{'sink'}? $config->{'test'}->{'sink'}: undef;
+  @sinks = @{$config->{'test'}->{'sink'}} if defined $config->{'test'}->{'sink'};
 }
 
 sub set_sink_volume ($$) {
@@ -802,7 +802,7 @@ sub announce_hour_by_cuckoo ($) {
   play_sound_file "$datadir/35053__reinsamba__cuckoo-2007-04-17.wav", 100, 8, &$f($hour);
   for my $dt ((undef, 1.4, 1.4, 1.3,  1.4, 1.4, 2.1,
                       1.8, 1.6, 1.6,  1.6, 1.6, 1.6)[1..$hour]) {
-    strike_gong 'c#4';
+    #strike_gong 'c#4';
     Time::HiRes::sleep($dt);
   }
 }
