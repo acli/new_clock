@@ -166,13 +166,18 @@ for (my $i = 0; $i < @citations; $i += 1) {
 # Do not output BOM (U+feff), GitHub doesn't like it
 
 # Copy everything from the cff template
+my %keys_in_template;
 open(INPUT, '<:utf8', $template_input) or die "$0: $template_input: $!\n";
 for (;;) {
   my $s = scalar <INPUT>;
 last unless defined $s;
+  $keys_in_template{$1} = 1 if $s =~ /^([^\s:]+):/;
   print $s;
 }
 close INPUT;
+
+# GitHub doesn't like files that don't have a version key, even though version is optional
+print "version: n/a\n" unless defined $keys_in_template{'version'};
 
 # Add citations
 print "references:\n" if @citations;
