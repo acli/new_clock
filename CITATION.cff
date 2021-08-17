@@ -1,5 +1,8 @@
 cff-version: 1.2.0
-message: The title and abstract of this code and my ORCid are the only things not listed elsewhere; the references are generated from the CREDITS file and therefore that file should be more considered more definitive.
+message: The title and abstract of this code and my ORCid
+  are the only things not listed elsewhere; the references
+  are generated from the CREDITS file and therefore that
+  file should be more considered more definitive.
 
 title: A Chiming Clock in Perl
 authors:
@@ -7,7 +10,11 @@ authors:
   given-names: Ambrose
   orcid: "https://orcid.org/0000-0002-9996-7486"
 
-abstract: This is software I personally use to replace my two Javascript-based chiming clocks. It does Westminster-style quarterly chimes, and announces night watches according to the proportional decimal time system in use c. 7–2c BC in the geographical region known as China.
+abstract: This is software I personally use to replace my two
+  Javascript-based chiming clocks. It does Westminster-style
+  quarterly chimes, and announces night watches according to
+  the proportional decimal time system in use c. 7–2c BC in
+  the geographical region known as China.
 
 repository-code: "https://github.com/acli/new_clock"
 version: n/a
