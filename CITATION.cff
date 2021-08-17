@@ -40,5 +40,21 @@ references:
   type: sound-recording
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
   year: 2011
+- date-accessed: 2021-08-17
+  term: "打更 [Calling out the hour]."
+  title: Wikipedia
+  type: encyclopedia
+  url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
+  year: 2021
+- authors:
+  - family-names: Lin
+    given-names: Tsung-Yi
+  end: 63
+  issue: 420
+  journal: "Science Development"
+  start: 58
+  title: "午時三刻⸺古中國的時間制度 [Three after seven: Systems for time-keeping in ancient China]"
+  type: article
+  year: 2007
 
-# This file was generated from config/CITATION.cff.in and doc/CREDITS.md
+# This file was generated from config/CITATION.cff.in, doc/CREDITS.md, and doc/Night_watches.md

@@ -58,38 +58,72 @@ use vars qw( %apa_type_to_cff_type );
 sub convert_apa_type_to_cff_type ($) {
   my($s) = @_;
   if (!defined $apa_type_to_cff_type{$s}) {
-    print STDERR "$0: Warning: Type \"%s\" cannot be converted and has been thrown away\n", $s;
+    printf STDERR "$0: Warning: Type \"%s\" cannot be converted and has been thrown away\n", $s;
     undef $s;
   }
   return defined $s? $apa_type_to_cff_type{$s}: undef;
 }
 
 
+use vars qw( %months );
+%months = (
+  'January' => 1,
+  'February' => 2,
+  'March' => 3,
+  'April' => 4,
+  'May' => 5,
+  'June' => 6,
+  'July' => 7,
+  'August' => 8,
+  'September' => 9,
+  'October' => 10,
+  'November' => 11,
+  'December' => 12,
+);
+
+sub parse_date ($) {
+  my($s) = @_;
+  return sprintf('%04d-%02d-%02d', $3, $months{$1}, $2) if $s =~ /^([A-Z][a-z]+) (\d+), (\d{4})$/;
+}
+
+
+sub format_list (@) {
+  my @s = @_;
+  return @s < 3? join(' and ', @s): sprintf('%s, and %s', join(', ', @s[0..$#s - 1]), $_[$#s]);
+}
+
+
+use vars qw( $year_re );
+$year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
+
+
 # Scan for citations in credits file
 # This is just a quick-and-dirty hack -- it will have LOTS OF BUGS
 sub scan_for_citations ($) {
-  my($credits_input) = @_;
+  my($files) = @_;
   my @citations;
-  open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
-  for (my $state = STATE__INITIAL;;) {
-    my $s = scalar <INPUT>;
-  last unless defined $s;
-    if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
-      if ($s =~ /\(\d{4}\)\.\s/s) { # looks like a citation?
-	push @citations, $s;
-	$state = STATE__CITATION;
-      }
-    } elsif ($state eq STATE__CITATION) {
-      if ($s =~ /^\s*-/s || $s =~ /^\s*$/s) {
-	$state = STATE__UNKNOWN;
+  for my $credits_input (@$files) {
+    open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
+    for (my $state = STATE__INITIAL;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
+	if ($s =~ /$year_re/s) { # looks like a citation?
+	  push @citations, $s;
+	  $state = STATE__CITATION;
+	}
+      } elsif ($state eq STATE__CITATION) {
+	if ($s =~ /^\s*-/s || $s =~ /^\s*$/s) {
+	  $state = STATE__UNKNOWN;
+	} else {
+	  $citations[$#citations] .= $s;
+	}
       } else {
-	$citations[$#citations] .= $s;
+	die "$0: INTERNAL ERROR: Reached unknown state $state";
       }
-    } else {
-      die "$0: INTERNAL ERROR: Reached unknown state $state";
     }
+    close INPUT;
   }
-  close INPUT;
   return @citations;
 }
 
@@ -97,7 +131,6 @@ sub scan_for_citations ($) {
 # Analyze our citations
 sub analyze_citations (@) {
   my(@citations) = @_;
-  my $year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
   for (my $i = 0; $i < @citations; $i += 1) {
     my $s = $citations[$i];
     my $node;
@@ -108,14 +141,19 @@ sub analyze_citations (@) {
     if ($s =~ s/(?<=\.)\s(?:(doi:\S+)|(?:(?:Available at|Retrieved from)|(\w[\w\s]+\w) (?:available at|retrieved from)) (\S+))$//s) {
       my($doi, $thing, $url) = ($1, $2, $3);
       $node->{'url'} = defined $doi? $doi: $url;
+    } elsif ($s =~ s/(?<=\.)\s(?:(?:Retrieved ([A-Z][a-z]+ \d+, \d{4}), from)|(\w[\w\s]+\w) retrieved ([A-Z][a-z]+ \d+, \d{4}), from) (\S+)$//s) {
+      my($retrieval_date_1, $thing, $retrieval_date_2, $url) = ($1, $2, $3, $4);
+      $node->{'date-accessed'} = parse_date(defined $retrieval_date_1? $retrieval_date_1: $retrieval_date_2);
+      $node->{'url'} = $url;
     }
 
     # Does it look like we have an author? sigh.
+    my $possible_author_list;
     if ($s =~ s/^((?:(?!$year_re).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$year_re)//s) {
-      my($possible_author_list, $author_type) = ($1);
+      ($possible_author_list, my $author_type) = ($1);
       ($possible_author_list, $author_type) = ($1, $2) if $possible_author_list =~ /^(.*?), (ed\.)$/;
       my @people;
-      for (my $i = 0; substr($s, $i) =~ /\S/s;) {
+      for (my $i = 0; substr($possible_author_list, $i) =~ /\S/s;) {
 	my $s = substr($possible_author_list, $i);
 	my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $node);
 	if ($s =~ /^\[(.*?)\]\((.*?)\)(?:,|$)/s) {
@@ -125,15 +163,16 @@ sub analyze_citations (@) {
 	} else {
 	  $possible_name = $s;
 	}
-	if ($possible_name =~ /^(.*?), <span title="([^""]+)">((?:\w\.\s*)+)<\/span>$/) {
+	if ($possible_name =~ /^(.*?), <span title="([^""]+)">((?:\w\.(?:-\w\.)*\s*)+)<\/span>$/) {
 	  ($last_name, $given_names, $initials) = ($1, $2, $3);
-	} elsif ($possible_name =~ /^(.*?), <span title=([^""<>]+)>((?:\w\.\s*)+)<\/span>$/) {
+	} elsif ($possible_name =~ /^(.*?), <span title=([^""<>]+)>((?:\w\.(?:-\w\.)*\s*)+)<\/span>$/) {
 	  ($last_name, $given_names, $initials) = ($1, $2, $3);
 	} elsif ($possible_name =~ /^(.*?), ((?:.\.\s*)+)$/) {
 	  ($last_name, $initials) = ($1, $2);
 	} elsif ($possible_name =~ /^\S+$/) {
 	  $single_name = $possible_name;
 	} else {
+      last if !@people; # not an author list, possibly an article name with no author
 	  die "Can't figure out \"$s\"\n";
 	}
 
@@ -151,12 +190,39 @@ sub analyze_citations (@) {
     }
 
     # Does it look like we have a title?
-    if ($s =~ s/$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
+    if (!defined $node->{'authors'} && $s =~ s/^$year_re\s*(In )?<cite>(.*?)<\/cite>\.//s) {
+      my($year, $serial, $in_p, $in) = ($1, $2, $3, $4);
+      my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?$/;
+      $node->{'year'} = $year unless $year eq 'n.d.';
+      if ($in =~ /^Wikipedia$/) {
+	$node->{'term'} = $title;
+	$node->{'term'} .= " [$translated_title]" if defined $translated_title;
+	$node->{'title'} = $in;
+	$node->{'type'} = 'encyclopedia';
+      } else {
+	$node->{'title'} = $title;
+	$node->{'title'} .= " [$translated_title]" if defined $translated_title;
+	if (defined $in_p && $in_p) {
+	  die; # article in a book
+	} else {
+	  $node->{'journal'} = $in;
+	}
+      }
+    } elsif ($s =~ s/^$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
       my($year, $serial, $title, $type) = ($1, $2, $3, $4);
-      $node->{'year'} = $year;
-      $node->{'year-serial'} = $serial if defined $serial;
+      $node->{'year'} = $year unless $year eq 'n.d.';
       $node->{'title'} = $title;
       $node->{'type'} = convert_apa_type_to_cff_type($type);
+    } elsif ($s =~ s/^$year_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.\s*//s) {
+      my($year, $serial, $title, $translated_title, $journal, $issue, $start, $end) = ($1, $2, $3, $4, $5, $6, $7, $8);
+      $node->{'year'} = $year unless $year eq 'n.d.';
+      $node->{'title'} = "$title [$translated_title]";
+      $node->{'journal'} = $journal;
+      $node->{'issue'} = $issue;
+      $node->{'start'} = $start;
+      $node->{'end'} = $end;
+      $node->{'type'} = 'article';
+    } else {
     }
 
     $node->{'unknown'} = $s if $s =~ /\S/s;
@@ -173,7 +239,7 @@ sub emit_file_header () {
 
 sub emit_file_footer ($$) {
   my($template_input, $credits_input) = @_;
-  printf "\n# This file was generated from %s and %s\n", $template_input, $credits_input;
+  printf "\n# This file was generated from %s\n", format_list($template_input, @$credits_input);
 }
 
 
@@ -240,9 +306,8 @@ for my $arg (@ARGV) {
   if ($arg =~ /\.cff.in$/) {
     die "$0: $arg: CFF template already defined\n" if defined $template_input;
     $template_input = $arg;
-  } elsif ($arg =~ /\b(?:ACKNOWLEDGE?MENTS|CREDITS)(?:\.md)?$/) {
-    die "$0: $arg: Credits template already defined\n" if defined $credits_input;
-    $credits_input = $arg;
+  } elsif ($arg =~ /\.md$/) {
+    push @$credits_input, $arg;
   } else {
     die "$0: $arg: Unknown input\n";
   }
