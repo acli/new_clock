@@ -1,11 +1,11 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: If you use this software, please cite it as below.
 authors:
-- family-names: "Li"
-  given-names: "Ambrose"
+- family-names: Li
+  given-names: Ambrose
   orcid: "https://orcid.org/0000-0002-9996-7486"
-title: "A Chiming Clock in Perl"
-abstract: "This is software I personally use to replace my two Javascript-based chiming clocks. It does Westminster-style quarterly chimes, and announces night watches according to the proportional decimal time system in use c. 7–2c BC in the geographical region known as China."
+title: A Chiming Clock in Perl
+abstract: This is software I personally use to replace my two Javascript-based chiming clocks. It does Westminster-style quarterly chimes, and announces night watches according to the proportional decimal time system in use c. 7–2c BC in the geographical region known as China.
 repository-code: "https://github.com/acli/new_clock"
 version: n/a
 references:
