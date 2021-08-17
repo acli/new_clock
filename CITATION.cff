@@ -35,7 +35,7 @@ references:
 - authors:
   - family-names: Gossner
     given-names: Samuel
-    url: "https://github.com/sgossner/"
+    url: "http://sgossner.versilstudios.com/"
   year: 2019
   title: "Versilian Community Sample Library"
   type: sound-recording
@@ -76,7 +76,7 @@ references:
 - authors:
   - family-names: Walter
     given-names: Thomas
-    url: "https://freesound.org/people/inchadney/"
+    url: "http://www.inchadney.com/"
   year: 2011
   title: "Birds: Cuckoo.wav"
   type: sound-recording

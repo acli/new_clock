@@ -2,7 +2,7 @@ References
 ==========
 The script uses the following audio recordings:
 
-[Gossner, <span title=Samuel>S.</span>](https://github.com/sgossner/), ed. (2019).
+[Gossner, <span title=Samuel>S.</span>](http://sgossner.versilstudios.com/), ed. (2019).
 Versilian Community Sample Library [Audio file].
 Retrieved from https://github.com/sgossner/VCSL
 - These recordings are public domain (cc0) and are used for Westminster-style chimes
@@ -25,7 +25,7 @@ Retrieved from https://freesound.org/people/strangehorizon/packs/32761/
   [the D#5 gong](https://freesound.org/people/strangehorizon/sounds/582159/)
   (The entire set used to be needed for the Westminster chime)
 
-[Walter, <span title=Thomas>T.</span>](https://freesound.org/people/inchadney/) (2011).
+[Walter, <span title=Thomas>T.</span>](http://www.inchadney.com/) (2011).
 Birds: Cuckoo.wav [Audio file].
 Retrieved from https://freesound.org/people/inchadney/sounds/121203/
 - This recording is cc-by-3.0 and is used by cuckoo mode
