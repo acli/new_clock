@@ -127,10 +127,11 @@ $year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
 sub scan_for_citations ($) {
   my($files) = @_;
   my @citations;
+  my @lookahead;
   for my $credits_input (@$files) {
     open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
     for (my $state = STATE__INITIAL;;) {
-      my $s = scalar <INPUT>;
+      my $s = @lookahead? pop @lookahead: scalar <INPUT>;
     last unless defined $s;
       if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
 	if ($s =~ /$year_re/s) { # looks like a citation?
@@ -139,9 +140,21 @@ sub scan_for_citations ($) {
 	}
       } elsif ($state eq STATE__CITATION) {
 	if ($s =~ /^\s*-/s || $s =~ /^\s*$/s) {
-	  $state = STATE__UNKNOWN;
+	  push @lookahead, $s;
+	  $state = STATE__ANNOTATION;
 	} else {
 	  $citations[$#citations] .= $s;
+	}
+      } elsif ($state eq STATE__ANNOTATION) {
+	if ($s =~ /^\s*$/) {
+	  $state = STATE__UNKNOWN;
+	} elsif (!($s =~ /^\s*-/s || $s =~ /^\s+\S/s) && $s =~ /$year_re/) { # looks like a citation?
+	  push @citations, $s;
+	  $state = STATE__CITATION;
+	} elsif ($s =~ /(?:This \w+ is|These \w+ are)\s+(?:(public domain)|((?:CC|cc)(?:-[a-z]{2})+-\d+\.\d+))\b/s) { # looks like a license?
+	  my($cc0, $cc) = ($1, $2);
+	  $citations[$#citations] .= sprintf("\x1e%s", uc(defined $cc0? 'cc0-1.0': $cc));
+	} else {
 	}
       } else {
 	die "$0: INTERNAL ERROR: Reached unknown state $state";
@@ -159,6 +172,12 @@ sub analyze_citations (@) {
   for (my $i = 0; $i < @citations; $i += 1) {
     my $s = $citations[$i];
     my $node;
+
+    # Hack off the license code that we tagged onto it first, because that's not really part of the citation
+    if ($s =~ s/\x1e(.*)$//s) {
+      $node->{'license'} = $1;
+    }
+
     $s =~ s/<!--(?:(?!--).)*-->//;
     $s =~ s/\s+$//;
     $s =~ s/\s+/ /g;

@@ -31,6 +31,7 @@ references:
   title: "Versilian Community Sample Library"
   type: sound-recording
   repository-code: "https://github.com/sgossner/VCSL"
+  license: CC0-1.0
 
 - authors:
   - name: strangehorizon
@@ -38,6 +39,7 @@ references:
   title: "Tuned Chau Gongs"
   type: sound-recording
   repository: "https://freesound.org/people/strangehorizon/packs/32761/"
+  license: CC0-1.0
 
 - authors:
   - family-names: Walter
@@ -46,6 +48,7 @@ references:
   title: "Birds: Cuckoo.wav"
   type: sound-recording
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
+  license: CC-BY-3.0
 
 - year: 2021
   term: "打更 [Calling out the hour]."
