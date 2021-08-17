@@ -729,7 +729,7 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
     $time_in_range_p = in_range($deciday, $target_times);
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?($clocktime_re-$clocktime_re)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
-    $time_in_range_p = in_semi_closed_range($deciday, parse_clocktime_range $target_times);
+    $time_in_range_p = in_semi_closed_range($hour + $min/60 * $sec/3600, parse_clocktime_range $target_times);
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?($deciday_re(?:\s*-\s*$deciday_re)?)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range(int($deciday), parse_named_deciday_range $target_times);
@@ -1159,6 +1159,7 @@ for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef
 	      ['Thursday 19:45-22:00: 0.25',	21, 30,  0, 6.66, 0, undef, undef],
 	      ['morning: 0.5',			17, 53, 36, 5.14, 0, undef, undef],
 	      ['E-evening: 0.75',		17, 53,  0, 5.14, 0, 0.75,  undef],
+	      ['3:00-9:00: 0.6',		14, 0,   0, 3.76, 2, undef, undef],	# actual failure on 20210817
 	      ['A: 0.5',			21, 30,  0, 6.66, 0, 0.5,   undef],
 	      ['0.5',                           12, 30,  0, 3.20, 0, 0.5,   undef]) {
   my($directive, $hour, $min, $sec, $deciday, $wday, $expected_result1, $expected_result2) = @$test;
