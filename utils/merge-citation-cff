@@ -141,7 +141,7 @@ for (my $i = 0; $i < @citations; $i += 1) {
       $node->{'given-names'} = $given_names if defined $given_names;
       $node->{'given-names'} = $initials if defined $initials && !defined $given_names;
       $node->{'name'} = $single_name if defined $single_name;
-      $node->{+($url =~ /^10\./? 'doi': 'url')} = $url if defined $url;
+      $node->{'url'} = $url if defined $url;
       push @people, $node if $node;
 
       $i += length $s;
@@ -182,13 +182,25 @@ for my $citation (@citations) {
       for my $author (@{$citation->{'authors'}}) {
 	my $indent = '  - ';
 	for my $field ('family-names', 'given-names', 'name') {
-	  printf "%s%s: %s\n", $indent, $field, quotable $author->{$field} if defined $author->{$field};
-	  $indent = '    ';
+	  if (defined $author->{$field}) {
+	    printf "%s%s: %s\n", $indent, $field, quotable $author->{$field};
+	    $indent = '    ';
+	  }
 	}
       }
+      $indent = '  ';
+    } elsif ($key eq 'url') { # if we got a url it needs to be examined more carefully
+      my($type, $url) = ($key, $citation->{$key});
+      if ($url =~ /^https:\/\/github\.com\//) {
+	$type = 'repository-code';
+      } elsif ($url =~ /^https:\/\/freesound\.org\//) {
+	$type = 'repository';
+      }
+      printf "%s%s: %s\n", $indent, $type, quotable $citation->{$key};
+      $indent = '  ';
     } elsif ($key ne 'unknown') {
       printf "%s%s: %s\n", $indent, $key, quotable $citation->{$key};
+      $indent = '  ';
     }
-    $indent = '  ';
   }
 }

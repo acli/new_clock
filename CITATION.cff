@@ -6,7 +6,7 @@ authors:
 - family-names: "Li"
   given-names: "Ambrose"
   orcid: "https://orcid.org/0000-0002-9996-7486"
-license: MIT
+license: "MIT"
 repository-code: "https://github.com/acli/new_clock"
 references:
 - authors:
@@ -14,18 +14,18 @@ references:
     given-names: Samuel
   title: "Versilian Community Sample Library"
   type: sound-recording
-  url: "https://github.com/sgossner/VCSL"
+  repository-code: "https://github.com/sgossner/VCSL"
   year: 2019
 - authors:
-    name: strangehorizon
+  - name: strangehorizon
   title: "Tuned Chau Gongs"
   type: sound-recording
-  url: "https://freesound.org/people/strangehorizon/packs/32761/"
+  repository: "https://freesound.org/people/strangehorizon/packs/32761/"
   year: 2021
 - authors:
   - family-names: Walter
     given-names: Thomas
   title: "Birds: Cuckoo.wav"
   type: sound-recording
-  url: "https://freesound.org/people/inchadney/sounds/121203/"
+  repository: "https://freesound.org/people/inchadney/sounds/121203/"
   year: 2011
