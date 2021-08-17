@@ -381,7 +381,7 @@ sub emit_citations (@) {
 	printf "%s%s:\n", $indent, $key;
 	for my $author (@{$citation->{'authors'}}) {
 	  my $indent = '  - ';
-	  for my $field ('family-names', 'given-names', 'name') {
+	  for my $field ('family-names', 'given-names', 'name', 'alias', 'url', 'affiliation') {
 	    if (defined $author->{$field}) {
 	      printf "%s%s: %s\n", $indent, $field, quotable $author->{$field};
 	      $indent =~ s/-/ /g;
