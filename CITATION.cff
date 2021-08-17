@@ -15,9 +15,9 @@ abstract: This script was designed to replace two Javascript-based
   time systems. In addition to Westminster-style quarterly chimes,
   between sundown and sunrise it also sounds chimes that allow the
   current night watch (according to the proportional decimal time
-  system in use c. 7–2c BC in the geographical region now known as
-  China) to be sonically identified. Care is taken to avoid the two
-  kinds of chimes from running together.
+  system in use in ancient China c. 7–2c BC) to be sonically
+  identified. Care is taken to avoid the two kinds of chimes from
+  running together.
 
 repository-code: "https://github.com/acli/new_clock"
 version: n/a
