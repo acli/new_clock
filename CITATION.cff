@@ -29,3 +29,5 @@ references:
   type: sound-recording
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
   year: 2011
+
+# This file was generated from config/CITATION.cff.in and doc/CREDITS.md

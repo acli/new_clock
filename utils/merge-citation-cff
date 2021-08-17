@@ -166,8 +166,14 @@ sub analyze_citations (@) {
 }
 
 
-sub emit_bom () {
+sub emit_file_header () {
   # Do not output BOM (U+feff), GitHub doesn't like it
+}
+
+
+sub emit_file_footer ($$) {
+  my($template_input, $credits_input) = @_;
+  printf "\n# This file was generated from %s and %s\n", $template_input, $credits_input;
 }
 
 
@@ -245,6 +251,9 @@ for my $arg (@ARGV) {
 my @citations = scan_for_citations($credits_input);
 @citations = analyze_citations(@citations);
 
-emit_bom;
+emit_file_header;
+
 copy_template $template_input;
 emit_citations @citations;
+
+emit_file_footer $template_input, $credits_input;
