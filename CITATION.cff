@@ -42,6 +42,10 @@ references:
   repository-code: "https://github.com/sgossner/VCSL"
   license: CC0-1.0
 
+- title: hebcal
+  type: software
+  repository-code: "https://github.com/hebcal/hebcal"
+
 - authors:
   - family-names: Li
     given-names: Ambrose
@@ -64,6 +68,10 @@ references:
   end: 63
   url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
 
+- title: mpv
+  type: software
+  repository-code: "https://github.com/mpv-player/mpv"
+
 - authors:
   - name: strangehorizon
     url: "https://soundcloud.com/sonic_kitchen"
@@ -83,4 +91,4 @@ references:
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
   license: CC-BY-3.0
 
-# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/GITHUB_CITATION_BUGS.md, and doc/CREDITS.md
+# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/GITHUB_CITATION_BUGS.md, doc/CREDITS.md, and README.md

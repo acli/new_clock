@@ -34,9 +34,16 @@ select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDER
 
 # DSM states for credits file scanning
 sub STATE__INITIAL               () { 'INITIAL' }
+
+sub STATE__DEPENDENCIES_HEAD_SEEN() { 'DEPENDENCIES_HEAD_SEEN' }
+sub STATE__DEPENDENCIES_SECTION  () { 'DEPENDENCIES_SECTION' }
+
+sub STATE__REFERENCES_HEAD_SEEN  () { 'REFERENCES_HEAD_SEEN' }
+sub STATE__REFERENCES_SECTION    () { 'REFERENCES_SECTION' }
 sub STATE__CITATION              () { 'CITATION' }
 sub STATE__ANNOTATION_OR_UNKNOWN () { 'ANNOTATION_OR_UNKNOWN' }
 sub STATE__ANNOTATION            () { 'ANNOTATION' }
+
 sub STATE__UNKNOWN               () { 'UNKNOWN' }
 
 
@@ -51,6 +58,7 @@ sub quotable ($) {
 use vars qw( %apa_type_to_cff_type );
 %apa_type_to_cff_type = (
   'Audio file' => 'sound-recording',
+  'Computer software' => 'software',
   'Dataset' => 'data',
   'Data set' => 'data', # typo
   'Weblog post' => 'blog',
@@ -170,7 +178,7 @@ $month_re = '(?:\b(?:January|February|March|April|May|June|July|August|September
 $day_re = '(?:\b(?:0?[1-9]|2\d|3[01])\b)';
 
 use vars qw( $date_ref_re $date_ref_re_no_captures );
-$date_ref_re = '\s*\((?:(\d{4,})(?:, ('.$month_re.')(?: ('.$day_re.'))?)?|(n\.d\.))([a-z])?\)\.\s'; # NOTE: 5 captures - yyyy Mmm dd n.d. a/b/c
+$date_ref_re = '\s*\((?:(\d{4,})(?:, ('.$month_re.')(?: ('.$day_re.'))?)?|(n\.d\.))([a-z])?\)\.(?:\s|$)'; # NOTE: 5 captures - yyyy Mmm dd n.d. a/b/c
 $date_ref_re_no_captures = $date_ref_re;
 $date_ref_re_no_captures =~ s/(?<!\\)\((?![\?])/(?:/sg;
 
@@ -187,6 +195,30 @@ sub scan_for_citations ($) {
       my $s = @lookahead? pop @lookahead: scalar <INPUT>;
     last unless defined $s;
       if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
+	if ($s =~ /^Dependencies:?\s*$/) {
+	  $state = STATE__DEPENDENCIES_HEAD_SEEN;
+	} elsif ($s =~ /^References:?\s*$/) {
+	  $state = STATE__REFERENCES_HEAD_SEEN;
+	}
+      } elsif ($state eq STATE__DEPENDENCIES_HEAD_SEEN) {
+	if ($s =~ /^---+\s*$/ || $s =~ /^===+\s*$/) {
+	  $state = STATE__DEPENDENCIES_SECTION;
+	} else {
+	  $state = STATE__UNKNOWN;
+	}
+      } elsif ($state eq STATE__DEPENDENCIES_SECTION) {
+	if ($s =~ /^-\s+\[(.*?)\]\((.*?)\)/s) {
+	  push @citations, "$1 [Computer software]. (n.d.). Retrieved from $2"; # synthesize fake reference for analyze_citations()
+	} elsif ($s =~ /^\s*$/) {
+	  $state = STATE__UNKNOWN;
+	}
+      } elsif ($state eq STATE__REFERENCES_HEAD_SEEN) {
+	if ($s =~ /^---+\s*$/ || $s =~ /^===+\s*$/) {
+	  $state = STATE__REFERENCES_SECTION;
+	} else {
+	  $state = STATE__UNKNOWN;
+	}
+      } elsif ($state eq STATE__REFERENCES_SECTION) {
 	if ($s =~ /$date_ref_re/s) { # looks like a citation?
 	  push @citations, $s;
 	  $state = STATE__CITATION;
@@ -200,7 +232,7 @@ sub scan_for_citations ($) {
 	}
       } elsif ($state eq STATE__ANNOTATION) {
 	if ($s =~ /^\s*$/) {
-	  $state = STATE__UNKNOWN;
+	  $state = STATE__REFERENCES_SECTION;
 	} elsif (!($s =~ /^\s*-/s || $s =~ /^\s+\S/s) && $s =~ /$date_ref_re/) { # looks like a citation?
 	  push @citations, $s;
 	  $state = STATE__CITATION;
@@ -322,6 +354,15 @@ sub analyze_citations (@) {
       $node->{'type'} = 'article';
     } elsif ($s =~ s/^$date_ref_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
       my($year, $month, $day, $nd, $serial, $title, $type) = ($1, $2, $3, $4, $5, $6, $7);
+      $type = convert_apa_type_to_cff_type($type);
+      $node->{'year'} = $year if defined $year;
+      $node->{'month'} = parse_month $month if defined $month;
+      $node->{'day'} = $day if defined $day;
+      $node->{'title'} = $title;
+      $node->{'type'} = $type if defined $type;
+    } elsif ($s =~ /^$date_ref_re$/s && $possible_author_list =~ /^(.*?) \[(Computer software)\]\.$/s) { # fake reference that we synthesized
+      my($title, $type) = ($1, $2);
+      my($year, $month, $day, $nd, $serial) = ($1, $2, $3, $4, $5) if $s =~ /^$date_ref_re$/;
       $type = convert_apa_type_to_cff_type($type);
       $node->{'year'} = $year if defined $year;
       $node->{'month'} = parse_month $month if defined $month;
