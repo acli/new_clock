@@ -6,3 +6,24 @@ authors:
   orcid: "https://orcid.org/0000-0002-9996-7486"
 title: "A Chiming Clock in Perl"
 version: 0.0.0
+references:
+- authors:
+  - family-names: Gossner
+    given-names: Samuel
+  title: "Versilian Community Sample Library"
+  type: sound-recording
+  repository-code: "https://github.com/sgossner/VCSL"
+  year: 2019
+- authors:
+  - name: strangehorizon
+  title: "Tuned Chau Gongs"
+  type: sound-recording
+  repository: "https://freesound.org/people/strangehorizon/packs/32761/"
+  year: 2021
+- authors:
+  - family-names: Walter
+    given-names: Thomas
+  title: "Birds: Cuckoo.wav"
+  type: sound-recording
+  repository: "https://freesound.org/people/inchadney/sounds/121203/"
+  year: 2011

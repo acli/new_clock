@@ -173,7 +173,6 @@ last unless defined $s;
   print $s;
 }
 close INPUT;
-exit;
 
 # Add citations
 print "references:\n" if @citations;
