@@ -32,16 +32,20 @@ select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDER
 # End of boilerplate
 
 
+# DSM states for credits file scanning
+sub STATE__INITIAL               () { 'INITIAL' }
+sub STATE__CITATION              () { 'CITATION' }
+sub STATE__ANNOTATION_OR_UNKNOWN () { 'ANNOTATION_OR_UNKNOWN' }
+sub STATE__ANNOTATION            () { 'ANNOTATION' }
+sub STATE__UNKNOWN               () { 'UNKNOWN' }
 
-sub STATE__INITIAL  () { 'INITIAL' }
-sub STATE__CITATION () { 'CITATION' }
-sub STATE__UNKNOWN  () { 'UNKNOWN' }
 
 # hack in trying to make GitHub happy. error messages are garbage, docs are unclear, official tools don't work, we're left guessing what's wrong
 sub quotable ($) {
   my($s) = @_;
   return ($s =~ /\s/s || $s =~ /^https?:\/\//)? "\"$s\"": $s;
 }
+
 
 # apparently the docs are very out of date. see https://github.com/citation-file-format/citation-file-format/blob/main/schema.json
 use vars qw( %apa_type_to_cff_type );
@@ -50,6 +54,7 @@ use vars qw( %apa_type_to_cff_type );
   'Dataset' => 'data',
   'Data set' => 'data', # typo
 );
+
 sub convert_apa_type_to_cff_type ($) {
   my($s) = @_;
   if (!defined $apa_type_to_cff_type{$s}) {
@@ -59,6 +64,171 @@ sub convert_apa_type_to_cff_type ($) {
   return defined $s? $apa_type_to_cff_type{$s}: undef;
 }
 
+
+# Scan for citations in credits file
+# This is just a quick-and-dirty hack -- it will have LOTS OF BUGS
+sub scan_for_citations ($) {
+  my($credits_input) = @_;
+  my @citations;
+  open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
+  for (my $state = STATE__INITIAL;;) {
+    my $s = scalar <INPUT>;
+  last unless defined $s;
+    if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
+      if ($s =~ /\(\d{4}\)\.\s/s) { # looks like a citation?
+	push @citations, $s;
+	$state = STATE__CITATION;
+      }
+    } elsif ($state eq STATE__CITATION) {
+      if ($s =~ /^\s*-/s || $s =~ /^\s*$/s) {
+	$state = STATE__UNKNOWN;
+      } else {
+	$citations[$#citations] .= $s;
+      }
+    } else {
+      die "$0: INTERNAL ERROR: Reached unknown state $state";
+    }
+  }
+  close INPUT;
+  return @citations;
+}
+
+
+# Analyze our citations
+sub analyze_citations (@) {
+  my(@citations) = @_;
+  my $year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
+  for (my $i = 0; $i < @citations; $i += 1) {
+    my $s = $citations[$i];
+    my $node;
+    $s =~ s/\s+$//;
+    $s =~ s/\s+/ /g;
+
+    # Hack off the retrieval URL first since that's the easiest step
+    if ($s =~ s/(?<=\.)\s(?:(doi:\S+)|(?:(?:Available at|Retrieved from)|(\w[\w\s]+\w) (?:available at|retrieved from)) (\S+))$//s) {
+      my($doi, $thing, $url) = ($1, $2, $3);
+      $node->{'url'} = defined $doi? $doi: $url;
+    }
+
+    # Does it look like we have an author? sigh.
+    if ($s =~ s/^((?:(?!$year_re).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$year_re)//s) {
+      my($possible_author_list, $author_type) = ($1);
+      ($possible_author_list, $author_type) = ($1, $2) if $possible_author_list =~ /^(.*?), (ed\.)$/;
+      my @people;
+      for (my $i = 0; substr($s, $i) =~ /\S/s;) {
+	my $s = substr($possible_author_list, $i);
+	my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $node);
+	if ($s =~ /^\[(.*?)\]\((.*?)\)(?:,|$)/s) {
+	  ($possible_name, $url) = ($1, $2);
+	} elsif ($s =~ /^\[(.*?)\]\((.*?)\)\.(?:,|$)/s) { # certainly a handle/team name/company name?
+	  ($possible_name, $url) = ($1, $2);
+	} else {
+	  $possible_name = $s;
+	}
+	if ($possible_name =~ /^(.*?), <span title="([^""]+)">((?:\w\.\s*)+)<\/span>$/) {
+	  ($last_name, $given_names, $initials) = ($1, $2, $3);
+	} elsif ($possible_name =~ /^(.*?), <span title=([^""<>]+)>((?:\w\.\s*)+)<\/span>$/) {
+	  ($last_name, $given_names, $initials) = ($1, $2, $3);
+	} elsif ($possible_name =~ /^(.*?), ((?:.\.\s*)+)$/) {
+	  ($last_name, $initials) = ($1, $2);
+	} elsif ($possible_name =~ /^\S+$/) {
+	  $single_name = $possible_name;
+	} else {
+	  die "Can't figure out \"$s\"\n";
+	}
+
+	$node->{'family-names'} = $last_name if defined $last_name;
+	$node->{'given-names'} = $given_names if defined $given_names;
+	$node->{'given-names'} = $initials if defined $initials && !defined $given_names;
+	$node->{'name'} = $single_name if defined $single_name;
+	$node->{'url'} = $url if defined $url;
+	push @people, $node if $node;
+
+	$i += length $s;
+	$i += length $& if substr($s, $i) =~ /^,\s*/;
+      }
+      $node->{'authors'} = [@people] if @people;
+    }
+
+    # Does it look like we have a title?
+    if ($s =~ s/$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
+      my($year, $serial, $title, $type) = ($1, $2, $3, $4);
+      $node->{'year'} = $year;
+      $node->{'year-serial'} = $serial if defined $serial;
+      $node->{'title'} = $title;
+      $node->{'type'} = convert_apa_type_to_cff_type($type);
+    }
+
+    $node->{'unknown'} = $s if $s =~ /\S/s;
+    $citations[$i] = $node;
+  }
+  return @citations;
+}
+
+
+sub emit_bom () {
+  # Do not output BOM (U+feff), GitHub doesn't like it
+}
+
+
+sub copy_template ($) {
+  my($template_input) = @_;
+
+  # Copy everything from the cff template
+  my %keys_in_template;
+  open(INPUT, '<:utf8', $template_input) or die "$0: $template_input: $!\n";
+  for (;;) {
+    my $s = scalar <INPUT>;
+  last unless defined $s;
+    $keys_in_template{$1} = 1 if $s =~ /^([^\s:]+):/;
+    print $s;
+  }
+  close INPUT;
+
+  # GitHub doesn't like files that don't have a version key, even though version is optional
+  print "version: n/a\n" unless defined $keys_in_template{'version'};
+}
+
+
+sub emit_citations (@) {
+  my(@citations) = @_;
+
+  # Add citations
+  print "references:\n" if @citations;
+  for my $citation (@citations) {
+    my $indent = '- ';
+    for my $key (sort keys %$citation) {
+      if ($key eq 'authors') {
+	printf "%s%s:\n", $indent, $key;
+	for my $author (@{$citation->{'authors'}}) {
+	  my $indent = '  - ';
+	  for my $field ('family-names', 'given-names', 'name') {
+	    if (defined $author->{$field}) {
+	      printf "%s%s: %s\n", $indent, $field, quotable $author->{$field};
+	      $indent =~ s/-/ /g;
+	    }
+	  }
+	}
+	$indent =~ s/-/ /g;
+      } elsif ($key eq 'url') { # if we got a url it needs to be examined more carefully
+	my($type, $url) = ($key, $citation->{$key});
+	if ($url =~ /^https:\/\/github\.com\//) {
+	  $type = 'repository-code';
+	} elsif ($url =~ /^https:\/\/freesound\.org\//) {
+	  $type = 'repository';
+	}
+	printf "%s%s: %s\n", $indent, $type, quotable $citation->{$key};
+	$indent =~ s/-/ /g;
+      } elsif ($key ne 'unknown') {
+	printf "%s%s: %s\n", $indent, $key, quotable $citation->{$key};
+	$indent =~ s/-/ /g;
+      }
+    }
+  }
+}
+
+
+# main loop starts here
 my($template_input, $credits_input);
 for my $arg (@ARGV) {
   if ($arg =~ /\.cff.in$/) {
@@ -72,142 +242,9 @@ for my $arg (@ARGV) {
   }
 }
 
-# Scan for citations in credits file
-# This is just a quick-and-dirty hack -- it will have LOTS OF BUGS
-my @citations;
-open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
-for (my $state = STATE__INITIAL;;) {
-  my $s = scalar <INPUT>;
-last unless defined $s;
-  if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
-    if ($s =~ /\(\d{4}\)\.\s/s) { # looks like a citation?
-      push @citations, $s;
-      $state = STATE__CITATION;
-    }
-  } elsif ($state eq STATE__CITATION) {
-    if ($s =~ /^\s*-/s || $s =~ /^\s*$/s) {
-      $state = STATE__UNKNOWN;
-    } else {
-      $citations[$#citations] .= $s;
-    }
-  } else {
-    die "$0: INTERNAL ERROR: Reached unknown state $state";
-  }
-}
-close INPUT;
+my @citations = scan_for_citations($credits_input);
+@citations = analyze_citations(@citations);
 
-# Analyze our citations
-my $year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
-for (my $i = 0; $i < @citations; $i += 1) {
-  my $s = $citations[$i];
-  my $node;
-  $s =~ s/\s+$//;
-  $s =~ s/\s+/ /g;
-
-  # Hack off the retrieval URL first since that's the easiest step
-  if ($s =~ s/(?<=\.)\s(?:(doi:\S+)|(?:(?:Available at|Retrieved from)|(\w[\w\s]+\w) (?:available at|retrieved from)) (\S+))$//s) {
-    my($doi, $thing, $url) = ($1, $2, $3);
-    $node->{'url'} = defined $doi? $doi: $url;
-  }
-
-  # Does it look like we have an author? sigh.
-  if ($s =~ s/^((?:(?!$year_re).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$year_re)//s) {
-    my($possible_author_list, $author_type) = ($1);
-    ($possible_author_list, $author_type) = ($1, $2) if $possible_author_list =~ /^(.*?), (ed\.)$/;
-    my @people;
-    for (my $i = 0; substr($s, $i) =~ /\S/s;) {
-      my $s = substr($possible_author_list, $i);
-      my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $node);
-      if ($s =~ /^\[(.*?)\]\((.*?)\)(?:,|$)/s) {
-	($possible_name, $url) = ($1, $2);
-      } elsif ($s =~ /^\[(.*?)\]\((.*?)\)\.(?:,|$)/s) { # certainly a handle/team name/company name?
-	($possible_name, $url) = ($1, $2);
-      } else {
-	$possible_name = $s;
-      }
-      if ($possible_name =~ /^(.*?), <span title="([^""]+)">((?:\w\.\s*)+)<\/span>$/) {
-	($last_name, $given_names, $initials) = ($1, $2, $3);
-      } elsif ($possible_name =~ /^(.*?), <span title=([^""<>]+)>((?:\w\.\s*)+)<\/span>$/) {
-	($last_name, $given_names, $initials) = ($1, $2, $3);
-      } elsif ($possible_name =~ /^(.*?), ((?:.\.\s*)+)$/) {
-	($last_name, $initials) = ($1, $2);
-      } elsif ($possible_name =~ /^\S+$/) {
-	$single_name = $possible_name;
-      } else {
-	die "Can't figure out \"$s\"\n";
-      }
-
-      $node->{'family-names'} = $last_name if defined $last_name;
-      $node->{'given-names'} = $given_names if defined $given_names;
-      $node->{'given-names'} = $initials if defined $initials && !defined $given_names;
-      $node->{'name'} = $single_name if defined $single_name;
-      $node->{'url'} = $url if defined $url;
-      push @people, $node if $node;
-
-      $i += length $s;
-      $i += length $& if substr($s, $i) =~ /^,\s*/;
-    }
-    $node->{'authors'} = [@people] if @people;
-  }
-
-  # Does it look like we have a title?
-  if ($s =~ s/$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
-    my($year, $serial, $title, $type) = ($1, $2, $3, $4);
-    $node->{'year'} = $year;
-    $node->{'year-serial'} = $serial if defined $serial;
-    $node->{'title'} = $title;
-    $node->{'type'} = convert_apa_type_to_cff_type($type);
-  }
-
-  $node->{'unknown'} = $s if $s =~ /\S/s;
-  $citations[$i] = $node;
-}
-
-# Do not output BOM (U+feff), GitHub doesn't like it
-
-# Copy everything from the cff template
-my %keys_in_template;
-open(INPUT, '<:utf8', $template_input) or die "$0: $template_input: $!\n";
-for (;;) {
-  my $s = scalar <INPUT>;
-last unless defined $s;
-  $keys_in_template{$1} = 1 if $s =~ /^([^\s:]+):/;
-  print $s;
-}
-close INPUT;
-
-# GitHub doesn't like files that don't have a version key, even though version is optional
-print "version: n/a\n" unless defined $keys_in_template{'version'};
-
-# Add citations
-print "references:\n" if @citations;
-for my $citation (@citations) {
-  my $indent = '- ';
-  for my $key (sort keys %$citation) {
-    if ($key eq 'authors') {
-      printf "%s%s:\n", $indent, $key;
-      for my $author (@{$citation->{'authors'}}) {
-	my $indent = '  - ';
-	for my $field ('family-names', 'given-names', 'name') {
-	  if (defined $author->{$field}) {
-	    printf "%s%s: %s\n", $indent, $field, quotable $author->{$field};
-	    $indent =~ s/-/ /g;
-	  }
-	}
-      }
-      $indent =~ s/-/ /g;
-    } elsif ($key eq 'url') { # if we got a url it needs to be examined more carefully
-      my($type, $url) = ($key, $citation->{$key});
-      if ($url =~ /^https:\/\/github\.com\//) {
-	$type = 'repository-code';
-      } elsif ($url =~ /^https:\/\/freesound\.org\//) {
-	$type = 'repository';
-      }
-      printf "%s%s: %s\n", $indent, $type, quotable $citation->{$key};
-      $indent =~ s/-/ /g;
-    } elsif ($key ne 'unknown') {
-      printf "%s%s: %s\n", $indent, $key, quotable $citation->{$key};
-      $indent =~ s/-/ /g;
-    }
-  }
-}
+emit_bom;
+copy_template $template_input;
+emit_citations @citations;
