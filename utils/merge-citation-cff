@@ -40,7 +40,7 @@ sub STATE__UNKNOWN  () { 'UNKNOWN' }
 # hack in trying to make GitHub happy. error messages are garbage, docs are unclear, official tools don't work, we're left guessing what's wrong
 sub quotable ($) {
   my($s) = @_;
-  return ($s =~ /\s/s || $s =~ /^https?:\/\//)? "\"$s\"": $s;
+  return ($s !~ /^\d+/s)? "\"$s\"": $s;
 }
 
 # apparently the docs are very out of date. see https://github.com/citation-file-format/citation-file-format/blob/main/schema.json
