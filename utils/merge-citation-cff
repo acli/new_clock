@@ -163,8 +163,7 @@ for (my $i = 0; $i < @citations; $i += 1) {
   $citations[$i] = $node;
 }
 
-# Let's see if GitHub likes this =P
-#print "\x{feff}";
+# Do not output BOM (U+feff), GitHub doesn't like it
 
 # Copy everything from the cff template
 open(INPUT, '<:utf8', $template_input) or die "$0: $template_input: $!\n";
