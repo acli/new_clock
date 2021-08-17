@@ -12,10 +12,10 @@ authors:
 
 abstract: This script was designed to replace two Javascript-based
   chiming clocks that deliver time information from two different
-  time systems. In addition to Westminster-style quarterly chimes,
-  between sundown and sunrise it also sounds chimes that allow the
-  current night watch (according to the proportional decimal time
-  system in use in ancient China c. 7–2c BC) to be sonically
+  time systems, one that strikes Westminster-style quarterly chimes
+  [Li, 2018], and another that outputs notifications that allow
+  the current night watch (according to the proportional decimal
+  time system in use in ancient China c. 7–2c BC) to be sonically
   identified. Care is taken to avoid the two kinds of chimes from
   running together.
 
@@ -23,6 +23,13 @@ repository-code: "https://github.com/acli/new_clock"
 version: n/a
 
 references:
+
+- year: 2021
+  term: "打更 [Calling out the hour]"
+  title: Wikipedia
+  type: encyclopedia
+  date-accessed: 2021-08-17
+  url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
 
 - authors:
   - family-names: Gossner
@@ -32,6 +39,28 @@ references:
   type: sound-recording
   repository-code: "https://github.com/sgossner/VCSL"
   license: CC0-1.0
+
+- authors:
+  - family-names: Li
+    given-names: Ambrose
+  year: 2018
+  month: January
+  day: 8
+  title: "sysline beeps are music, or the multisensory Unix text mode interface"
+  type: blog
+  url: "http://incd.ambroseli.ca/node/308"
+
+- authors:
+  - family-names: Lin
+    given-names: Tsung-Yi
+  year: 2007
+  title: "午時三刻⸺古中國的時間制度 [Three after seven: Systems for time-keeping in ancient China]"
+  type: article
+  journal: "Science Development"
+  issue: 420
+  start: 58
+  end: 63
+  url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
 
 - authors:
   - name: strangehorizon
@@ -50,23 +79,4 @@ references:
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
   license: CC-BY-3.0
 
-- year: 2021
-  term: "打更 [Calling out the hour]."
-  title: Wikipedia
-  type: encyclopedia
-  date-accessed: 2021-08-17
-  url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
-
-- authors:
-  - family-names: Lin
-    given-names: Tsung-Yi
-  year: 2007
-  title: "午時三刻⸺古中國的時間制度 [Three after seven: Systems for time-keeping in ancient China]"
-  type: article
-  journal: "Science Development"
-  issue: 420
-  start: 58
-  end: 63
-  url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
-
-# This file was generated from config/CITATION.cff.in, doc/CREDITS.md, and doc/Night_watches.md
+# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/GITHUB_CITATION_BUGS.md, and doc/CREDITS.md

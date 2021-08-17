@@ -1,5 +1,21 @@
-Chime options
-=============
+Chiming
+=======
+As described in my blog post I wrote in 2018, I see chiming clocks
+as a kind of sonic interface. My original chiming clock reproduced
+the half-hour beeps produced by *sysline* (a now-uncommon Unix
+program) using Javascript and required a browser to run. At that time,
+Javascript’s WebAudio was still somewhat of a “first-class object”
+– at lease some browsers wouldn’t actively sabotage some audio. Soon
+after I made this first applet, I wrote a second one, based on this
+first one, that announces [night watches](Night_watches.md).
+
+The WebAudio scene in 2020 was drastically different. Browsers now
+actively suppress audio output, on the misguided idea that this
+could solve the “unwanted audio” problem. Doing chiming with web
+applets therefore is no longer appealing. Also, because two different
+applets were producing two kinds of unrelated chimes, often we get
+“illegible” sonic output. A replacement was in order.
+
 Unlike Javascript (or Python), there is no native support in Perl to process audio.
 The script currently uses [mpv](http://mpv.io) to play audio recordings,
 and multiple copies of mpv are needed to play a chime melody.
@@ -92,3 +108,10 @@ Chime melody options
 --------------------
 https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
 - This page contains the actual melodies; the Wikipedia page for the Whittington chimes seems to be a word-for-word plagiarized copy
+
+
+References
+----------
+Li, <span title=Ambrose>A.</span> (2018, January 8).
+sysline beeps are music, or the multisensory Unix text mode interface [Weblog post].
+Retrieved from http://incd.ambroseli.ca/node/308

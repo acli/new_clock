@@ -12,10 +12,10 @@ authors:
 
 abstract: This script was designed to replace two Javascript-based
   chiming clocks that deliver time information from two different
-  time systems. In addition to Westminster-style quarterly chimes,
-  between sundown and sunrise it also sounds chimes that allow the
-  current night watch (according to the proportional decimal time
-  system in use in ancient China c. 7–2c BC) to be sonically
+  time systems, one that strikes Westminster-style quarterly chimes
+  [Li, 2018], and another that outputs notifications that allow
+  the current night watch (according to the proportional decimal
+  time system in use in ancient China c. 7–2c BC) to be sonically
   identified. Care is taken to avoid the two kinds of chimes from
   running together.
 

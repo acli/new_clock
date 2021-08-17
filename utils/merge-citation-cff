@@ -53,6 +53,7 @@ use vars qw( %apa_type_to_cff_type );
   'Audio file' => 'sound-recording',
   'Dataset' => 'data',
   'Data set' => 'data', # typo
+  'Weblog post' => 'blog',
 );
 
 sub convert_apa_type_to_cff_type ($) {
@@ -93,10 +94,19 @@ sub format_list (@) {
 }
 
 
+sub make_sort_form ($) { # NOTE: This does not actually work if $s has accented letters or is CJK, even with Unicode support
+  my($s) = @_;
+  $s =~ s/\W//sg;
+  return lc $s;
+}
+
+
 use vars qw( %citation_key_order );
 %citation_key_order = (
   'authors' => -999,
   'year' => -990,
+  'month' => -989,
+  'day' => -988,
   'term' => -981,
   'title' => -980,
   'type' => -900,
@@ -112,14 +122,52 @@ use vars qw( %citation_key_order );
 
 sub compare_citation_keys ($$) {
   my($a, $b) = @_;
-  my $it = defined $citation_key_order{$a} && defined $citation_key_order{$b}? $citation_key_order{$a} <=> $citation_key_order{$b}:
-	   defined $citation_key_order{$a}? -1:
-	   defined $citation_key_order{$b}? 1: $a cmp $b;
+  return defined $citation_key_order{$a} && defined $citation_key_order{$b}? $citation_key_order{$a} <=> $citation_key_order{$b}:
+	 defined $citation_key_order{$a}? -1:
+	 defined $citation_key_order{$b}? 1: $a cmp $b;
 }
 
 
-use vars qw( $year_re );
-$year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
+sub determine_first_author_name ($) { # XXX very inefficient
+  my($a) = @_;
+  my $it;
+  if (defined $a->{'authors'}) {
+    $it = (sort {
+	  !defined $a && !defined $b? 0:
+	  defined $a? -1:
+	  defined $b? 1: make_sort_form $a cmp make_sort_form $b
+	} map {
+	  defined $_->{'family-names'} && defined $_->{'given-names'}? sprintf('%s, %s', $_->{'family-names'}, $_->{'given-names'}):
+	  defined $_->{'name'}? $_->{'name'}:
+	  defined $_->{'alias'}? $_->{'alias'}: undef;
+	} @{$a->{'authors'}})[0];
+  }
+  return $it;
+}
+
+sub compare_reference_list_entries ($$) {
+  my($a, $b) = @_;
+  my $author_a = determine_first_author_name($a);
+  my $author_b = determine_first_author_name($b);
+  my $title_a = defined $a->{'term'}? $a->{'term'}: $a->{'title'};
+  my $title_b = defined $b->{'term'}? $b->{'term'}: $b->{'title'};
+  $title_a = $1 if defined $title_a && $title_a =~ /\[(.*?)\]$/; # translated title
+  $title_b = $1 if defined $title_b && $title_b =~ /\[(.*?)\]$/; # translated title
+  my $fronted_element_a = defined $author_a? $author_a: $title_a;
+  my $fronted_element_b = defined $author_b? $author_b: $title_b;
+  my $it = make_sort_form $fronted_element_a cmp make_sort_form $fronted_element_b;
+  return $it;
+}
+
+
+use vars qw( $month_re $day_re );
+$month_re = '(?:\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b)';
+$day_re = '(?:\b(?:0?[1-9]|2\d|3[01])\b)';
+
+use vars qw( $date_ref_re $date_ref_re_no_captures );
+$date_ref_re = '\s*\((?:(\d{4,})(?:, ('.$month_re.')(?: ('.$day_re.'))?)?|(n\.d\.))([a-z])?\)\.\s'; # NOTE: 5 captures - yyyy Mmm dd n.d. a/b/c
+$date_ref_re_no_captures = $date_ref_re;
+$date_ref_re_no_captures =~ s/(?<!\\)\((?![\?])/(?:/sg;
 
 
 # Scan for citations in credits file
@@ -134,7 +182,7 @@ sub scan_for_citations ($) {
       my $s = @lookahead? pop @lookahead: scalar <INPUT>;
     last unless defined $s;
       if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
-	if ($s =~ /$year_re/s) { # looks like a citation?
+	if ($s =~ /$date_ref_re/s) { # looks like a citation?
 	  push @citations, $s;
 	  $state = STATE__CITATION;
 	}
@@ -148,7 +196,7 @@ sub scan_for_citations ($) {
       } elsif ($state eq STATE__ANNOTATION) {
 	if ($s =~ /^\s*$/) {
 	  $state = STATE__UNKNOWN;
-	} elsif (!($s =~ /^\s*-/s || $s =~ /^\s+\S/s) && $s =~ /$year_re/) { # looks like a citation?
+	} elsif (!($s =~ /^\s*-/s || $s =~ /^\s+\S/s) && $s =~ /$date_ref_re/) { # looks like a citation?
 	  push @citations, $s;
 	  $state = STATE__CITATION;
 	} elsif ($s =~ /(?:This \w+ is|These \w+ are)\s+(?:(public domain)|((?:CC|cc)(?:-[a-z]{2})+-\d+\.\d+))\b/s) { # looks like a license?
@@ -194,7 +242,7 @@ sub analyze_citations (@) {
 
     # Does it look like we have an author? sigh.
     my $possible_author_list;
-    if ($s =~ s/^((?:(?!$year_re).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$year_re)//s) {
+    if ($s =~ s/^((?:(?!$date_ref_re_no_captures).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$date_ref_re_no_captures)//s) {
       ($possible_author_list, my $author_type) = ($1);
       ($possible_author_list, $author_type) = ($1, $2) if $possible_author_list =~ /^(.*?), (ed\.)$/;
       my @people;
@@ -235,10 +283,12 @@ sub analyze_citations (@) {
     }
 
     # Does it look like we have a title?
-    if (!defined $node->{'authors'} && $s =~ s/^$year_re\s*(In )?<cite>(.*?)<\/cite>\.$//s) {
-      my($year, $serial, $in_p, $in) = ($1, $2, $3, $4);
-      my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?$/;
-      $node->{'year'} = $year unless $year eq 'n.d.';
+    if (!defined $node->{'authors'} && $s =~ s/^$date_ref_re\s*(In )?<cite>(.*?)<\/cite>\.$//s) {
+      my($year, $month, $day, $nd, $serial, $in_p, $in) = ($1, $2, $3, $4, $5, $6, $7);
+      my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?\.$/;
+      $node->{'year'} = $year if defined $year;
+      $node->{'month'} = $month if defined $month;
+      $node->{'day'} = $day if defined $day;
       if ($in =~ /^Wikipedia$/) {
 	$node->{'term'} = $title;
 	$node->{'term'} .= " [$translated_title]" if defined $translated_title;
@@ -254,19 +304,23 @@ sub analyze_citations (@) {
 	  $node->{'type'} = 'article';
 	}
       }
-    } elsif ($s =~ s/^$year_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.$//s) {
-      my($year, $serial, $title, $translated_title, $journal, $issue, $start, $end) = ($1, $2, $3, $4, $5, $6, $7, $8);
-      $node->{'year'} = $year unless $year eq 'n.d.';
+    } elsif ($s =~ s/^$date_ref_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.$//s) {
+      my($year, $month, $day, $nd, $serial, $title, $translated_title, $journal, $issue, $start, $end) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+      $node->{'year'} = $year if defined $year;
+      $node->{'month'} = $month if defined $month;
+      $node->{'day'} = $day if defined $day;
       $node->{'title'} = "$title [$translated_title]";
       $node->{'journal'} = $journal;
       $node->{'issue'} = $issue;
       $node->{'start'} = $start;
       $node->{'end'} = $end;
       $node->{'type'} = 'article';
-    } elsif ($s =~ s/^$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
-      my($year, $serial, $title, $type) = ($1, $2, $3, $4);
+    } elsif ($s =~ s/^$date_ref_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
+      my($year, $month, $day, $nd, $serial, $title, $type) = ($1, $2, $3, $4, $5, $6, $7);
       $type = convert_apa_type_to_cff_type($type);
-      $node->{'year'} = $year unless $year eq 'n.d.';
+      $node->{'year'} = $year if defined $year;
+      $node->{'month'} = $month if defined $month;
+      $node->{'day'} = $day if defined $day;
       $node->{'title'} = $title;
       $node->{'type'} = $type if defined $type;
     } else {
@@ -367,6 +421,6 @@ my @citations = scan_for_citations($credits_input);
 emit_file_header;
 
 copy_template $template_input;
-emit_citations @citations;
+emit_citations sort { compare_reference_list_entries($a, $b) } @citations;
 
 emit_file_footer $template_input, $credits_input;
