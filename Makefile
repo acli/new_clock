@@ -14,7 +14,7 @@ data/%.mp3: raw/%.wav config/%.volume
 data/%: raw/%
 	ln $< $@
 
-CITATION.cff: CITATION.cff.in doc/CREDITS.md utils/merge-citation-cff
+CITATION.cff: config/CITATION.cff.in doc/CREDITS.md utils/merge-citation-cff
 	utils/merge-citation-cff $(filter-out utils/%,$^) > $@
 
 PHONEY: all
