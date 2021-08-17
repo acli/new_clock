@@ -4,7 +4,7 @@ message: The title and abstract of this code and my ORCid
   are generated from the CREDITS and Night_watches files;
   those files should be considered more definitive.
 
-title: chimer: A Chiming Clock in Perl
+title: "chimer: A Chiming Clock in Perl"
 authors:
 - family-names: Li
   given-names: Ambrose
@@ -66,3 +66,4 @@ references:
   end: 63
   url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
 
+# This file was generated from config/CITATION.cff.in, doc/CREDITS.md, and doc/Night_watches.md
