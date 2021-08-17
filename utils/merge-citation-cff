@@ -87,6 +87,11 @@ sub parse_date ($) {
   return sprintf('%04d-%02d-%02d', $3, $months{$1}, $2) if $s =~ /^([A-Z][a-z]+) (\d+), (\d{4})$/;
 }
 
+sub parse_month ($) {
+  my($s) = @_;
+  return defined $months{$s}? $months{$s}: $s;
+}
+
 
 sub format_list (@) {
   my @s = @_;
@@ -287,7 +292,7 @@ sub analyze_citations (@) {
       my($year, $month, $day, $nd, $serial, $in_p, $in) = ($1, $2, $3, $4, $5, $6, $7);
       my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?\.$/;
       $node->{'year'} = $year if defined $year;
-      $node->{'month'} = $month if defined $month;
+      $node->{'month'} = parse_month $month if defined $month;
       $node->{'day'} = $day if defined $day;
       if ($in =~ /^Wikipedia$/) {
 	$node->{'term'} = $title;
@@ -307,7 +312,7 @@ sub analyze_citations (@) {
     } elsif ($s =~ s/^$date_ref_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.$//s) {
       my($year, $month, $day, $nd, $serial, $title, $translated_title, $journal, $issue, $start, $end) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
       $node->{'year'} = $year if defined $year;
-      $node->{'month'} = $month if defined $month;
+      $node->{'month'} = parse_month $month if defined $month;
       $node->{'day'} = $day if defined $day;
       $node->{'title'} = "$title [$translated_title]";
       $node->{'journal'} = $journal;
@@ -319,7 +324,7 @@ sub analyze_citations (@) {
       my($year, $month, $day, $nd, $serial, $title, $type) = ($1, $2, $3, $4, $5, $6, $7);
       $type = convert_apa_type_to_cff_type($type);
       $node->{'year'} = $year if defined $year;
-      $node->{'month'} = $month if defined $month;
+      $node->{'month'} = parse_month $month if defined $month;
       $node->{'day'} = $day if defined $day;
       $node->{'title'} = $title;
       $node->{'type'} = $type if defined $type;

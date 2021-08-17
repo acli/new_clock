@@ -46,7 +46,7 @@ references:
   - family-names: Li
     given-names: Ambrose
   year: 2018
-  month: January
+  month: 1
   day: 8
   title: "sysline beeps are music, or the multisensory Unix text mode interface"
   type: blog
