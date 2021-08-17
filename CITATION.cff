@@ -20,6 +20,7 @@ repository-code: "https://github.com/acli/new_clock"
 version: n/a
 
 references:
+
 - authors:
   - family-names: Gossner
     given-names: Samuel
@@ -27,12 +28,14 @@ references:
   type: sound-recording
   repository-code: "https://github.com/sgossner/VCSL"
   year: 2019
+
 - authors:
   - name: strangehorizon
   title: "Tuned Chau Gongs"
   type: sound-recording
   repository: "https://freesound.org/people/strangehorizon/packs/32761/"
   year: 2021
+
 - authors:
   - family-names: Walter
     given-names: Thomas
@@ -40,12 +43,14 @@ references:
   type: sound-recording
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
   year: 2011
+
 - date-accessed: 2021-08-17
   term: "打更 [Calling out the hour]."
   title: Wikipedia
   type: encyclopedia
   url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
   year: 2021
+
 - authors:
   - family-names: Lin
     given-names: Tsung-Yi

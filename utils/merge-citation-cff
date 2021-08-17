@@ -268,7 +268,7 @@ sub emit_citations (@) {
   # Add citations
   print "\nreferences:\n" if @citations;
   for my $citation (@citations) {
-    my $indent = '- ';
+    my $indent = "\n- ";
     for my $key (sort keys %$citation) {
       if ($key eq 'authors') {
 	printf "%s%s:\n", $indent, $key;
@@ -281,7 +281,7 @@ sub emit_citations (@) {
 	    }
 	  }
 	}
-	$indent =~ s/-/ /g;
+	$indent =~ s/^\n+//g; $indent =~ s/-/ /g;
       } elsif ($key eq 'url') { # if we got a url it needs to be examined more carefully
 	my($type, $url) = ($key, $citation->{$key});
 	if ($url =~ /^https:\/\/github\.com\//) {
@@ -290,10 +290,10 @@ sub emit_citations (@) {
 	  $type = 'repository';
 	}
 	printf "%s%s: %s\n", $indent, $type, quotable $citation->{$key};
-	$indent =~ s/-/ /g;
+	$indent =~ s/^\n+//g; $indent =~ s/-/ /g;
       } elsif ($key ne 'unknown') {
 	printf "%s%s: %s\n", $indent, $key, quotable $citation->{$key};
-	$indent =~ s/-/ /g;
+	$indent =~ s/^\n+//g; $indent =~ s/-/ /g;
       }
     }
   }
