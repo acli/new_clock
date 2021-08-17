@@ -174,16 +174,17 @@ last unless defined $s;
   print $s;
 }
 close INPUT;
+exit;
 
 # Add citations
 print "references:\n" if @citations;
 for my $citation (@citations) {
-  my $indent = '  - ';
+  my $indent = '- ';
   for my $key (sort keys %$citation) {
     if ($key eq 'authors') {
       printf "%s%s:\n", $indent, $key;
       for my $author (@{$citation->{'authors'}}) {
-	my $indent = '      - ';
+	my $indent = '  - ';
 	for my $field ('family-names', 'given-names', 'name') {
 	  if (defined $author->{$field}) {
 	    printf "%s%s: %s\n", $indent, $field, quotable $author->{$field};
