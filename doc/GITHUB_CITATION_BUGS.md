@@ -10,8 +10,6 @@ I discovered that GitHub’s CITATION.cff support is buggy:
 2. It requires that a BOM be *not* present;
    the [YAML specification](http://yaml.org/spec/1.2/spec.html)
    explicitly states that BOM can appear at the beginning of the file.
-3. It gets confused if a value (e.g., the title field) contains a colon.
-   The YAML validator has no trouble with this.
 
 In addition, after getting the cff to parse,
 GitHub’s so-called APA citation is clearly not APA;
