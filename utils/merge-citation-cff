@@ -377,7 +377,7 @@ sub emit_citations (@) {
   for my $citation (@citations) {
     my $indent = "\n- ";
     for my $key (sort { compare_citation_keys($a, $b) } keys %$citation) {
-      if ($key eq 'authors') {
+      if ($key =~ /^(?:authors|editors|editors-series|recipients|senders|translators)$/) {
 	printf "%s%s:\n", $indent, $key;
 	for my $author (@{$citation->{'authors'}}) {
 	  my $indent = '  - ';
