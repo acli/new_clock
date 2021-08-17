@@ -43,6 +43,22 @@ sub quotable ($) {
   return ($s =~ /\s/s || $s =~ /^https?:\/\//)? "\"$s\"": $s;
 }
 
+# apparently the docs are very out of date. see https://github.com/citation-file-format/citation-file-format/blob/main/schema.json
+use vars qw( %apa_type_to_cff_type );
+%apa_type_to_cff_type = (
+  'Audio file' => 'sound-recording',
+  'Dataset' => 'data',
+  'Data set' => 'data', # typo
+);
+sub convert_apa_type_to_cff_type ($) {
+  my($s) = @_;
+  if (!defined $apa_type_to_cff_type{$s}) {
+    print STDERR "$0: Warning: Type \"%s\" cannot be converted and has been thrown away\n", $s;
+    undef $s;
+  }
+  return defined $s? $apa_type_to_cff_type{$s}: undef;
+}
+
 my($template_input, $credits_input);
 for my $arg (@ARGV) {
   if ($arg =~ /\.cff.in$/) {
@@ -140,7 +156,7 @@ for (my $i = 0; $i < @citations; $i += 1) {
     $node->{'year'} = $year;
     $node->{'year-serial'} = $serial if defined $serial;
     $node->{'title'} = $title;
-    $node->{'type'} = ($type =~ / file$/ || $type =~ /^data\s*set$/i)? 'dataset': 'software';
+    $node->{'type'} = convert_apa_type_to_cff_type($type);
   }
 
   $node->{'unknown'} = $s if $s =~ /\S/s;
