@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: The title and abstract of this code and my ORCid
   are the only things not listed elsewhere; the references
   are generated from the CREDITS file and therefore that
-  file should be more considered more definitive.
+  file should be considered more definitive.
 
 title: A Chiming Clock in Perl
 authors:
