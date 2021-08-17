@@ -40,7 +40,7 @@ sub STATE__UNKNOWN  () { 'UNKNOWN' }
 # hack in trying to make GitHub happy. error messages are garbage, docs are unclear, official tools don't work, we're left guessing what's wrong
 sub quotable ($) {
   my($s) = @_;
-  return ($s !~ /^\d+/s)? "\"$s\"": $s;
+  return ($s =~ /\s/s || $s =~ /^https?:\/\//)? "\"$s\"": $s;
 }
 
 # apparently the docs are very out of date. see https://github.com/citation-file-format/citation-file-format/blob/main/schema.json
@@ -162,6 +162,9 @@ for (my $i = 0; $i < @citations; $i += 1) {
   $node->{'unknown'} = $s if $s =~ /\S/s;
   $citations[$i] = $node;
 }
+
+# Let's see if GitHub likes this =P
+print "\x{feff}";
 
 # Copy everything from the cff template
 open(INPUT, '<:utf8', $template_input) or die "$0: $template_input: $!\n";
