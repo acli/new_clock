@@ -24,42 +24,43 @@ references:
 - authors:
   - family-names: Gossner
     given-names: Samuel
+  year: 2019
   title: "Versilian Community Sample Library"
   type: sound-recording
   repository-code: "https://github.com/sgossner/VCSL"
-  year: 2019
 
 - authors:
   - name: strangehorizon
+  year: 2021
   title: "Tuned Chau Gongs"
   type: sound-recording
   repository: "https://freesound.org/people/strangehorizon/packs/32761/"
-  year: 2021
 
 - authors:
   - family-names: Walter
     given-names: Thomas
+  year: 2011
   title: "Birds: Cuckoo.wav"
   type: sound-recording
   repository: "https://freesound.org/people/inchadney/sounds/121203/"
-  year: 2011
 
-- date-accessed: 2021-08-17
+- year: 2021
   term: "打更 [Calling out the hour]."
   title: Wikipedia
   type: encyclopedia
+  date-accessed: 2021-08-17
   url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
-  year: 2021
 
 - authors:
   - family-names: Lin
     given-names: Tsung-Yi
-  end: 63
-  issue: 420
-  journal: "Science Development"
-  start: 58
+  year: 2007
   title: "午時三刻⸺古中國的時間制度 [Three after seven: Systems for time-keeping in ancient China]"
   type: article
-  year: 2007
+  journal: "Science Development"
+  issue: 420
+  start: 58
+  end: 63
+  url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
 
 # This file was generated from config/CITATION.cff.in, doc/CREDITS.md, and doc/Night_watches.md

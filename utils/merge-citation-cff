@@ -93,6 +93,31 @@ sub format_list (@) {
 }
 
 
+use vars qw( %citation_key_order );
+%citation_key_order = (
+  'authors' => -999,
+  'year' => -990,
+  'term' => -981,
+  'title' => -980,
+  'type' => -900,
+  'journal' => -450,
+  'issue' => -410,
+  'start' => -401,
+  'end' => -400,
+  'date-accessed' => -220,
+  'repository-code' => -205,
+  'repository' => -201,
+  'url' => -200,
+);
+
+sub compare_citation_keys ($$) {
+  my($a, $b) = @_;
+  my $it = defined $citation_key_order{$a} && defined $citation_key_order{$b}? $citation_key_order{$a} <=> $citation_key_order{$b}:
+	   defined $citation_key_order{$a}? -1:
+	   defined $citation_key_order{$b}? 1: $a cmp $b;
+}
+
+
 use vars qw( $year_re );
 $year_re = '\s*\((\d{4,}|n\.d\.)([a-z])?\)\.\s'; # NOTE: 2 captures
 
@@ -134,6 +159,7 @@ sub analyze_citations (@) {
   for (my $i = 0; $i < @citations; $i += 1) {
     my $s = $citations[$i];
     my $node;
+    $s =~ s/<!--(?:(?!--).)*-->//;
     $s =~ s/\s+$//;
     $s =~ s/\s+/ /g;
 
@@ -190,7 +216,7 @@ sub analyze_citations (@) {
     }
 
     # Does it look like we have a title?
-    if (!defined $node->{'authors'} && $s =~ s/^$year_re\s*(In )?<cite>(.*?)<\/cite>\.//s) {
+    if (!defined $node->{'authors'} && $s =~ s/^$year_re\s*(In )?<cite>(.*?)<\/cite>\.$//s) {
       my($year, $serial, $in_p, $in) = ($1, $2, $3, $4);
       my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?$/;
       $node->{'year'} = $year unless $year eq 'n.d.';
@@ -206,14 +232,10 @@ sub analyze_citations (@) {
 	  die; # article in a book
 	} else {
 	  $node->{'journal'} = $in;
+	  $node->{'type'} = 'article';
 	}
       }
-    } elsif ($s =~ s/^$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
-      my($year, $serial, $title, $type) = ($1, $2, $3, $4);
-      $node->{'year'} = $year unless $year eq 'n.d.';
-      $node->{'title'} = $title;
-      $node->{'type'} = convert_apa_type_to_cff_type($type);
-    } elsif ($s =~ s/^$year_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.\s*//s) {
+    } elsif ($s =~ s/^$year_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.$//s) {
       my($year, $serial, $title, $translated_title, $journal, $issue, $start, $end) = ($1, $2, $3, $4, $5, $6, $7, $8);
       $node->{'year'} = $year unless $year eq 'n.d.';
       $node->{'title'} = "$title [$translated_title]";
@@ -222,7 +244,14 @@ sub analyze_citations (@) {
       $node->{'start'} = $start;
       $node->{'end'} = $end;
       $node->{'type'} = 'article';
+    } elsif ($s =~ s/^$year_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
+      my($year, $serial, $title, $type) = ($1, $2, $3, $4);
+      $type = convert_apa_type_to_cff_type($type);
+      $node->{'year'} = $year unless $year eq 'n.d.';
+      $node->{'title'} = $title;
+      $node->{'type'} = $type if defined $type;
     } else {
+      warn "OOPS, can't handle s=($s)\n";
     }
 
     $node->{'unknown'} = $s if $s =~ /\S/s;
@@ -269,7 +298,7 @@ sub emit_citations (@) {
   print "\nreferences:\n" if @citations;
   for my $citation (@citations) {
     my $indent = "\n- ";
-    for my $key (sort keys %$citation) {
+    for my $key (sort { compare_citation_keys($a, $b) } keys %$citation) {
       if ($key eq 'authors') {
 	printf "%s%s:\n", $indent, $key;
 	for my $author (@{$citation->{'authors'}}) {
