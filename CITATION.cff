@@ -12,12 +12,14 @@ authors:
 
 abstract: This script was designed to replace two Javascript-based
   chiming clocks that deliver time information from two different
-  time systems, one that strikes Westminster-style quarterly chimes
-  [Li, 2018], and another that outputs notifications that allow
-  the current night watch (according to the proportional decimal
-  time system in use in ancient China c. 7–2c BC) to be sonically
-  identified. Care is taken to avoid the two kinds of chimes from
-  running together.
+  time systems, one that announces the passing of Western time by
+  striking Westminster-style quarterly chimes (Li, 2018), and
+  another that announces the passing of Eastern time by notifying
+  the progression of night watches, as used c. 7–2c BC in ancient
+  China, by striking documented sonic patterns that identify each
+  watch. The new script takes care in avoiding the two kinds of
+  sonic notifications from running into each other. Future work
+  includes making resource use more predictable.
 
 repository-code: "https://github.com/acli/new_clock"
 version: n/a
