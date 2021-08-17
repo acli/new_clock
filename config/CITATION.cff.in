@@ -1,9 +1,5 @@
-cff-version: 1.2.0
-message: The title and abstract of this code and my ORCid are the
-  only things not listed elsewhere. The references are generated;
-  files in the doc directory should be considered more definitive.
-
 title: "chimer: A Chiming Clock in Perl"
+repository-code: "https://github.com/acli/new_clock"
 authors:
 - family-names: Li
   given-names: Ambrose
@@ -20,4 +16,8 @@ abstract: This script was designed to replace two Javascript-based
   sonic notifications from running into each other. Future work
   includes making resource use more predictable.
 
-repository-code: "https://github.com/acli/new_clock"
+message: The title and abstract of this code and my ORCid are the
+  only things not listed elsewhere. The references are generated;
+  files in the doc directory should be considered more definitive.
+
+cff-version: 1.2.0
