@@ -28,5 +28,5 @@ Retrieved from https://freesound.org/people/strangehorizon/packs/32761/
 [Walter, <span title=Thomas>T.</span>](https://freesound.org/people/inchadney/) (2011).
 Birds: Cuckoo.wav [Audio file].
 Retrieved from https://freesound.org/people/inchadney/sounds/121203/
-- This recording is cc-by-sa and is used by cuckoo mode
+- This recording is cc-by-3.0 and is used by cuckoo mode
 

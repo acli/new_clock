@@ -23,15 +23,15 @@ https://www.fluidsynth.org/
 - fluidsynth numbers seem to be off by one in bank 0, 0-14 is tubular bells, 8-14 is church bells (doesn't really work, it strikes twice)
 
 https://freesound.org/people/sandyrb/packs/6993/
-- pros: fairly clear, cc-by-sa, Canadian
+- pros: fairly clear, cc-by-3.0, Canadian
 - cons: possibly too loud (possible distortion), 15-semitone range not enough for Westminster chimes
 
 https://freesound.org/people/Samulis/packs/21054/
-- pros: very clear, cc-by-sa
+- pros: very clear, public domain (cc0)
 - cons: not enough range (only 4 notes)
 
 https://freesound.org/people/Samulis/packs/12231/
-- pros: very clear, cc-by-sa, little to no distortion even with the f (loud) samples
+- pros: very clear, cc-by-3.0, little to no distortion even with the f (loud) samples
 - cons: not enough range in version on Freesound
   (will investigate full [VSCO library on main site](https://vis.versilstudios.com/vsco-community.html))
 
@@ -63,16 +63,16 @@ Cuckoo options
 --------------
 https://freesound.org/people/acclivity/sounds/19561/
 - pros: *very* clear cuckoo sound
-- cons: cc-by-sa-nc
+- cons: cc-by-nc-3.0
 
 https://freesound.org/people/inchadney/sounds/121203/
-- pros: clear cuckoo sound, cc-by-sa
+- pros: clear cuckoo sound, cc-by-3.0
 - cons: maybe a little soft
 - citation: Walter, T. [Thomas]. 2011. Birds: Cuckoo.wav [Audio file].
   Retrieved from https://freesound.org/people/inchadney/sounds/121203/
 
 https://freesound.org/people/reinsamba/sounds/35053/
-- pros: clear cuckoo sound, cc-by-sa
+- pros: clear cuckoo sound, cc-by-3.0
 - cons: it's somewhat a little too uneven
 
 https://freesound.org/people/CaganCelik/sounds/435205/
@@ -81,10 +81,10 @@ https://freesound.org/people/CaganCelik/sounds/435205/
 
 https://freesound.org/people/jgrzinich/sounds/364983/
 - pros: clear cuckoo sound
-- cons: cc-by-sa-nc
+- cons: cc-by-nc-3.0
 
 https://freesound.org/people/RTB45/sounds/234921/
-- pros: cc-by-sa
+- pros: cc-by-3.0
 - cons: noisy background (wind)
 
 
