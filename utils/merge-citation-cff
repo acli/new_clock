@@ -37,6 +37,12 @@ sub STATE__INITIAL  () { 'INITIAL' }
 sub STATE__CITATION () { 'CITATION' }
 sub STATE__UNKNOWN  () { 'UNKNOWN' }
 
+# hack in trying to make GitHub happy. error messages are garbage, docs are unclear, official tools don't work, we're left guessing what's wrong
+sub quotable ($) {
+  my($s) = @_;
+  return ($s =~ /\s/s || $s =~ /^https?:\/\//)? "\"$s\"": $s;
+}
+
 my($template_input, $credits_input);
 for my $arg (@ARGV) {
   if ($arg =~ /\.cff.in$/) {
@@ -160,12 +166,12 @@ for my $citation (@citations) {
       for my $author (@{$citation->{'authors'}}) {
 	my $indent = '  - ';
 	for my $field ('family-names', 'given-names', 'name') {
-	  printf "%s%s: %s\n", $indent, $field, $author->{$field} if defined $author->{$field};
+	  printf "%s%s: %s\n", $indent, $field, quotable $author->{$field} if defined $author->{$field};
 	  $indent = '    ';
 	}
       }
     } elsif ($key ne 'unknown') {
-      printf "%s%s: %s\n", $indent, $key, $citation->{$key};
+      printf "%s%s: %s\n", $indent, $key, quotable $citation->{$key};
     }
     $indent = '  ';
   }
