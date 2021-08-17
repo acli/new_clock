@@ -200,7 +200,7 @@ sub emit_citations (@) {
   my(@citations) = @_;
 
   # Add citations
-  print "references:\n" if @citations;
+  print "\nreferences:\n" if @citations;
   for my $citation (@citations) {
     my $indent = '- ';
     for my $key (sort keys %$citation) {
