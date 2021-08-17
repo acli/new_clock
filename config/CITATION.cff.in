@@ -14,6 +14,6 @@ abstract: This is software I personally use to replace my two
   Javascript-based chiming clocks. It does Westminster-style
   quarterly chimes, and announces night watches according to
   the proportional decimal time system in use c. 7–2c BC in
-  the geographical region known as China.
+  the geographical region now known as China.
 
 repository-code: "https://github.com/acli/new_clock"
