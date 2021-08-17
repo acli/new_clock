@@ -3,11 +3,12 @@ I discovered that GitHub’s CITATION.cff support is buggy:
 
 1. It requires the *version* key to be present;
    the [official CITATION.cff schema](https://github.com/citation-file-format/citation-file-format/blob/main/schema.json)
-   – and in fact even the [schema guide](https://github.com/citation-file-format/citation-file-format/blob/main/schema-guide.md)
+   – and in fact the [schema guide](https://github.com/citation-file-format/citation-file-format/blob/main/schema-guide.md)
    that GitHub’s CITATION file help page links to –
    lists only four required keys: *authors*, *cff-version*, *message*
    (very strange because it has a default value) and *title*.
 2. It requires that a BOM be *not* present;
+   section 5.2 of
    the [YAML specification](http://yaml.org/spec/1.2/spec.html)
    explicitly states that BOM can appear at the beginning of the file.
 
