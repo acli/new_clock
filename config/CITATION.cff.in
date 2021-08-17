@@ -16,7 +16,7 @@ abstract: This script was designed to replace two Javascript-based
   another that announces the passing of Eastern time by notifying
   the progression of night watches, as used c. 7–2c BC in ancient
   China, by striking documented sonic patterns that identify each
-  watch. The new script takes care in avoiding the two kinds of
+  watch. The new script takes care in preventing the two kinds of
   sonic notifications from running into each other. Future work
   includes making resource use more predictable.
 
