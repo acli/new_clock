@@ -1,9 +1,9 @@
 ﻿cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "A Chiming Clock in Perl"
 authors:
 - family-names: "Li"
   given-names: "Ambrose"
   orcid: "https://orcid.org/0000-0002-9996-7486"
+title: "A Chiming Clock in Perl"
 version: 0.0.0
 date-released: 2021-08-16
