@@ -20,7 +20,7 @@ abstract: This script was designed to replace two Javascript-based
   kinds of chimes from running together.
 
 repository-code: "https://github.com/acli/new_clock"
-version: 0
+version: n/a
 
 references:
 
@@ -66,4 +66,3 @@ references:
   end: 63
   url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
 
-# This file was generated from config/CITATION.cff.in, doc/CREDITS.md, and doc/Night_watches.md
