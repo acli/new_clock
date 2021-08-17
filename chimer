@@ -114,8 +114,8 @@ $mode   = MODE__CARILLON;
 $method = METHOD__SAMPLES;
 
 # night watch chime patterns
-sub LONG_STRIKE  () { 1.75 }
-sub SHORT_STRIKE () { 0.875 }
+sub LONG_STRIKE  () { 2 }
+sub SHORT_STRIKE () { 1.25 }
 sub GAP          () { 3.5 }
 # watch chime patterns: repetitions, pattern
 # gap needs to be long enough to hear it, but short enough to not mistake it for a long strike. This is HARD
