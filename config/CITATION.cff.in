@@ -4,7 +4,7 @@ message: The title and abstract of this code and my ORCid
   are generated from the CREDITS and Night_watches files;
   those files should be considered more definitive.
 
-title: chimer: A Chiming Clock in Perl
+title: "chimer: A Chiming Clock in Perl"
 authors:
 - family-names: Li
   given-names: Ambrose
