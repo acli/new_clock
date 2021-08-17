@@ -26,17 +26,17 @@ At some point it should ultimately serve as the back-end of my genmon plugin tha
 
 Dependencies
 ------------
-- Pulseaudio-based Linux system
-- Perl 5 with Unicode support (5.14 or later)
+- [Pulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio/)-based Linux system
+- [Perl](https://www.perl.org/) 5 with Unicode support (version 5.14 or later)
 - [mpv](https://github.com/mpv-player/mpv)
   to play audio samples
 - [hebcal](https://github.com/hebcal/hebcal)
   to guess geographical location
   (not needed if you specify your geographical location in the config file)
-- DateTime::Event::Sunrise,
+- [DateTime::Event::Sunrise](https://metacpan.org/pod/DateTime::Event::Sunrise),
   DateTime::Astro::Sunrise,
-  or Astro::Sunrise
-  Perl module, to calculate sunrise and sundown
+  or [Astro::Sunrise](https://metacpan.org/pod/Astro::Sunrise),
+  to calculate sunrise and sundown
   (not all three are equally tested)
 - Sound files listed in the [CREDITS file](doc/CREDITS.md)
   (not provided because they are large and this is still a work-in-progress)

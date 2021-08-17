@@ -72,6 +72,14 @@ references:
   type: software
   repository-code: "https://github.com/mpv-player/mpv"
 
+- title: "Perl 5"
+  type: software
+  url: "https://www.perl.org/"
+
+- title: Pulseaudio
+  type: software
+  url: "https://www.freedesktop.org/wiki/Software/PulseAudio/"
+
 - authors:
   - name: strangehorizon
     url: "https://soundcloud.com/sonic_kitchen"
