@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: Chiming Clock
+abstract: This is software I personally use to replace my two Javascript-based chiming clocks. It does Westminster-style quarterly chimes, and announces night watches according to the proportional decimal time system in use c. 7–2c BC in the geographical region known as China.
+authors:
+- family-names: Li
+  given-names: Ambrose
+  orcid: "https://orcid.org/0000-0002-9996-7486"
+license: MIT
+repository-code: "https://github.com/acli/new_clock"
+references:
+- authors:
+  - family-names: Gossner
+    given-names: Samuel
+  title: Versilian Community Sample Library
+  type: dataset
+  url: https://github.com/sgossner/VCSL
+  year: 2019
+- authors:
+    name: strangehorizon
+  title: Tuned Chau Gongs
+  type: dataset
+  url: https://freesound.org/people/strangehorizon/packs/32761/
+  year: 2021
+- authors:
+  - family-names: Walter
+    given-names: Thomas
+  title: Birds: Cuckoo.wav
+  type: dataset
+  url: https://freesound.org/people/inchadney/sounds/121203/
+  year: 2011

@@ -2,7 +2,7 @@
 mp3_targets=$(patsubst raw/%.wav,data/%.mp3,$(wildcard raw/*.wav))
 ogg_targets=$(patsubst raw/%,data/%,$(wildcard raw/*.ogg))
 
-targets=$(mp3_targets) $(ogg_targets)
+targets=$(mp3_targets) $(ogg_targets) CITATION.cff
 
 all: $(targets)
 
@@ -13,6 +13,9 @@ data/%.mp3: raw/%.wav config/%.volume
 
 data/%: raw/%
 	ln $< $@
+
+CITATION.cff: CITATION.cff.in doc/CREDITS.md utils/merge-citation-cff
+	utils/merge-citation-cff $(filter-out utils/%,$^) > $@
 
 PHONEY: all
 DELETE_ON_ERROR:
