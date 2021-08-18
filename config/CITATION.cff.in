@@ -1,23 +1,25 @@
-title: "chimer: A Chiming Clock in Perl"
-repository-code: "https://github.com/acli/new_clock"
+title:              "chimer: A Chiming Clock in Perl"
+repository-code:   "https://github.com/acli/new_clock"
 authors:
-- family-names: Li
-  given-names: Ambrose
-  orcid: "https://orcid.org/0000-0002-9996-7486"
+- family-names:   Li
+  given-names:    Ambrose
+  orcid:         "https://orcid.org/0000-0002-9996-7486"
 
 abstract: This script was designed to replace two Javascript-based
-  chiming clocks that deliver time information from two different
-  time systems, one that announces the passing of Western time by
-  striking Westminster-style quarterly chimes (see Li, 2018), and
-  another that announces the passing of Eastern time by calling
-  out night watches (as used c. 7–2c BC in ancient China) using
-  documented sonic patterns that identify each watch (“Calling out
-  the hour”, 2021). The new script takes care in preventing the two
-  kinds of sonic notifications from interfering with each other.
-  Future work includes making resource use more predictable.
+          chiming clocks that deliver time information from two
+          different time systems, one that announces the passing
+          of Western time by striking Westminster-style quarterly
+          chimes (see Li, 2018), and another that announces the
+          passing of Eastern time by calling out night watches (as
+          used c. 7–2c BC in ancient China) using documented sonic
+          patterns that identify each watch (“Calling out the
+          hour”, 2021).  The new script takes care in preventing
+          the two kinds of sonic notifications from interfering with
+          each other.  Future work includes making resource use more
+          predictable.
 
 message: The title and abstract of this code and my ORCid are the
-  only things not listed elsewhere. These references are generated;
+  only things not listed elsewhere.  These references are generated;
   files in the doc directory should be considered more definitive.
 
 cff-version: 1.2.0
