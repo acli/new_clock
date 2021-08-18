@@ -78,7 +78,6 @@ use vars qw( $debug );
 use vars qw( $verbose_p );
 use vars qw( $enable_nonproportional_watches );
 use vars qw( $enable_qing_quarters );
-use vars qw( $enable_4th_hebrew_watch );
 
 use vars qw( $coords );
 use vars qw( $lat $lon );
@@ -1021,22 +1020,21 @@ Usage: $0 [OPTION]...
 Chime on the quarter hour and on the start of every fifth of a night watch.
 
   -d, --sink SINK             Use the specified SINK for audio
-      --disable-hebrew        Do not display Hebrew date and time
       --nonproportional-watches
                               Use watches that are aligned to Chinese hours
   -Q, --qing                  Same as --nonproportional-watches --qing-quarters
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
+  -v, --verbose               Explain what is being done
+
+Options for debugging:
+
+      --debug                 Produce debugging output
       --test                  Continue with test parameters
       --test-hour HOUR        Play hourly chime for HOUR (1..12)
       --test-quarter QUARTER  Play quarter chime for QUARTER (0..3)
       --test-tune             Play the major scale from c4 to c5, if possible
       --test-watch WATCH      Play night watch chime for WATCH (1..5)
-  -v, --verbose               Explain what is being done
-  -3, --disable-4th-watch     Use 3 watches for Hebrew system. This is the default
-  -4, --enable-4th-watch      Use 4 watches for Hebrew system
-      --symbolic              Use zodiac names
-      --debug                 Produce debugging output
 
 Night watches are determined according to the proportional decimal time
 system in use c. 7-2 century BC in ancient China. For details please see
@@ -1197,8 +1195,6 @@ if (!caller) {
     'test-hour=i' => sub { set_test_params; exit announce_hour(($_[1] - 1) % 12 + 1) },
     'test-quarter=i' => sub { set_test_params; exit announce_quarter_hour($_[1] % 4) },
     'test-watch=i' => sub { set_test_params; exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
-    '3|disable-4th-hebrew-watch|disable-4th-watch' => sub { $enable_4th_hebrew_watch = 0; },
-    '4|enable-4th-hebrew-watch|enable-4th-watch' => \$enable_4th_hebrew_watch,
     'v|verbose' => \$verbose_p,
     'help' => \&usage,
   ) || usage(1);
