@@ -1021,7 +1021,7 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
 
   -d, --sink SINK             Use the specified SINK for audio
       --nonproportional-watches (NOT IMPLEMENTED)
-                              Use watches that are aligned to Chinese hours
+                              Use watches that are aligned to duodecimal hours
   -Q, --qing                  Same as --nonproportional-watches --qing-quarters
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
