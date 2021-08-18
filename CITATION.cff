@@ -106,6 +106,10 @@ references:
   repository: "https://freesound.org/people/strangehorizon/packs/32761/"
   license: CC0-1.0
 
+- title: "Timbres of Heaven"
+  type: software
+  url: "http://midkar.com/soundfonts/"
+
 - authors:
   - family-names: Walter
     given-names: Thomas

@@ -85,6 +85,10 @@ use vars qw( @sinks );
 use vars qw( %synth );
 use vars qw( %children );
 
+use vars qw( $fluidR3 $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note );
+$fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
+
+
 sub MAX_UPTIME_ALLOWED () { 14400 }
 
 use vars qw( $boottime );
@@ -774,10 +778,13 @@ sub set_sink_volumes ($$$$$) {
 
 sub get_cache_pathname_for_event ($) {
   my($id) = @_;
+  my $it = "data/cache-"; # FIXME
   die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
   die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
   $id =~ s/^(w\d)\.\d$/\1/sg; # we don't really distinguish between subwatches
-  return "data/$mode-$id.flac"; # FIXME
+  $it .= "$mode-" unless $id =~ /^w/;
+  $it .= "$id.oga";
+  return $it;
 }
 
 sub send_midi_command ($) {
@@ -788,13 +795,39 @@ sub send_midi_command ($) {
 sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
+  my($sf_path, $gain, $delay);
+
+  # Figure out where our soundfont is
+  ($gong_bank, $gong_inst) = ($bell_bank, $bell_inst) = (0, 14);
+  ($wood_bank, $wood_inst, $wood_note) = (128, 48, 31);
+  for my $key ('Timbres Of Heaven', 'FluidR3') {
+    if (defined $config->{'/'}->{$key}) {
+      foreach my $candidate (@{$config->{'/'}->{$key}}) {
+	$sf_path = $candidate if -f $candidate;
+      last if defined $sf_path;
+      }
+    }
+    if (defined $sf_path && $key eq 'Timbres Of Heaven') {
+      ($gong_bank, $gong_inst) = (2, 119);
+      ($bell_bank, $bell_inst) = (9, 14);
+      ($wood_bank, $wood_inst, $wood_note) = (0, 115, $note_to_midi_number{'d#5'});
+      $gain = 0.2; # default gain
+      $delay = 2;
+    }
+  last if defined $sf_path;
+  }
+  $sf_path = $fluidR3 if !defined $sf_path; # hmm hope this works
+  $gain = 1 if !defined $gain;
+  $delay = 1 if !defined $delay;
+
   print STDERR "Connecting synth for write to $output\n" if $debug || $verbose_p;
   my @cmd = ('fluidsynth', '-a', 'file',
-			   '-g', '1',
+			   '-g', $gain,
 			   '-o', "audio.file.name=$output",
 			   '--midi-channels', '3',
-			   '/usr/share/sounds/sf2/FluidR3_GM.sf2');
+			   $sf_path);
 
+  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
   my $pid = open(SYNTH, '|-');
   die "$0: connect_synth: $cmd[0]: fork: $!\n" unless defined $pid;
   if (!$pid) {
@@ -803,9 +836,10 @@ sub connect_synth ($) {
   }
   select((select(SYNTH), $| = 1)[0]);
   $children{$pid} = 1;
-  send_midi_command "select 1 1 0 14";		# set channel 1 to tubular bells
-  send_midi_command "select 2 1 128 48";	# set channel 2 to drum kit
-  sleep 1;					# FIXME wait a bit for things to stabilize
+  send_midi_command "select 0 1 $gong_bank $gong_inst";
+  send_midi_command "select 1 1 $bell_bank $bell_inst";
+  send_midi_command "select 2 1 $wood_bank $wood_inst";
+  sleep $delay;					# FIXME wait a bit for things to stabilize
   return;
 }
 
@@ -844,7 +878,14 @@ sub generate_sound_clips () {
 sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
   my $sink = get_sink;
-  $input = "$1.mp3" if !-f $input && $input =~ /^(.*?)\.wav$/ && -f "$1.mp3";
+  my @exts = ('wav', 'mp3', 'ogg', 'oga', 'flac');
+  my $ext_re = sprintf('(?:%s)', join('|', @exts));
+
+  # Find a playable file
+  for my $ext (@exts) {
+  last if -f $input;
+    $input = "$1.ext" if !-f $input && $input =~ /^(.*?)\.$ext_re$/ && -f "$1.ext";
+  }
 
   # Fork and play it in the background
   my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
@@ -885,7 +926,7 @@ sub strike_gong (;$) {
   if ($note ne 'r') {
     $note = 'd#5' if !defined $note || !defined $gong_scale{$note};
     if ($method eq METHOD__SYNTH) {
-      send_midi_command sprintf('noteon 1 %d 127', $note_to_midi_number{$note});
+      send_midi_command sprintf('noteon 0 %d 127', $note_to_midi_number{$note});
     } else {
       play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
     }
@@ -906,7 +947,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   if ($method eq METHOD__SYNTH) {
-    send_midi_command sprintf('noteon 2 31 127');
+    send_midi_command sprintf('noteon 2 %d 127', $wood_note);
   } else {
     #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
     play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
@@ -930,7 +971,7 @@ sub strike_tune (@) {
     # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
     # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
     if ($method eq METHOD__SYNTH) {
-      send_midi_command sprintf 'noteon 1 %d 127', $note_to_midi_number{$note};
+      send_midi_command sprintf 'noteon 1 %d 127', $note_to_midi_number{$note} if defined $note_to_midi_number{$note};
     } else {
       #strike_gong transpose_note $note, 8;
       strike_bell transpose_note $note, 8;
