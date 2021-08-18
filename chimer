@@ -772,51 +772,72 @@ sub set_sink_volumes ($$$$$) {
   }
 }
 
-sub send_midi_command ($) {
-  my($cmd) = @_;
-  my $sink = get_sink;
-  connect_synth() unless defined $synth{$sink};
-  my $h = $synth{$sink}->{'fh'};
-  no strict 'refs';
-  print $h "$cmd\n";
+sub get_cache_pathname_for_event ($) {
+  my($id) = @_;
+  die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
+  die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
+  $id =~ s/^(w\d)\.\d$/\1/sg; # we don't really distinguish between subwatches
+  return "data/$mode-$id.flac"; # FIXME
 }
 
-sub connect_synth () {
-  my $sink = get_sink;
-  if (!defined $synth{$sink}) {
-    no strict 'refs';
-    print STDERR "Connecting synth for sink $sink\n" if $debug || $verbose_p;
-    my @cmd = ('fluidsynth', '-a', 'pulseaudio',
-			     '-g', '1',
-			     '--midi-channels', '3',
-			     '--audio-file-format', 's8',
-			     '/usr/share/sounds/sf2/FluidR3_GM.sf2');
+sub send_midi_command ($) {
+  my($cmd) = @_;
+  print SYNTH "$cmd\n";
+}
 
-    my $h = gensym;
-    my $pid = open($h, '|-');
-    die "$0: connect_synth: $cmd[0]: fork: $!\n" unless defined $pid;
-    if (!$pid) {
-      exec { $cmd[0] } @cmd;
-      die "$0: connect_synth: $cmd[0]: exec: $!\n";
-    }
-    select((select($h), $| = 1)[0]);
-    $synth{$sink} = {'fh' => $h, 'pid' => $pid};
-    $children{$pid} = $sink;
-    send_midi_command "select 1 1 0 14";
-    send_midi_command "select 2 1 128 48";
+sub connect_synth ($) {
+  my($id) = @_;
+  my $output = get_cache_pathname_for_event($id);
+  print STDERR "Connecting synth for write to $output\n" if $debug || $verbose_p;
+  my @cmd = ('fluidsynth', '-a', 'file',
+			   '-g', '1',
+			   '-o', "audio.file.name=$output",
+			   '--midi-channels', '3',
+			   '/usr/share/sounds/sf2/FluidR3_GM.sf2');
+
+  my $pid = open(SYNTH, '|-');
+  die "$0: connect_synth: $cmd[0]: fork: $!\n" unless defined $pid;
+  if (!$pid) {
+    exec { $cmd[0] } @cmd;
+    die "$0: connect_synth: $cmd[0]: exec: $!\n";
   }
-  return $synth{$sink};
+  select((select(SYNTH), $| = 1)[0]);
+  $children{$pid} = 1;
+  send_midi_command "select 1 1 0 14";		# set channel 1 to tubular bells
+  send_midi_command "select 2 1 128 48";	# set channel 2 to drum kit
+  sleep 1;					# FIXME wait a bit for things to stabilize
+  return;
+}
+
+sub disconnect_synth () {
+  sleep 2;					# FIXME wait a bit for things to stabilize
+  send_midi_command "quit";
+  close SYNTH;
 }
 
 sub generate_sound_clips () {
   # FIXME - unimplemented
-  print STDERR "WARNING: generate_sound_clips is not implemented!!\n";
   for my $event_id (
-    (map { "h$_" } 1..12),					# hourly chimes
-    (map { "q$_" } 0..3),					# quarterly chimes
     (map { my $n = $_; map { "w$n.$_" } 1..5 } 1..5),		# night watches
+    (map { "q$_" } 0..3),					# quarterly chimes
+    (map { "h$_" } 1..12),					# hourly chimes
   ) {
-    print STDERR "Pretending to generate audio for event $event_id\n";
+    my $output = get_cache_pathname_for_event($event_id);
+    if (!-f $output) {
+      print STDERR "Generating audio for event $event_id\n";
+      connect_synth $event_id;
+      if ($event_id =~ /^h(\d+)$/) {
+	announce_hour($1);
+      } elsif ($event_id =~ /^q(\d+)$/) {
+	announce_quarter_hour($1);
+      } elsif ($event_id =~ /^w(\d+)\.(\d+)$/) {
+	announce_night_watch($1, $2);
+      } else {
+	disconnect_synth;
+	die "generate_sound_clips: $event_id: Unknown event id\n";
+      }
+      disconnect_synth;
+    }
   }
 }
 
@@ -863,7 +884,11 @@ sub strike_gong (;$) {
   my($note) = @_;
   if ($note ne 'r') {
     $note = 'd#5' if !defined $note || !defined $gong_scale{$note};
-    play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
+    if ($method eq METHOD__SYNTH) {
+      send_midi_command sprintf('noteon 1 %d 127', $note_to_midi_number{$note});
+    } else {
+      play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
+    }
   }
 }
 
@@ -871,14 +896,21 @@ sub strike_bell ($) {
   my($note) = @_;
   if ($note ne 'r') {
     $note = 'd#5' if !defined $note || !defined $chime_scale{$note};
-    play_sound_file sprintf('%s/%s', $datadir, $chime_scale{$note}), 100;
+    if ($method eq METHOD__SYNTH) {
+      send_midi_command sprintf('noteon 1 %d 127', $note_to_midi_number{$note});
+    } else {
+      play_sound_file sprintf('%s/%s', $datadir, $chime_scale{$note}), 100;
+    }
   }
 }
 
 sub strike_stick () {
-  #send_midi_command sprintf('noteon 2 31 127');
-  #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
-  play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
+  if ($method eq METHOD__SYNTH) {
+    send_midi_command sprintf('noteon 2 31 127');
+  } else {
+    #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
+    play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
+  }
 }
 
 sub transpose_note ($;$) {
@@ -897,8 +929,12 @@ sub strike_tune (@) {
     # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
     # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
     # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
-    #strike_gong transpose_note $note, 8;
-    strike_bell transpose_note $note, 8;
+    if ($method eq METHOD__SYNTH) {
+      send_midi_command sprintf 'noteon 1 %d 127', $note_to_midi_number{$note};
+    } else {
+      #strike_gong transpose_note $note, 8;
+      strike_bell transpose_note $note, 8;
+    }
     Time::HiRes::sleep $time;
   }
 }
@@ -986,7 +1022,10 @@ sub announce_night_watch ($$) {
 
 sub do_event ($) {
   my($id) = @_;
-  if ($id =~ /^q(\d+)$/) {			# quarter hour chime
+  my $output = get_cache_pathname_for_event($id);
+  if ($method eq METHOD__SYNTH && -f $output) {
+    play_sound_file $output, 100;
+  } elsif ($id =~ /^q(\d+)$/) {		# quarter hour chime
     announce_quarter_hour $1;
   } elsif ($id =~ /^h(\d+)$/) {		# hourly chime
     announce_hour $1;
