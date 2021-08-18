@@ -1021,7 +1021,7 @@ sub usage (;$) {
   my $h = $st? *STDERR: *STDOUT;
   print $h <<EOF;
 Usage: $0 [OPTION]...
-Display date and time information in a non-mainstream calendar.
+Chime on the quarter hour and on the start of every fifth of a night watch.
 
   -d, --sink SINK             Use the specified SINK for audio
       --disable-hebrew        Do not display Hebrew date and time
@@ -1051,8 +1051,9 @@ Display date and time information in a non-mainstream calendar.
       --symbolic              Use zodiac names
       --debug                 Produce debugging output
 
-Note that Chinese and Hebrew dates and times are always shown. Western "planetary"
-times are shown only when enabled.
+Night watches are determined according to the proportional decimal time
+system in use c. 7-2 century BC in ancient China. For details please see
+https://github.com/acli/new_clock/blob/master/doc/Night_watches.md
 EOF
   exit $st;
 }
