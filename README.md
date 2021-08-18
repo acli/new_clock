@@ -38,7 +38,7 @@ Dependencies
   or [Astro::Sunrise](https://metacpan.org/pod/Astro::Sunrise),
   to calculate sunrise and sundown
   (not all three are equally tested)
-- [Fluidsynth](http://www.translatorscafe.com/tcterms/question.aspx?id=204717) (optional)
+- [Fluidsynth](https://www.fluidsynth.org/) (optional)
 - Sound files listed in the [CREDITS file](doc/CREDITS.md)
   if not using Fluidsynth
   (sound files not provided here because they are large and this is still a work-in-progress)
