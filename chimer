@@ -88,6 +88,8 @@ use vars qw( %children );
 use vars qw( $fluidR3 $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note );
 $fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
 
+use vars qw( $beat_length );
+$beat_length = 1;
 
 sub MAX_UPTIME_ALLOWED () { 14400 }
 
@@ -114,11 +116,12 @@ $mode   = MODE__CARILLON;
 $method = METHOD__SAMPLES;
 
 # night watch chime patterns
-sub LONG_STRIKE  () { 2 }
-sub SHORT_STRIKE () { 1.25 }
-sub GAP          () { 3.5 }
+sub LONG_STRIKE  () { 1.5 }
+sub SHORT_STRIKE () { 0.5 }
+sub GAP          () { 2.5 }
 # watch chime patterns: repetitions, pattern
 # gap needs to be long enough to hear it, but short enough to not mistake it for a long strike. This is HARD
+# but note that w5 is -.... x 5 should fit within 30s of time, so we must have (long + short x 4 + gap) ≤ 6
 use vars qw( @watch_chime_pattern );
 @watch_chime_pattern = ( # v. https://zh.wikipedia.org/wiki/打更 (q.v.)
    [3, '— .'		],
@@ -188,47 +191,45 @@ use vars qw( %gong_scale %chime_scale );
   'e5'	=> 'chimes_E2.ogg',
   'f5'	=> 'chimes_F2.ogg',
 );
-use vars qw( $p1 $p2 $p3 $p4 $p5 $rest $strike );
+
+use vars qw( $p1 $p2 $p3 $p4 $p5 $strike );
+# q0: p2 p3 p4 p5
+# q1: p1
+# q2: p2 p3
+# q3: p4 p5 p1
+# Wikipedia says p1 starts at g#4, clockguy says p1 starts at b4 and says strike is b3
 $p1 = [
     ['g#4', 1],
     ['f#4', 1],
     ['e4', 1],
-    ['b3', 2],
-    ['r', 1],
+    ['b3', 3],
   ];
 $p2 = [
     ['e4', 1],
     ['g#4', 1],
     ['f#4', 1],
-    ['b3', 2],
-    ['r', 1],
+    ['b3', 3],
   ];
 $p3 = [
     ['e4', 1],
     ['f#4', 1],
     ['g#4', 1],
-    ['e4', 2],
-    ['r', 1],
+    ['e4', 3],
   ];
 $p4 = [
     ['g#4', 1],
     ['e4', 1],
     ['f#4', 1],
-    ['b3', 2],
-    ['r', 1],
+    ['b3', 3],
   ];
 $p5 = [
     ['b3', 1],
     ['f#4', 1],
     ['g#4', 1],
-    ['e4', 2],
-    ['r', 1],
-  ];
-$rest = [
-    ['r', 1],
+    ['e4', 3],
   ];
 $strike = [
-    ['e3', 4],
+    ['e3', 2], # both Wikipedia and clockguy say this should be a 4, but that would make h12 last 48 seconds, which isn't good
   ];
 
 use vars qw( $_gensym );
@@ -404,7 +405,7 @@ $thu_re = '(?:\b(?:R|Thu(?:r(?:s(?:day)?)?)?)\b)';
 $fri_re = '(?:\b(?:F|Fri(?:day)?)\b)';
 $sat_re = '(?:\b(?:S|Sat(?:urday)?)\b)';
 $dow_re = "(?:$sun_re|$mon_re|$tue_re|$wed_re|$thu_re|$fri_re|$sat_re)";
-$dow_range_re = "(?:[UMTWRFS]+|(?:$dow_re(?:\s*[-,]\s*$dow_re)*))";
+$dow_range_re = "(?:[UMTWRFS]+|(?:$dow_re(?:\\s*[-,]\\s*$dow_re)*))";
 
 sub parse_dow ($) {
   my($s) = @_;
@@ -812,7 +813,7 @@ sub connect_synth ($) {
       ($bell_bank, $bell_inst) = (9, 14);
       ($wood_bank, $wood_inst, $wood_note) = (0, 115, $note_to_midi_number{'d#5'});
       $gain = 0.2; # default gain
-      $delay = 2;
+      $delay = 3;
     }
   last if defined $sf_path;
   }
@@ -844,7 +845,7 @@ sub connect_synth ($) {
 }
 
 sub disconnect_synth () {
-  sleep 2;					# FIXME wait a bit for things to stabilize
+  sleep 5;					# FIXME wait a bit for things to stabilize
   send_midi_command "quit";
   close SYNTH;
 }
@@ -976,7 +977,8 @@ sub strike_tune (@) {
       #strike_gong transpose_note $note, 8;
       strike_bell transpose_note $note, 8;
     }
-    Time::HiRes::sleep $time;
+    no integer;
+    Time::HiRes::sleep $time * $beat_length;
   }
 }
 
@@ -1048,7 +1050,7 @@ sub announce_night_watch ($$) {
   for (my $i = 0, my $sleep = 0; $i < $repeats; $i += 1) {
     printf STDERR "Striking %s\n", $pattern if $debug || $verbose_p;
     for my $length (split(/\s+/, $pattern)) {
-      Time::HiRes::sleep($sleep);
+      Time::HiRes::sleep($sleep * $beat_length);
       if ($length eq '.') {
 	strike_stick;
 	$sleep = SHORT_STRIKE;
@@ -1336,9 +1338,6 @@ if (!caller) {
     my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
     my $dt = $t_next - $t1;
     $dt = 0 if $dt < 0;
-
-    # If we've been up long enough AND the next event isn't going to fire in a while, restart the script to free up memory (?)
-    restart_script if $t0 - $boottime > MAX_UPTIME_ALLOWED && $dt0 > 300 && safe_to_restart_p;
 
     # Debug message
     printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f) > %s\033[K\r",
