@@ -811,6 +811,13 @@ sub connect_synth () {
 sub generate_sound_clips () {
   # FIXME - unimplemented
   print STDERR "WARNING: generate_sound_clips is not implemented!!\n";
+  for my $event_id (
+    (map { "h$_" } 1..12),					# hourly chimes
+    (map { "q$_" } 0..3),					# quarterly chimes
+    (map { my $n = $_; map { "w$n.$_" } 1..5 } 1..5),		# night watches
+  ) {
+    print STDERR "Pretending to generate audio for event $event_id\n";
+  }
 }
 
 sub play_sound_file_real ($;$$$) {
