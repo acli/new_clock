@@ -122,6 +122,7 @@ use vars qw( %citation_key_order );
   'day' => -988,
   'term' => -981,
   'title' => -980,
+  'version' => -970,
   'type' => -900,
   'journal' => -450,
   'issue' => -410,
@@ -207,7 +208,9 @@ sub scan_for_citations ($) {
 	  $state = STATE__UNKNOWN;
 	}
       } elsif ($state eq STATE__DEPENDENCIES_SECTION) {
-	if ($s =~ /\s\[(.*?)\]\((https?:.*?)\)/s) {
+	if ($s =~ /\s\[(.*?)\]\((https?:.*?)\).*?\(version (\S+).*?\)/s) {
+	  push @citations, "$1 (Version $3) [Computer software]. (n.d.). Retrieved from $2"; # synthesize fake reference for analyze_citations()
+	} elsif ($s =~ /\s\[(.*?)\]\((https?:.*?)\)/s) {
 	  push @citations, "$1 [Computer software]. (n.d.). Retrieved from $2"; # synthesize fake reference for analyze_citations()
 	} elsif ($s =~ /^\s*$/) {
 	  $state = STATE__UNKNOWN;
@@ -363,11 +366,13 @@ sub analyze_citations (@) {
     } elsif ($s =~ /^$date_ref_re$/s && $possible_author_list =~ /^(.*?) \[(Computer software)\]\.$/s) { # fake reference that we synthesized
       my($title, $type) = ($1, $2);
       my($year, $month, $day, $nd, $serial) = ($1, $2, $3, $4, $5) if $s =~ /^$date_ref_re$/;
+      ($title, my $version) = ($1, $2) if $title =~ /^(.*\S) \(Version (.*?)\)$/s;
       $type = convert_apa_type_to_cff_type($type);
       $node->{'year'} = $year if defined $year;
       $node->{'month'} = parse_month $month if defined $month;
       $node->{'day'} = $day if defined $day;
       $node->{'title'} = $title;
+      $node->{'version'} = $version if defined $version;
       $node->{'type'} = $type if defined $type;
     } else {
       warn "OOPS, can't handle s=($s)\n";

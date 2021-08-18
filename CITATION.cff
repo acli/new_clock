@@ -38,7 +38,7 @@ references:
 
 - title: "DateTime::Astro::Sunrise"
   type: software
-  url: "https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01/view/Sunrise.pm"
+  url: "https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01"
 
 - title: "DateTime::Event::Sunrise"
   type: software
@@ -85,6 +85,7 @@ references:
   repository-code: "https://github.com/mpv-player/mpv"
 
 - title: Perl
+  version: 5.14
   type: software
   url: "https://www.perl.org/"
 
