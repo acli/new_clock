@@ -197,7 +197,6 @@ use vars qw( $p1 $p2 $p3 $p4 $p5 $strike );
 # q1: p1
 # q2: p2 p3
 # q3: p4 p5 p1
-# Wikipedia says p1 starts at g#4, clockguy says p1 starts at b4 and says strike is b3
 $p1 = [
     ['g#4', 1],
     ['f#4', 1],
