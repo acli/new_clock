@@ -814,6 +814,7 @@ sub connect_synth () {
 
 sub generate_sound_clips () {
   # FIXME - unimplemented
+  print STDERR "WARNING: generate_sound_clips is not implemented!!\n";
 }
 
 sub play_sound_file_real ($;$$$) {
@@ -1039,8 +1040,10 @@ Display date and time information in a non-mainstream calendar.
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
   -s, --seconds               Enable display of Western "planetary" seconds
+      --test                  Continue with test parameters
       --test-hour HOUR        Play hourly chime for HOUR (1..12)
       --test-quarter QUARTER  Play quarter chime for QUARTER (0..3)
+      --test-tune             Play the major scale from c4 to c5, if possible
       --test-watch WATCH      Play night watch chime for WATCH (1..5)
   -v, --verbose               Explain what is being done
   -3, --disable-4th-watch     Use 3 watches for Hebrew system. This is the default
@@ -1183,9 +1186,9 @@ $SIG{CHLD} = 'IGNORE';
 # Handle config file
 $config = read_ini("$ENV{HOME}/.chimerrc");
 @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
+$method = $config->{'/'}->{'method'}->[0] if defined $config->{'/'}->{'method'};
 $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
     if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
-#connect_synths;
 
 # Guess location if not specified in config file
 $coords = guess_coordinates unless defined $coords;
@@ -1204,9 +1207,8 @@ if (!caller) {
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
-    'test' => sub { set_test_params;
-    exit strike_tune(['c4', 1], ['d4', 1], ['e4', 1], ['f4', 1], ['g4', 1]);
-	},
+    'test' => sub { set_test_params },
+    'test-tune' => sub { set_test_params; exit strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]) },
     'test-hour=i' => sub { set_test_params; exit announce_hour(($_[1] - 1) % 12 + 1) },
     'test-quarter=i' => sub { set_test_params; exit announce_quarter_hour($_[1] % 4) },
     'test-watch=i' => sub { set_test_params; exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
