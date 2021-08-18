@@ -207,7 +207,7 @@ sub scan_for_citations ($) {
 	  $state = STATE__UNKNOWN;
 	}
       } elsif ($state eq STATE__DEPENDENCIES_SECTION) {
-	if ($s =~ /^-\s+\[(.*?)\]\((.*?)\)/s) {
+	if ($s =~ /\s\[(.*?)\]\((https?:.*?)\)/s) {
 	  push @citations, "$1 [Computer software]. (n.d.). Retrieved from $2"; # synthesize fake reference for analyze_citations()
 	} elsif ($s =~ /^\s*$/) {
 	  $state = STATE__UNKNOWN;

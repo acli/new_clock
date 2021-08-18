@@ -34,7 +34,7 @@ Dependencies
   to guess geographical location
   (not needed if you specify your geographical location in the config file)
 - [DateTime::Event::Sunrise](https://metacpan.org/pod/DateTime::Event::Sunrise),
-  DateTime::Astro::Sunrise,
+  [DateTime::Astro::Sunrise](https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01/view/Sunrise.pm),
   or [Astro::Sunrise](https://metacpan.org/pod/Astro::Sunrise),
   to calculate sunrise and sundown
   (not all three are equally tested)
