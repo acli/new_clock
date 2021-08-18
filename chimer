@@ -1026,6 +1026,12 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
   -v, --verbose               Explain what is being done
+      --help                  Display this help and exit
+EOF
+  print $h <<EOF unless $debug;
+                              (--debug --help to show debugging options)
+EOF
+  print $h <<EOF if $debug;
 
 Options for debugging:
 
@@ -1035,6 +1041,8 @@ Options for debugging:
       --test-quarter QUARTER  Play quarter chime for QUARTER (0..3)
       --test-tune             Play the major scale from c4 to c5, if possible
       --test-watch WATCH      Play night watch chime for WATCH (1..5)
+EOF
+  print $h <<EOF;
 
 Night watches are determined according to the proportional decimal time
 system in use c. 7-2 century BC in ancient China. For details please see
