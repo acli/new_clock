@@ -76,11 +76,8 @@ use Data::Dumper;
 use vars qw( $config );
 use vars qw( $debug );
 use vars qw( $verbose_p );
-use vars qw( $enable_seconds );
 use vars qw( $enable_nonproportional_watches );
 use vars qw( $enable_qing_quarters );
-use vars qw( $enable_planetary $planetary_omit_details );
-use vars qw( $enable_decaminutes $enable_minutes );
 use vars qw( $enable_4th_hebrew_watch );
 
 use vars qw( $coords );
@@ -1025,21 +1022,11 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
 
   -d, --sink SINK             Use the specified SINK for audio
       --disable-hebrew        Do not display Hebrew date and time
-  -M, --decaminutes           Enable display of ancient Chinese decaminutes
-                              (and disable display of fractional centidays)
-  -m, --minutes               Enable display of Western "planetary" minutes (and
-                              ancient Chinese minutes if decaminutes are enabled)
       --nonproportional-watches
                               Use watches that are aligned to Chinese hours
-  -p, --enable-planetary=all  Enable the Western "planetary" system and display
-                              current time in addition to the equivalent zodiac
-  -p, --enable-planetary=minimal
-                              Enable the Western "planetary" system but display
-                              only the zodiac corresponding to the current hour
   -Q, --qing                  Same as --nonproportional-watches --qing-quarters
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
-  -s, --seconds               Enable display of Western "planetary" seconds
       --test                  Continue with test parameters
       --test-hour HOUR        Play hourly chime for HOUR (1..12)
       --test-quarter QUARTER  Play quarter chime for QUARTER (0..3)
@@ -1202,9 +1189,6 @@ if (!caller) {
   GetOptions(
     'D|debug' => sub { $debug += 1; },
     'd|sink=s' => sub { @sinks = $_[1]; },
-    'M|enable-decaminutes|decaminutes' => \$enable_decaminutes,
-    'm|enable-minutes|minutes' => \$enable_minutes,
-    's|enable-seconds|seconds' => \$enable_seconds,
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
