@@ -575,8 +575,8 @@ sub determine_events ($$$$$$$$$) {
   my $next_quarter = (int($seconds_since_hour_change / 900) + 1)%4;
   my $next_hour = (($next_quarter? $hour: $hour + 1) + 11)%12 + 1;
   my $quarter_chime_event_pushed_p = 0;
-  die "Calculation error, next quarter $t_next_quarter_chime is in the past" if $t_next_quarter_chime < $t0;
-  die "Calculation error, next quarter $t_next_quarter_chime more than 15 minutes away" if $t_next_quarter_chime - $t0 > 900;
+  die "Calculation error, next quarter $t_next_quarter_chime is in the past (t0=$t0)" if $t_next_quarter_chime < int($t0);
+  die "Calculation error, next quarter $t_next_quarter_chime more than 15 minutes away (t0=$t0)" if $t_next_quarter_chime - $t0 > 900;
   for (my $i = 0; $i < 2; $i += 1,
 			  $t_next_quarter_chime += 900,
 			  $next_quarter = ($next_quarter + 1)%4,
