@@ -117,10 +117,10 @@ sub make_sort_form ($) { # NOTE: This does not actually work if $s has accented 
 use vars qw( %citation_key_order );
 %citation_key_order = (
   'authors' => -999,
+  'term' => -995,
   'year' => -990,
   'month' => -989,
   'day' => -988,
-  'term' => -981,
   'title' => -980,
   'version' => -970,
   'type' => -900,

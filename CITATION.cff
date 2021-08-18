@@ -29,8 +29,8 @@ references:
   type: software
   url: "https://metacpan.org/pod/Astro::Sunrise"
 
-- year: 2021
-  term: "打更 [Calling out the hour]"
+- term: "打更 [Calling out the hour]"
+  year: 2021
   title: Wikipedia
   type: encyclopedia
   date-accessed: 2021-08-17
