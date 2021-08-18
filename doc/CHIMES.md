@@ -112,6 +112,12 @@ https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
 
 References
 ----------
+Westminster Quarters. (2021). <cite>Wikipedia</cite>.
+Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
+
+Whittington chimes. (2021). <cite>Wikipedia</cite>.
+Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189
+
 Li, <span title=Ambrose>A.</span> (2018, January 8).
 sysline beeps are music, or the multisensory Unix text mode interface [Weblog post].
 Retrieved from http://incd.ambroseli.ca/node/308

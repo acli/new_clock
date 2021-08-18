@@ -111,9 +111,13 @@ sub MODE__CARILLON  () { 'carillon' }
 sub METHOD__SAMPLES () { 'samples' }
 sub METHOD__SYNTH   () { 'synth' }
 
-use vars qw( $mode $method );
+sub MELODY__WESTMINSTER () { 'westminster' }
+sub MELODY__WHITTINGTON () { 'whittington' }
+
+use vars qw( $mode $method $melody );
 $mode   = MODE__CARILLON;
 $method = METHOD__SAMPLES;
+$melody = MELODY__WESTMINSTER;
 
 # night watch chime patterns
 sub LONG_STRIKE  () { 1.5 }
@@ -230,6 +234,81 @@ $p5 = [
 $strike = [
     ['e3', 2], # both Wikipedia and clockguy say this should be a 4, but that would make h12 last 48 seconds, which isn't good
   ];
+
+use vars qw( %ly_notes );
+%ly_notes = (
+  'ces' => -1, 'c' => 0, 'cis' => 1,
+  'des' => 1, 'd' => 2, 'dis' => 3,
+  'ees' => 3, 'e' => 4, 'eis' => 5,
+  'fes' => 4, 'f' => 5, 'fis' => 6,
+  'ges' => 6, 'g' => 7, 'gis' => 8,
+  'aes' => 8, 'a' => 9, 'ais' => 10,
+  'bes' => 10, 'b' => 11, 'bis' => 12,
+);
+sub interpret_absolute_pitch ($) {
+  my($s) = @_;
+  my $it;
+  if ($s =~ /^(\w+)(?:(,*)|('*))$/) {
+    $it = $ly_notes{$1} + 12*(3 - length($2) + length($3));
+  } else {
+    die "Can't interpret absolute pitch \"$s\"";
+  }
+  return $it;
+}
+sub interpret_melody ($$) {
+  my($s, $unit_beat) = @_;
+  my $it;
+  die unless $s =~ /^\s*\\relative\s+(\S+?)\s+\{\s*(.*?)\s*\}\s*$/s;
+  ($s, my $starting_pitch) = ($2, interpret_absolute_pitch $1);
+  my $last_pitch = $starting_pitch;
+  print STDERR "starting pitch=$starting_pitch\n" if $debug;
+  for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
+    if ($note =~ /^(\w+)(?:(,*)|('*))$/) {
+      my($base_pitch, $lower, $raise) = (($ly_notes{$1} + 12)%12, length $2, length $3);
+      my $last_base_pitch = ($last_pitch + 12)%12;
+      print STDERR "base_pitch=$base_pitch, lower=$lower, raise=$raise\n" if $debug;
+      my $tentative;
+      for (my $i = 0; $i < 8; $i += 1) {
+	for my $dir (-1, 1) {
+	  my $candidate = $last_pitch + $dir*$i;
+	  printf STDERR "GOT HERE %+d:  (%s) candidate=%d '%s' (= %d (mod 12)), base=%d\n", $dir*$i, $note, $candidate, $midi_number_to_note[$candidate], ($candidate%12), $base_pitch if $debug;
+	  $tentative = $candidate if $candidate%12 == $base_pitch;
+	last if defined $tentative;
+	}
+      last if defined $tentative;
+      }
+      print STDERR "tentative=$tentative\n" if $debug;
+      my $pitch = $tentative + 12*($raise - $lower);
+      push @$it, [$midi_number_to_note[$pitch], $unit_beat];
+      $last_pitch = $pitch;
+    }
+  }
+  return $it;
+}
+
+use vars qw( %melody );
+%melody = (
+  &MELODY__WESTMINSTER => [
+    [@$p2, @$p3, @$p4, @$p5],
+    $p1,
+    [@$p2, @$p3],
+    [@$p4, @$p5, @$p1],
+  ],
+  &MELODY__WHITTINGTON => [
+    interpret_melody(q(\relative c' {
+	e' fis, dis' gis, cis a b e, | e' cis a fis dis' b gis e | e' dis a gis cis b fis e | fis a cis e dis b gis e
+      }), 0.5),
+    interpret_melody(q(\relative c' {
+															e' dis cis b a gis fis e
+      }), 0.5),
+    interpret_melody(q(\relative c' {
+	e' fis, dis' gis, cis a b e, | e' cis a fis dis' b gis e
+      }), 0.5),
+    interpret_melody(q(\relative c' {
+								   e' dis a gis cis b fis e | fis a cis e dis b gis e | e' dis cis b a gis fis e
+      }), 0.5),
+  ],
+);
 
 use vars qw( $_gensym );
 sub gensym () {
@@ -700,6 +779,7 @@ sub set_test_params () {
   @sinks = @{$config->{'test'}->{'sink'}} if defined $config->{'test'}->{'sink'};
   $mode = $config->{'test'}->{'mode'}->[0] if defined $config->{'test'}->{'mode'};
   $method = $config->{'test'}->{'method'}->[0] if defined $config->{'test'}->{'method'};
+  $melody = lc $config->{'test'}->{'melody'}->[0] if defined $config->{'test'}->{'melody'};
   printf STDERR "test params set at %.2f: mode=%s, method=%s\n", $boottime, $mode, $method if $verbose_p || $debug;
 }
 
@@ -783,6 +863,7 @@ sub get_cache_pathname_for_event ($) {
   die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
   $id =~ s/^(w\d)\.\d$/\1/sg; # we don't really distinguish between subwatches
   $it .= "$mode-" unless $id =~ /^w/;
+  $it .= "\L$melody-" if $id =~ /^q/ && $mode eq MODE__CARILLON;
   $it .= "$id.oga";
   return $it;
 }
@@ -812,7 +893,7 @@ sub connect_synth ($) {
       ($bell_bank, $bell_inst) = (9, 14);
       ($wood_bank, $wood_inst, $wood_note) = (0, 115, $note_to_midi_number{'d#5'});
       $gain = 0.2; # default gain
-      $delay = 3;
+      $delay = 3.5;
     }
   last if defined $sf_path;
   }
@@ -849,29 +930,34 @@ sub disconnect_synth () {
   close SYNTH;
 }
 
+sub generate_sound_clip_for_event ($) {
+  my($event_id) = @_;
+  my $output = get_cache_pathname_for_event($event_id);
+  if (!-f $output) {
+    print STDERR "Generating audio for event $event_id\n";
+    local @sinks;
+    connect_synth $event_id;
+    if ($event_id =~ /^h(\d+)$/) {
+      announce_hour($1);
+    } elsif ($event_id =~ /^q(\d+)$/) {
+      announce_quarter_hour($1);
+    } elsif ($event_id =~ /^w(\d+)\.(\d+)$/) {
+      announce_night_watch($1, $2);
+    } else {
+      disconnect_synth;
+      die "generate_sound_clips: $event_id: Unknown event id\n";
+    }
+    disconnect_synth;
+  }
+}
+
 sub generate_sound_clips () {
-  # FIXME - unimplemented
   for my $event_id (
     (map { my $n = $_; map { "w$n.$_" } 1..5 } 1..5),		# night watches
     (map { "q$_" } 0..3),					# quarterly chimes
     (map { "h$_" } 1..12),					# hourly chimes
   ) {
-    my $output = get_cache_pathname_for_event($event_id);
-    if (!-f $output) {
-      print STDERR "Generating audio for event $event_id\n";
-      connect_synth $event_id;
-      if ($event_id =~ /^h(\d+)$/) {
-	announce_hour($1);
-      } elsif ($event_id =~ /^q(\d+)$/) {
-	announce_quarter_hour($1);
-      } elsif ($event_id =~ /^w(\d+)\.(\d+)$/) {
-	announce_night_watch($1, $2);
-      } else {
-	disconnect_synth;
-	die "generate_sound_clips: $event_id: Unknown event id\n";
-      }
-      disconnect_synth;
-    }
+    generate_sound_clip_for_event $event_id;
   }
 }
 
@@ -983,17 +1069,7 @@ sub strike_tune (@) {
 
 sub announce_quarter_hour_by_carillon ($) {
   my($quarter) = @_;
-  my @tune;
-  if ($quarter == 1) {
-    @tune = @$p1;
-  } elsif ($quarter == 2) {
-    @tune = (@$p2, @$p3);
-  } elsif ($quarter == 3) {
-    @tune = (@$p4, @$p5, @$p1);
-  } else {
-    @tune = (@$p2, @$p3, @$p4, @$p5);
-  }
-  strike_tune @tune;
+  strike_tune @{$melody{$melody}->[$quarter%4]};
 }
 
 sub announce_quarter_hour_by_cuckoo ($) {
@@ -1252,6 +1328,14 @@ for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef
   my($actual_result1, $actual_result2) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
   die "determine_volume_from_directive_and_time(\"$directive\", $hour, $min, $sec, $deciday, $wday): test failed: expected ($expected_result1, $expected_result2) but got ($actual_result1, $actual_result2)\n" unless $expected_result1 == $actual_result1 && $expected_result2 eq $actual_result2;
 }
+for my $test ([q(\relative c' {c d e}),		1,	'c4 1 d4 1 e4 1'],
+	      [q(\relative c' {ces c cis}),	2,	'b3 2 c4 2 c#4 2'],
+	      [q(\relative c'' {e dis a gis}),	1,	'e5 1 d#5 1 a4 1 g#4 1']) {
+  my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
+  my $actual_result = interpret_melody($lilypond_code, $beat_length);
+  my $stringified_actual_result = ref $actual_result? join(' ', map { @$_ } @$actual_result): defined $actual_result? $actual_result: 'undef';
+  die "interpret_melody(\"$lilypond_code\", $beat_length): test failed: expected ($stringified_expected_result) but got ($stringified_actual_result)\n" unless $stringified_expected_result eq $stringified_actual_result;
+}
 }
 # END test cases
 ###############################################################################
@@ -1269,8 +1353,10 @@ $SIG{CHLD} = 'IGNORE';
 $config = read_ini("$ENV{HOME}/.chimerrc");
 @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
 $method = $config->{'/'}->{'method'}->[0] if defined $config->{'/'}->{'method'};
+$melody = lc $config->{'/'}->{'melody'}->[0] if defined $config->{'/'}->{'melody'};
 $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
     if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
+die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
 
 # Guess location if not specified in config file
 $coords = guess_coordinates unless defined $coords;
