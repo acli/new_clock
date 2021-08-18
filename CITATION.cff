@@ -44,6 +44,10 @@ references:
   type: software
   url: "https://metacpan.org/pod/DateTime::Event::Sunrise"
 
+- title: Fluidsynth
+  type: software
+  url: "http://www.translatorscafe.com/tcterms/question.aspx?id=204717"
+
 - authors:
   - family-names: Gossner
     given-names: Samuel
