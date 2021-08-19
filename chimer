@@ -197,41 +197,7 @@ use vars qw( %gong_scale %chime_scale );
   'f5'	=> 'chimes_F2.ogg',
 );
 
-use vars qw( $p1 $p2 $p3 $p4 $p5 $strike );
-# q0: p2 p3 p4 p5
-# q1: p1
-# q2: p2 p3
-# q3: p4 p5 p1
-$p1 = [
-    ['g#4', 1],
-    ['f#4', 1],
-    ['e4', 1],
-    ['b3', 3],
-  ];
-$p2 = [
-    ['e4', 1],
-    ['g#4', 1],
-    ['f#4', 1],
-    ['b3', 3],
-  ];
-$p3 = [
-    ['e4', 1],
-    ['f#4', 1],
-    ['g#4', 1],
-    ['e4', 3],
-  ];
-$p4 = [
-    ['g#4', 1],
-    ['e4', 1],
-    ['f#4', 1],
-    ['b3', 3],
-  ];
-$p5 = [
-    ['b3', 1],
-    ['f#4', 1],
-    ['g#4', 1],
-    ['e4', 3],
-  ];
+use vars qw( $strike );
 $strike = [
     ['e3', 2], # both Wikipedia and clockguy say this should be a 4, but that would make h12 last 48 seconds, which isn't good
   ];
@@ -248,7 +214,7 @@ sub log_internal ($$;$$$) {
   printf STDERR "%s%10.2f%s\t%s%s%s%s", ($newline_p? "\n": ''),
       Time::HiRes::time, $flag, $prefix, $s, ($newline_p? '': "\033[K"), "\r";
 
-  $last_logged->{'keep'} = $keep_p;
+  $last_logged->{'keep'} = $keep_p + 0;
 }
 
 sub log_output  ($) { log_internal '>', $_[0] }
@@ -268,7 +234,7 @@ use vars qw( %ly_notes );
   'aes' => 8, 'a' => 9, 'ais' => 10,
   'bes' => 10, 'b' => 11, 'bis' => 12,
 );
-sub interpret_absolute_pitch ($) {
+sub interpret_absolute_pitch ($) { # interpret c' as c4
   my($s) = @_;
   my $it;
   if ($s =~ /^(\w+)(?:(,*)|('*))$/) {
@@ -281,15 +247,24 @@ sub interpret_absolute_pitch ($) {
 sub interpret_melody ($$) {
   my($s, $unit_beat) = @_;
   my $it;
+  # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
+  my $note_re = q(([a-g](?:[ei]s)?)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
+  $s =~ s/^\s*\\relative\s*\{\s*$note_re(.*?)\s*\}\s*$/\\relative \1\2\3\4\5 { \1\4\5 \6 }/s;
   die unless $s =~ /^\s*\\relative\s+(\S+?)\s+\{\s*(.*?)\s*\}\s*$/s;
-  ($s, my $starting_pitch) = ($2, interpret_absolute_pitch $1);
+  ($s, my $start_pitch_as_written) = ($2, $1);
+  my $starting_pitch = interpret_absolute_pitch $start_pitch_as_written;
   my $last_pitch = $starting_pitch;
   log_debug "starting pitch=$starting_pitch" if $debug;
+  my $divisor = 4;
   for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
-    if ($note =~ /^(\w+)(?:(,*)|('*))$/) {
-      my($base_pitch, $lower, $raise) = (($ly_notes{$1} + 12)%12, length $2, length $3);
+    if ($note =~ /^$note_re$/) {
+      my($base_pitch, $lower, $raise, $new_divisor, $new_dots) = (($ly_notes{$1} + 12)%12, 0 + length $2, 0 + length $3, $4, $5);
       my $last_base_pitch = ($last_pitch + 12)%12;
+      no integer;
       log_debug "base_pitch=$base_pitch, lower=$lower, raise=$raise" if $debug;
+      die "$note: dot not supported" if defined $new_dots;
+      $divisor = $new_divisor if defined $new_divisor;
+      log_debug "note=$note -> divisor=$divisor" if $debug > 1;
       my $tentative;
       for (my $i = 0; $i < 8; $i += 1) {
 	for my $dir (-1, 1) {
@@ -302,36 +277,47 @@ sub interpret_melody ($$) {
       }
       log_debug "tentative=$tentative" if $debug;
       my $pitch = $tentative + 12*($raise - $lower);
-      push @$it, [$midi_number_to_note[$pitch], $unit_beat];
+      push @$it, [$midi_number_to_note[$pitch], $unit_beat * 4 / $divisor];
       $last_pitch = $pitch;
     }
+  }
+  log_debug sprintf "\\relative %s { %s } interpreted as %s", $start_pitch_as_written, $s,
+      join(' ', map { $_->[0] . ($_->[1] == $unit_beat? '': sprintf('(%s)', $_->[1]/$unit_beat)) } @$it) if $debug;
+  return $it;
+}
+sub interpret_quarters ($$$$$@) {
+  my($beat_length, $q1_spec, $q2_spec, $q3_spec, $q4_spec, @elements) = @_;
+  my $it;
+  my %elements = map { /^\s*(\S+?)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
+  for my $spec ($q4_spec, $q1_spec, $q2_spec, $q3_spec) {
+    my @node;
+    for my $ref (split(/\s*/, $spec)) {
+      die "interpret_quarters: $spec: Unknown reference $ref\n" unless defined $elements{$ref};
+      push @node, @{$elements{$ref}};
+    }
+    push @$it, [@node];
   }
   return $it;
 }
 
 use vars qw( %melody );
 %melody = (
-  &MELODY__WESTMINSTER => [
-    [@$p2, @$p3, @$p4, @$p5],
-    $p1,
-    [@$p2, @$p3],
-    [@$p4, @$p5, @$p1],
-  ],
-  &MELODY__WHITTINGTON => [
-    interpret_melody(q(\relative c' {
-	e' fis, dis' gis, cis a b e, | e' cis a fis dis' b gis e | e' dis a gis cis b fis e | fis a cis e dis b gis e
-      }), 0.5),
-    interpret_melody(q(\relative c' {
-															e' dis cis b a gis fis e
-      }), 0.5),
-    interpret_melody(q(\relative c' {
-	e' fis, dis' gis, cis a b e, | e' cis a fis dis' b gis e
-      }), 0.5),
-    interpret_melody(q(\relative c' {
-								   e' dis a gis cis b fis e | fis a cis e dis b gis e | e' dis cis b a gis fis e
-      }), 0.5),
-  ],
+  &MELODY__WESTMINSTER => interpret_quarters(1, 'BCDE', 'A', 'BC', 'DEA',
+      q( A = \relative e' { gis4 fis e b2  }),
+      q( B = \relative e' { e4 gis fis b,2 }),
+      q( C = \relative e' { e4 fis gis e2  }),
+      q( D = \relative e' { gis4 e fis b,2 }),
+      q( E = \relative e' { b4 fis' gis e2 })),
+  &MELODY__WHITTINGTON => interpret_quarters(0.5, 'E', 'AB', 'CDE', 'ABCD',
+      q( A = \relative e' { e'4 fis, dis' gis, cis a b e, }),
+      q( B = \relative e' { e'4 cis a fis dis' b gis e    }),
+      q( C = \relative e' { e'4 dis a gis cis b fis e     }),
+      q( D = \relative e' { fis4 a cis e dis b gis e      }),
+      q( E = \relative e' { e'4 dis cis b a gis fis e     })),
 );
+$melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
+$melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
+
 
 use vars qw( $_gensym );
 sub gensym () {
@@ -1377,7 +1363,8 @@ for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef
 }
 for my $test ([q(\relative c' {c d e}),		1,	'c4 1 d4 1 e4 1'],
 	      [q(\relative c' {ces c cis}),	2,	'b3 2 c4 2 c#4 2'],
-	      [q(\relative c'' {e dis a gis}),	1,	'e5 1 d#5 1 a4 1 g#4 1']) {
+	      [q(\relative c'' {e dis a gis}),	1,	'e5 1 d#5 1 a4 1 g#4 1'],
+	      [q(\relative e { fis4 }),		1,	'f#3 1']) {
   my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
   my $actual_result = interpret_melody($lilypond_code, $beat_length);
   my $stringified_actual_result = ref $actual_result? join(' ', map { @$_ } @$actual_result): defined $actual_result? $actual_result: 'undef';
