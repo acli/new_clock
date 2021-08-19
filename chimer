@@ -248,7 +248,7 @@ sub interpret_melody ($$) {
   my($s, $unit_beat) = @_;
   my $it;
   # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
-  my $note_re = q(([a-g](?:[ei]s)?)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
+  my $note_re = q(([a-g](?:[ei]s)?|r)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
   $s =~ s/^\s*\\relative\s*\{\s*$note_re(.*?)\s*\}\s*$/\\relative \1\2\3\4\5 { \1\4\5 \6 }/s;
   die unless $s =~ /^\s*\\relative\s+(\S+?)\s+\{\s*(.*?)\s*\}\s*$/s;
   ($s, my $start_pitch_as_written) = ($2, $1);
@@ -277,7 +277,8 @@ sub interpret_melody ($$) {
       }
       log_debug "tentative=$tentative" if $debug;
       my $pitch = $tentative + 12*($raise - $lower);
-      push @$it, [$midi_number_to_note[$pitch], $unit_beat * 4 / $divisor];
+      my $lhs = $note =~ /^r/? 'r': $midi_number_to_note[$pitch];
+      push @$it, [$lhs, $unit_beat * 4 / $divisor];
       $last_pitch = $pitch;
     }
   }
@@ -1364,7 +1365,8 @@ for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef
 for my $test ([q(\relative c' {c d e}),		1,	'c4 1 d4 1 e4 1'],
 	      [q(\relative c' {ces c cis}),	2,	'b3 2 c4 2 c#4 2'],
 	      [q(\relative c'' {e dis a gis}),	1,	'e5 1 d#5 1 a4 1 g#4 1'],
-	      [q(\relative e { fis4 }),		1,	'f#3 1']) {
+	      [q(\relative e { fis4 }),		1,	'f#3 1'],
+	      [q(\relative e { r1 }),		1,	'r 4']) {
   my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
   my $actual_result = interpret_melody($lilypond_code, $beat_length);
   my $stringified_actual_result = ref $actual_result? join(' ', map { @$_ } @$actual_result): defined $actual_result? $actual_result: 'undef';
