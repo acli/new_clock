@@ -880,7 +880,7 @@ sub set_sink_volumes ($$$$$) {
       $adj *= 0.9 if $hour < 9 || $hour > 8;
     }
     $reason = 'by default' if defined $adj && !defined $reason;
-    log_comment "Volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
+    log_info "Volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
   }
 }
