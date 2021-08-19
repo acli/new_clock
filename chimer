@@ -302,7 +302,7 @@ sub interpret_quarters ($$$$$@) {
 
 use vars qw( %melody );
 %melody = (
-  &MELODY__WESTMINSTER => interpret_quarters(1, 'BCDE', 'A', 'BC', 'DEA',
+  &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE',
       q( A = \relative e' { gis4 fis e b2  }),
       q( B = \relative e' { e4 gis fis b,2 }),
       q( C = \relative e' { e4 fis gis e2  }),
