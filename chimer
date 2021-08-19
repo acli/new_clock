@@ -222,7 +222,7 @@ sub log_warning ($) { log_internal '#', $_[0], 'WARNING', 1, 1 }
 =head2 Chime melodies
 
 Each chime melody is internally represented as an array of
-B<[>I<midi note name>, I<time in seconds>B<]> entries,
+B<[>I<midi note name>, I<time in seconds>, I<percentage volume>B<]> entries,
 but written as calls to I<interpret_quarters> which takes 6 parameters:
 the length of a beat in seconds, first quarter, second quarter, third quarter, fourth quarter,
 definitions for the quarters.
@@ -235,7 +235,9 @@ I<var> = B<\relative> I<pitch> B<{> I<melody> B<}>
 
 =back
 
-I<melody> is written in LilyPond notation, described in
+I<melody> is written in LilyPond notation
+(in relative pitch, optionally including note lengths and basic expressive marks),
+described in
 
 =over
 
@@ -260,6 +262,18 @@ use vars qw( %ly_notes );
   'aes' => 8, 'a' => 9, 'ais' => 10,
   'bes' => 10, 'b' => 11, 'bis' => 12,
 );
+use vars qw( %expressive_mark_to_midi_velocity );
+%expressive_mark_to_midi_velocity = (
+  'ppp'	=> 64,
+  'pp'	=> 73,
+  'p'	=> 82,
+  'mp'	=> 91,
+  'mf'	=> 100,
+  'f'	=> 109,
+  'ff'	=> 118,
+  'fff'	=> 127,
+);
+
 sub interpret_absolute_pitch ($) { # interpret c' as c4
   my($s) = @_;
   my $it;
@@ -280,13 +294,13 @@ sub interpret_melody ($$) {
   ($s, my $start_pitch_as_written) = ($2, $1);
   my $starting_pitch = interpret_absolute_pitch $start_pitch_as_written;
   my $last_pitch = $starting_pitch;
-  my($divisor, $dots) = (4);
+  my($divisor, $dots, $volume) = (4, 0, $expressive_mark_to_midi_velocity{'mf'});
   for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
     if ($note =~ /^$note_re$/) {
       my($base_pitch, $lower, $raise, $new_divisor, $new_dots) = (($ly_notes{$1} + 12)%12, 0 + length $2, 0 + length $3, $4, $5);
       my $last_base_pitch = ($last_pitch + 12)%12;
       no integer;
-      ($divisor, $dots) = ($new_divisor, $new_dots) if defined $new_divisor;
+      ($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
       log_debug "note=$note -> divisor=$divisor" if $debug > 1;
       my $tentative;
       for (my $i = 0; $i < 8; $i += 1) {
@@ -300,11 +314,17 @@ sub interpret_melody ($$) {
       my $pitch = $tentative + 12*($raise - $lower);
       my $lhs = $note =~ /^r/? 'r': $midi_number_to_note[$pitch];
       my $rhs = $unit_beat * 4 / $divisor;
-      for (my $i = length $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
+      for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
 	$rhs += $adj;
       }
-      push @$it, [$lhs, $rhs];
+      push @$it, [$lhs, $rhs, $volume];
       $last_pitch = $pitch;
+
+    } elsif ($note =~ /^\\(.*)/ && defined $expressive_mark_to_midi_velocity{$1}) {
+      $volume = $expressive_mark_to_midi_velocity{$1};
+
+    } else {
+      log_debug "Unknown expression \"$note\" discarded"
     }
   }
   log_debug sprintf "\\relative %s { %s } interpreted as %s", $start_pitch_as_written, $s,
@@ -329,17 +349,17 @@ sub interpret_quarters ($$$$$@) {
 use vars qw( %melody );
 %melody = (
   &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE',
-      q( A = \relative e' { gis4 fis e b2  }),
-      q( B = \relative e' { e4 gis fis b,2 }),
-      q( C = \relative e' { e4 fis gis e2  }),
-      q( D = \relative e' { gis4 e fis b,2 }),
-      q( E = \relative e' { b4 fis' gis e2 })),
+      q( A = \relative e' { \f gis4 fis e b2  }),
+      q( B = \relative e' { \f e4 gis fis b,2 }),
+      q( C = \relative e' { \f e4 fis gis e2  }),
+      q( D = \relative e' { \f gis4 e fis b,2 }),
+      q( E = \relative e' { \f b4 fis' gis e2 })),
   &MELODY__WHITTINGTON => interpret_quarters(0.5, 'E', 'AB', 'CDE', 'ABCD',
-      q( A = \relative e' { e'4 fis, dis' gis, cis a b e, }),
-      q( B = \relative e' { e'4 cis a fis dis' b gis e    }),
-      q( C = \relative e' { e'4 dis a gis cis b fis e     }),
-      q( D = \relative e' { fis4 a cis e dis b gis e      }),
-      q( E = \relative e' { e'4 dis cis b a gis fis e     })),
+      q( A = \relative e' { \mp e'4 fis, dis' gis, cis a b e, }),
+      q( B = \relative e' { \mp e'4 cis a fis dis' b gis e    }),
+      q( C = \relative e' { \mp e'4 dis a gis cis b fis e     }),
+      q( D = \relative e' { \mp fis4 a cis e dis b gis e      }),
+      q( E = \relative e' { \mp e'4 dis cis b a gis fis e     })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
@@ -1103,14 +1123,15 @@ sub strike_tune (@) {
   my @tune = @_;
   log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
   for my $spec (@tune) {
-    my($note, $time) = @$spec;
+    my($note, $time, $velocity) = @$spec;
+    $velocity = 127 unless defined $velocity; # NOTE backward compatibility
     # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
     # for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
     # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
     # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
     # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
     if ($method eq METHOD__SYNTH) {
-      send_midi_command sprintf 'noteon 1 %d 127', $note_to_midi_number{$note} if defined $note_to_midi_number{$note};
+      send_midi_command sprintf 'noteon 1 %d %d', $note_to_midi_number{$note}, $velocity if defined $note_to_midi_number{$note};
     } else {
       #strike_gong transpose_note $note, 8;
       strike_bell transpose_note $note, 8;
@@ -1381,14 +1402,18 @@ for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef
   my($actual_result1, $actual_result2) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
   die "determine_volume_from_directive_and_time(\"$directive\", $hour, $min, $sec, $deciday, $wday): test failed: expected ($expected_result1, $expected_result2) but got ($actual_result1, $actual_result2)\n" unless $expected_result1 == $actual_result1 && $expected_result2 eq $actual_result2;
 }
-for my $test ([q(\relative c' {c d e}),		1,	'c4 1 d4 1 e4 1'],
-	      [q(\relative c' {ces c cis}),	2,	'b3 2 c4 2 c#4 2'],
-	      [q(\relative c'' {e dis a gis}),	1,	'e5 1 d#5 1 a4 1 g#4 1'],
-	      [q(\relative e { fis4 }),		1,	'f#3 1'],
-	      [q(\relative e { fis4. }),	1,	'f#3 1.5'],
-	      [q(\relative e { fis4.. }),	1,	'f#3 1.75'],
-	      [q(\relative e { fis4.. e e4 }),	1,	'f#3 1.75 e3 1.75 e3 1'],
-	      [q(\relative e { r1 }),		1,	'r 4']) {
+my $mf = $expressive_mark_to_midi_velocity{'mf'};
+my $f = $expressive_mark_to_midi_velocity{'f'};
+my $fff = $expressive_mark_to_midi_velocity{'fff'};
+for my $test ([q(\relative c' {c d e}),		1,	"c4 1 $mf d4 1 $mf e4 1 $mf"],
+	      [q(\relative c' {ces c cis}),	2,	"b3 2 $mf c4 2 $mf c#4 2 $mf"],
+	      [q(\relative c'' {e dis a gis}),	1,	"e5 1 $mf d#5 1 $mf a4 1 $mf g#4 1 $mf"],
+	      [q(\relative e { fis4 }),		1,	"f#3 1 $mf"],
+	      [q(\relative e { fis4. }),	1,	"f#3 1.5 $mf"],
+	      [q(\relative e { fis4.. }),	1,	"f#3 1.75 $mf"],
+	      [q(\relative e { fis4.. e e4 }),	1,	"f#3 1.75 $mf e3 1.75 $mf e3 1 $mf"],
+	      [q(\relative c' {c \fff d \f e}),	1,	"c4 1 $mf d4 1 $fff e4 1 $f"],
+	      [q(\relative e { r1 }),		1,	"r 4 $mf"]) {
   my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
   my $actual_result = interpret_melody($lilypond_code, $beat_length);
   my $stringified_actual_result = ref $actual_result? join(' ', map { @$_ } @$actual_result): defined $actual_result? $actual_result: 'undef';
