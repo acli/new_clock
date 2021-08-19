@@ -39,6 +39,8 @@ Dependencies
   to calculate sunrise and sundown
   (not all three are equally tested)
 - [Fluidsynth](https://www.fluidsynth.org/) (optional)
+- [Expect::Simple](https://metacpan.org/pod/Expect::Simple)
+  to interact with Fluidsynth
 - [Timbres of Heaven](http://midkar.com/soundfonts/) by Don Allen
   for gong, carillon and woodblock synthesis,
   if using Fluidsynth

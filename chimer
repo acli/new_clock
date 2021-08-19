@@ -51,6 +51,7 @@ use POSIX;
 use POSIX ":sys_wait_h"; # for nonblocking read
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
+use Expect::Simple;
 
 use vars qw( @restart_cmd );
 @restart_cmd = ($0, @ARGV); # save this because GetOpt will clear @ARGV
@@ -82,7 +83,7 @@ use vars qw( $enable_qing_quarters );
 use vars qw( $coords );
 use vars qw( $lat $lon );
 use vars qw( @sinks );
-use vars qw( %synth );
+use vars qw( $synth );
 use vars qw( %children );
 
 use vars qw( $fluidR3 $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note );
@@ -235,6 +236,28 @@ $strike = [
     ['e3', 2], # both Wikipedia and clockguy say this should be a 4, but that would make h12 last 48 seconds, which isn't good
   ];
 
+use vars qw( $last_logged );
+sub log_internal ($$;$$$) {
+  my($flag, $s, $prefix, $newline_p, $keep_p) = @_;
+  $newline_p = 1 if $s =~ s/^\n+//s;
+  $newline_p = 0 unless defined $last_logged;
+  $newline_p = 1 if defined $last_logged && $last_logged->{'keep'};
+  $keep_p = 1 if $debug;
+  $prefix .= ': ' if defined $prefix && $prefix =~ /\S/s && $prefix !~ /: $/s;
+  chomp $s;
+  printf STDERR "%s%10.2f%s\t%s%s%s%s", ($newline_p? "\n": ''),
+      Time::HiRes::time, $flag, $prefix, $s, ($newline_p? '': "\033[K"), "\r";
+
+  $last_logged->{'keep'} = $keep_p;
+}
+
+sub log_output  ($) { log_internal '>', $_[0] }
+sub log_comment ($) { log_internal '#', $_[0] }
+sub log_debug   ($) { log_internal '#', $_[0], 'DEBUG', 1, 1 }
+sub log_info    ($) { log_internal '#', $_[0], undef,   0, 1 }
+sub log_error   ($) { log_internal '#', $_[0], 'ERROR', 1, 1 }
+sub log_warning ($) { log_internal '#', $_[0], 'WARNING', 1, 1 }
+
 use vars qw( %ly_notes );
 %ly_notes = (
   'ces' => -1, 'c' => 0, 'cis' => 1,
@@ -261,23 +284,23 @@ sub interpret_melody ($$) {
   die unless $s =~ /^\s*\\relative\s+(\S+?)\s+\{\s*(.*?)\s*\}\s*$/s;
   ($s, my $starting_pitch) = ($2, interpret_absolute_pitch $1);
   my $last_pitch = $starting_pitch;
-  print STDERR "starting pitch=$starting_pitch\n" if $debug;
+  log_debug "starting pitch=$starting_pitch" if $debug;
   for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
     if ($note =~ /^(\w+)(?:(,*)|('*))$/) {
       my($base_pitch, $lower, $raise) = (($ly_notes{$1} + 12)%12, length $2, length $3);
       my $last_base_pitch = ($last_pitch + 12)%12;
-      print STDERR "base_pitch=$base_pitch, lower=$lower, raise=$raise\n" if $debug;
+      log_debug "base_pitch=$base_pitch, lower=$lower, raise=$raise" if $debug;
       my $tentative;
       for (my $i = 0; $i < 8; $i += 1) {
 	for my $dir (-1, 1) {
 	  my $candidate = $last_pitch + $dir*$i;
-	  printf STDERR "GOT HERE %+d:  (%s) candidate=%d '%s' (= %d (mod 12)), base=%d\n", $dir*$i, $note, $candidate, $midi_number_to_note[$candidate], ($candidate%12), $base_pitch if $debug;
+	  log_debug sprintf "GOT HERE %+d:  (%s) candidate=%d '%s' (= %d (mod 12)), base=%d", $dir*$i, $note, $candidate, $midi_number_to_note[$candidate], ($candidate%12), $base_pitch if $debug;
 	  $tentative = $candidate if $candidate%12 == $base_pitch;
 	last if defined $tentative;
 	}
       last if defined $tentative;
       }
-      print STDERR "tentative=$tentative\n" if $debug;
+      log_debug "tentative=$tentative" if $debug;
       my $pitch = $tentative + 12*($raise - $lower);
       push @$it, [$midi_number_to_note[$pitch], $unit_beat];
       $last_pitch = $pitch;
@@ -399,9 +422,9 @@ sub guess_city () {
 sub guess_coordinates () {
   my $it;
   my $city = guess_city;
-  print STDERR "guessed city=($city)\n" if $debug;
+  log_comment "guessed city=($city)" if $debug;
   my @cmd = qw(hebcal cities);
-  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  log_comment 'DEBUG: running: '. join(' ', @cmd) if $debug;
   my $pid = open(INPUT, '-|');
   die "$0: guess_coordinates: $cmd[0]: fork: $!\n" unless defined $pid;
   if ($pid) {
@@ -636,7 +659,7 @@ sub determine_chinese_time ($) {
     # (so we can't even change ⌊h - 0.5⌋ to (⌊h*2 - 1⌋%24)/2 because this breaks for h > 1.0)
     #
     my $reporting_origin = POSIX::floor(($relative_chinese_hour < 0.5? 11.5: (int($relative_chinese_hour) - 0.5)) * 100 / 12);
-    print STDERR "relative_chinese_hour=$relative_chinese_hour => reporting_origin=$reporting_origin\n" if $debug;
+    log_debug "relative_chinese_hour=$relative_chinese_hour => reporting_origin=$reporting_origin" if $debug;
     $quarter = $centiday - int($reporting_origin);
   }
   $it = [undef, undef, undef, undef, $chinese_hour, $quarter, $centiday, $deciday,
@@ -780,13 +803,13 @@ sub set_test_params () {
   $mode = $config->{'test'}->{'mode'}->[0] if defined $config->{'test'}->{'mode'};
   $method = $config->{'test'}->{'method'}->[0] if defined $config->{'test'}->{'method'};
   $melody = lc $config->{'test'}->{'melody'}->[0] if defined $config->{'test'}->{'melody'};
-  printf STDERR "test params set at %.2f: mode=%s, method=%s\n", $boottime, $mode, $method if $verbose_p || $debug;
+  log_debug sprintf "test params set at %.2f: mode=%s, method=%s, melody=%s", $boottime, $mode, $method, $melody if $verbose_p || $debug;
 }
 
 sub set_sink_volume ($$) {
   my($sink, $volume) = @_;
   my @cmd = ('pactl', 'set-sink-volume', $sink, int($volume));
-  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  log_debug 'running: '. join(' ', @cmd) if $debug;
   system { $cmd[0] } @cmd;
 }
 
@@ -840,7 +863,7 @@ sub set_sink_volumes ($$$$$) {
       for my $directive (map { split /(?:^|(?<=\d))\s*,\s*/ } @{$config->{$sink}->{'volume'}}) {
 	my($candidate_adj, $error) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
 	($adj, $reason) = ($candidate_adj, "because of volume rule \"$directive\"") if defined $candidate_adj;
-	print STDERR "CONFIG ERROR: $error in [$sink] volumes\n" if defined $error;
+	log_error "CONFIG ERROR: $error in [$sink] volumes" if defined $error;
       last if defined $adj;
       }
       $adj = 1.0 unless defined $adj;
@@ -851,7 +874,7 @@ sub set_sink_volumes ($$$$$) {
       $adj *= 0.9 if $hour < 9 || $hour > 8;
     }
     $reason = 'by default' if defined $adj && !defined $reason;
-    print STDERR "Volume adjusted to $adj for $label $reason\n" if $debug || $verbose_p;
+    log_comment "Volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
   }
 }
@@ -870,7 +893,31 @@ sub get_cache_pathname_for_event ($) {
 
 sub send_midi_command ($) {
   my($cmd) = @_;
-  print SYNTH "$cmd\n";
+  log_output $cmd if $debug || $verbose_p;
+  $synth->send($cmd);
+}
+
+sub probe_synth_instruments () {
+  send_midi_command('inst 1');
+  my @instruments = $synth->before;
+  my %instruments = map { /^(\d+)-(\d+)\s+(.*)$/s? ($3 => [$1 + 0, $2 + 0], "$1-$2" => $3): () } split(/\r?\n/, $synth->before);
+  return wantarray? %instruments: \%instruments;
+}
+
+sub find_synth_instrument ($@) {
+  my($instruments, @preferences) = @_;
+  my $it;
+  for my $candidate (@preferences) {
+    $it = $instruments->{$candidate} if defined $instruments->{$candidate};
+  last if defined $it;
+  }
+  return $it;
+}
+
+sub synth_instrument_name ($$) {
+  my($instruments, $instrument) = @_;
+  my $id = sprintf('%03d-%03d', $instrument->[0], $instrument->[1]);
+  return $instruments->{$id};
 }
 
 sub connect_synth ($) {
@@ -879,8 +926,6 @@ sub connect_synth ($) {
   my($sf_path, $gain, $delay);
 
   # Figure out where our soundfont is
-  ($gong_bank, $gong_inst) = ($bell_bank, $bell_inst) = (0, 14);
-  ($wood_bank, $wood_inst, $wood_note) = (128, 48, 31);
   for my $key ('Timbres Of Heaven', 'FluidR3') {
     if (defined $config->{'/'}->{$key}) {
       foreach my $candidate (@{$config->{'/'}->{$key}}) {
@@ -889,9 +934,6 @@ sub connect_synth ($) {
       }
     }
     if (defined $sf_path && $key eq 'Timbres Of Heaven') {
-      ($gong_bank, $gong_inst) = (2, 119);
-      ($bell_bank, $bell_inst) = (9, 14);
-      ($wood_bank, $wood_inst, $wood_note) = (0, 115, $note_to_midi_number{'d#5'});
       $gain = 0.18; # even default gain (0.2) feels too loud for a chiming clock
       $delay = 3.5;
     }
@@ -901,40 +943,45 @@ sub connect_synth ($) {
   $gain = 1 if !defined $gain;
   $delay = 1 if !defined $delay;
 
-  print STDERR "Connecting synth for write to $output\n" if $debug || $verbose_p;
+  log_comment "Connecting synth for write to $output" if $debug || $verbose_p;
   my @cmd = ('fluidsynth', '-a', 'file',
 			   '-g', $gain,
 			   '-o', "audio.file.name=$output",
 			   '--midi-channels', '3',
 			   $sf_path);
 
-  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
-  my $pid = open(SYNTH, '|-');
-  die "$0: connect_synth: $cmd[0]: fork: $!\n" unless defined $pid;
-  if (!$pid) {
-    exec { $cmd[0] } @cmd;
-    die "$0: connect_synth: $cmd[0]: exec: $!\n";
-  }
-  select((select(SYNTH), $| = 1)[0]);
-  $children{$pid} = 1;
+  log_debug 'running: '. join(' ', @cmd) if $debug;
+  $synth = new Expect::Simple({
+      'Cmd' => \@cmd,
+      'Prompt' => "\n> ",
+      'DisconnectCmd' => 'quit',
+    });
+
+  # Figure out what instruments to use
+  my $instruments = probe_synth_instruments;
+  my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
+  my $bell = find_synth_instrument($instruments, 'Carillon', 'Tubular Bells');
+  my $wood = find_synth_instrument($instruments, 'Woodblock', 'Orchestra Kit');
+  ($gong_bank, $gong_inst) = @$gong;
+  ($bell_bank, $bell_inst) = @$bell;
+  ($wood_bank, $wood_inst) = @$wood;
+  $wood_note = synth_instrument_name($instruments, $wood) =~ / Kit\b/? 31: $note_to_midi_number{'d#5'};
   send_midi_command "select 0 1 $gong_bank $gong_inst";
   send_midi_command "select 1 1 $bell_bank $bell_inst";
   send_midi_command "select 2 1 $wood_bank $wood_inst";
-  sleep $delay;					# FIXME wait a bit for things to stabilize
   return;
 }
 
 sub disconnect_synth () {
-  sleep 5;					# FIXME wait a bit for things to stabilize
-  send_midi_command "quit";
-  close SYNTH;
+  sleep 6;					# FIXME wait a bit for things to stabilize
+  $synth = undef;
 }
 
 sub generate_sound_clip_for_event ($) {
   my($event_id) = @_;
   my $output = get_cache_pathname_for_event($event_id);
   if (!-f $output) {
-    print STDERR "Generating audio for event $event_id\n";
+    log_info "Generating audio for event $event_id";
     local @sinks;
     connect_synth $event_id;
     if ($event_id =~ /^h(\d+)$/) {
@@ -979,7 +1026,7 @@ sub play_sound_file_real ($;$$$) {
   push @cmd, ('--end', $end) if defined $end;
   push @cmd, ("--ao=pulse::$sink") if $sink;
   push @cmd, $input;
-  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  log_debug 'running: '. join(' ', @cmd) if $debug;
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
@@ -998,7 +1045,7 @@ sub play_sound_file ($;$$$) {
   $volume = 50 unless defined $volume;
   if (@sinks) {
     for my $sink (@sinks) {
-      print STDERR "set sink $sink\n" if $debug;
+      log_debug "set sink $sink" if $debug;
       set_sink $sink;
       play_sound_file_real($input, $volume, $start, $end);
     }
@@ -1048,7 +1095,7 @@ sub transpose_note ($;$) {
 
 sub strike_tune (@) {
   my @tune = @_;
-  printf STDERR "Striking %s\n", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
+  log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
   for my $spec (@tune) {
     my($note, $time) = @$spec;
     # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
@@ -1075,11 +1122,11 @@ sub announce_quarter_hour_by_carillon ($) {
 sub announce_quarter_hour_by_cuckoo ($) {
   my($quarter) = @_;
   if ($quarter == 2) {
-    print STDERR "Cuckoo announcing quarter $quarter\n" if $debug || $verbose_p;
+    log_debug "Cuckoo announcing quarter $quarter" if $debug || $verbose_p;
     strike_gong 'c#4';
     play_sound_file "$datadir/121203__inchadney__cuckoo.wav", 100, 1.25, 3.05;
   } else {
-    print STDERR "Cuckoo does not announce quarter $quarter\n" if $debug || $verbose_p;
+    log_debug "Cuckoo does not announce quarter $quarter" if $debug || $verbose_p;
   }
 }
 
@@ -1101,7 +1148,7 @@ sub announce_hour_by_carillon ($) {
 sub announce_hour_by_cuckoo ($) {
   my($hour) = @_;
   my $f = sub { my($x) = @_; no integer; 1.5 + 1.55*$x };
-  print STDERR "Cuckoo announcing hour $hour\n" if $debug || $verbose_p;
+  log_debug "Cuckoo announcing hour $hour\n" if $debug || $verbose_p;
   play_sound_file "$datadir/121203__inchadney__cuckoo.wav", 100, 1.25, &$f($hour);
   for (my $i = 0; $i < $hour; $i += 1) {
     #strike_gong 'c#4';
@@ -1123,7 +1170,7 @@ sub announce_night_watch ($$) {
   my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
   no integer;
   for (my $i = 0, my $sleep = 0; $i < $repeats; $i += 1) {
-    printf STDERR "Striking %s\n", $pattern if $debug || $verbose_p;
+    log_debug "Striking $pattern" if $debug || $verbose_p;
     for my $length (split(/\s+/, $pattern)) {
       Time::HiRes::sleep($sleep * $beat_length);
       if ($length eq '.') {
@@ -1150,28 +1197,28 @@ sub do_event ($) {
   } elsif ($id =~ /^w(\d+)\.(\d+)$/) {	# night watch
     announce_night_watch $1, $2;
   } else {
-    print STDERR "Unknown event $id ignored\n";
+    log_warning "Unknown event $id ignored";
   }
 }
 
 sub restart_script_real () {	# NOTE: this function exists only to silence the "Statement unlikely to be reached" warning
   for my $pid (keys %children) {
-    print STDERR "DEBUG: killing synth $pid\033[K\n" if $debug;
+    log_comment "DEBUG: killing synth $pid" if $debug;
     kill 'TERM', $pid;
   }
   my @cmd = @restart_cmd;
-  print STDERR 'DEBUG: restarting: ', join(' ', @cmd), "\033[K\n" if $verbose_p || $debug;
+  log_warning 'restarting: '. join(' ', @cmd) if $verbose_p || $debug;
   exec { $cmd[0] } @cmd;
 }
 
 sub restart_script () {
   restart_script_real;
-  print STDERR "WARNING: restart failed: $!\n";
+  log_warning "restart failed: $!";
 }
 
 sub safe_to_restart_p () {
   my @cmd = ('perl', '-cw', $restart_cmd[0]);
-  print STDERR 'DEBUG: running: ', join(' ', @cmd), "\n" if $debug;
+  log_comment 'DEBUG: running: '. join(' ', @cmd) if $debug;
   local $SIG{'CHLD'} = 'DEFAULT'; # need this to check exit status
   return 0 == system { $cmd[0] } @cmd;
 }
@@ -1381,7 +1428,7 @@ if (!caller) {
     'help' => \&usage,
   ) || usage(1);
 
-  printf STDERR "chimer booted at %.2f in %s mode using %s\n", $boottime, $mode, $method if $verbose_p || $debug;
+  log_info sprintf "chimer booted at %.2f in %s mode using %s", $boottime, $mode, $method if $verbose_p || $debug;
   generate_sound_clips if $method eq METHOD__SYNTH;
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = Time::HiRes::time;
@@ -1392,7 +1439,7 @@ if (!caller) {
     # Detect terminated child processes
     for my $pid (keys %children) {
       if (!kill 0, $pid || waitpid($pid, WNOHANG) == $pid) {
-	print STDERR "\nDEBUG: child process $pid has exited" if $debug;
+	log_debug "child process $pid has exited" if $debug;
 	delete $children{$pid};
       }
     }
@@ -1410,7 +1457,7 @@ if (!caller) {
       my $t = $e->{'t'};
       $t += $e->{'delay'} if defined $e->{'delay'};
       if ($t0 - $t > 60) { # just do it if we missed it by just a fraction of a second, actually it's fine even if it's a whole minute
-	printf STDERR "\nEVENT %s (%d) MISSED at %d (%.2f too late)\n", $id, $t, $t0, $t0 - $t;
+	log_info sprintf "EVENT %s (%d) MISSED at %d (%.2f too late)", $id, $t, $t0, $t0 - $t;
 	delete $pending_events{$id};
       }
     }
@@ -1425,7 +1472,7 @@ if (!caller) {
     $dt = 0 if $dt < 0;
 
     # Debug message
-    printf STDERR "%10.2f - %02d %2.2f %2.2f %2.2f (Δt=%2.2f) > %s\033[K\r",
+    log_comment sprintf "%10.2f=%02d %2.2f/%2.2f/%2.2f (Δt=%2.2f) > %s",
 	$t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
 	join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
 
@@ -1435,7 +1482,7 @@ if (!caller) {
     # Check if any event should be fired
     my $now = Time::HiRes::time;
     my $dt_actual = $now - $t2;
-    printf STDERR "\nWARNING: tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
+    log_warning sprintf "tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
@@ -1443,11 +1490,11 @@ if (!caller) {
       if ($now < $t) {
 	;
       } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
-	printf STDERR "\nERROR: EVENT %s (%.2f) already fired at %.2f (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
+	log_error sprintf "EVENT %s (%.2f) already fired at %.2f (%.2f s ago)\n", $id, $t, $completed_events{$id}, $now - $completed_events{$id} if $debug;
 	delete $pending_events{$id};
       } else {
 	my $dt = $now - $t;
-	printf STDERR "\nEVENT %s (%.2f) fired at %.2f (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+	log_error sprintf "EVENT %s (%.2f) fired at %.2f (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
 	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	do_event $id;
 	$countdown = 0; # force a re-countdown
