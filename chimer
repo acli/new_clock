@@ -892,7 +892,7 @@ sub connect_synth ($) {
       ($gong_bank, $gong_inst) = (2, 119);
       ($bell_bank, $bell_inst) = (9, 14);
       ($wood_bank, $wood_inst, $wood_note) = (0, 115, $note_to_midi_number{'d#5'});
-      $gain = 0.2; # default gain
+      $gain = 0.18; # even default gain (0.2) feels too loud for a chiming clock
       $delay = 3.5;
     }
   last if defined $sf_path;
