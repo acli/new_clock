@@ -46,6 +46,10 @@ references:
   type: software
   url: "https://metacpan.org/pod/DateTime::Event::Sunrise"
 
+- title: "Expect::Simple"
+  type: software
+  url: "https://metacpan.org/pod/Expect::Simple"
+
 - title: Fluidsynth
   type: software
   url: "https://www.fluidsynth.org/"
