@@ -121,6 +121,7 @@ use vars qw( %citation_key_order );
   'year' => -990,
   'month' => -989,
   'day' => -988,
+  'section' => -981,
   'title' => -980,
   'version' => -970,
   'type' => -900,
@@ -163,8 +164,8 @@ sub compare_reference_list_entries ($$) {
   my($a, $b) = @_;
   my $author_a = determine_first_author_name($a);
   my $author_b = determine_first_author_name($b);
-  my $title_a = defined $a->{'term'}? $a->{'term'}: $a->{'title'};
-  my $title_b = defined $b->{'term'}? $b->{'term'}: $b->{'title'};
+  my $title_a = defined $a->{'term'}? $a->{'term'}: defined $a->{'section'}? $a->{'section'}: $a->{'title'};
+  my $title_b = defined $b->{'term'}? $b->{'term'}: defined $b->{'section'}? $b->{'section'}: $b->{'title'};
   $title_a = $1 if defined $title_a && $title_a =~ /\[(.*?)\]$/; # translated title
   $title_b = $1 if defined $title_b && $title_b =~ /\[(.*?)\]$/; # translated title
   my $fronted_element_a = defined $author_a? $author_a: $title_a;
@@ -337,8 +338,10 @@ sub analyze_citations (@) {
       } else {
 	$node->{'title'} = $title;
 	$node->{'title'} .= " [$translated_title]" if defined $translated_title;
-	if (defined $in_p && $in_p) {
-	  die; # article in a book
+	if (defined $in_p && $in_p) { # article in a book - no reference examples so this is just an educated guess
+	  $node->{'section'} = $node->{'title'};
+	  $node->{'title'} = $in;
+	  $node->{'type'} = 'book';
 	} else {
 	  $node->{'journal'} = $in;
 	  $node->{'type'} = 'article';

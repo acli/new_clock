@@ -1,34 +1,26 @@
 #!/usr/bin/perl
 # vi:set sw=2 ai sm:
-#
-# Re-implementation of the Javascript chiming clocks (sysline, silliness) in Perl
 # Copyright © 2021 by Ambrose Li
-# The primary purpose of this script is to avoid running the two chiming clock pages
-# as Firefox tabs, because Firefox (and all Chrome-based browsers) are now unfriendly
-# to Javascript pages that use audio as their primary UI. Firefox also leaks memory
-# really fast so it's best to not keep Firefox running for long periods of time.
-#
-# Eventually this script might provide a way to make the genmon script less CPU
-# intensive.
-#
-# This re-implementation uses the following sounds:
-#
-# strangehorizon. (2021). "Tuned Chau Gongs: g16_D#5-gong.wav" (audio file).
-# Retrieved from https://freesound.org/people/strangehorizon/sounds/582159/
-#
-# ------
-#
-# Concept from the Javascript chiming clocks:
-# "Copyright © 2018 by Ambrose Li :-)"
-#
-# ------
-#
-# Mostly based on the genmon script for Chinese/Hebrew dates:
-# "Copyright 2016-2018, 2021 by Ambrose Li <ambrose.li@gmail.com>
-# The primary purpose of this script is to figure out the year number in the Chinese system
-# so that I can name my CV's without having to look up two web pages.
-# Everything else is just for kicks =P"
-#
+
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+chimer – Re-implementation of the Javascript chiming clocks in Perl
+
+=head1 DESCRIPTION
+
+The primary purpose of this script is to avoid running the two chiming clock pages as Firefox tabs,
+because Firefox (and Chromium-based browsers) are now unfriendly to pages that primarily use audio for UI.
+Firefox also leaks memory really fast so it's best to not keep Firefox running for long periods of time.
+
+Eventually this script might provide a way to make the genmon script less CPU intensive.
+
+=head1 INTERNALS
+
+=cut
 
 # see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
 # THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
@@ -224,6 +216,40 @@ sub log_info    ($) { log_internal '#', $_[0], undef,   0, 1 }
 sub log_error   ($) { log_internal '#', $_[0], 'ERROR', 1, 1 }
 sub log_warning ($) { log_internal '#', $_[0], 'WARNING', 1, 1 }
 
+
+=pod
+
+=head2 Chime melodies
+
+Each chime melody is internally represented as an array of
+B<[>I<midi note name>, I<time in seconds>B<]> entries,
+but written as calls to I<interpret_quarters> which takes 6 parameters:
+the length of a beat in seconds, first quarter, second quarter, third quarter, fourth quarter,
+definitions for the quarters.
+
+As many definitions as needed can be included, but each definition I<must> be of the form
+
+=over
+
+I<var> = B<\relative> I<pitch> B<{> I<melody> B<}>
+
+=back
+
+I<melody> is written in LilyPond notation, described in
+
+=over
+
+Relative Octave Entry. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
+Retrieved August 18, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/writing-pitches#relative-octave-entry
+
+=back
+
+I<interpret_quarters> calls I<interpret_melody> to convert this notation into the internal representation described above,
+but this conversion is just a simple pattern match and therefore can produce incorrect results.
+If results are incorrect but the notation typesets correctly in LilyPond, the bug is in I<interpret_melody>.
+
+=cut
+
 use vars qw( %ly_notes );
 %ly_notes = (
   'ces' => -1, 'c' => 0, 'cis' => 1,
@@ -319,12 +345,6 @@ $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
 
 
-use vars qw( $_gensym );
-sub gensym () {
-  my $it = sprintf('g%d', $_gensym);
-  $_gensym += 1;
-  return $it;
-}
 
 sub start_of_day ($) {
   my($t) = @_;
@@ -1498,5 +1518,20 @@ if (!caller) {
     $countdown = COUNTDOWN if $countdown < 0;
   }
 }
+
+=pod
+
+=head1 HISTORY
+
+Concept from the Javascript chiming clocks:
+"Copyright © 2018 by Ambrose Li :-)"
+
+Mostly based on the genmon script for Chinese/Hebrew dates:
+"Copyright 2016-2018, 2021 by Ambrose Li <ambrose.li@gmail.com>
+The primary purpose of this script is to figure out the year number in the Chinese system
+so that I can name my CV's without having to look up two web pages.
+Everything else is just for kicks =P"
+
+=cut
 
 1;
