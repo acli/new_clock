@@ -1439,7 +1439,7 @@ if (!caller) {
     'help' => \&usage,
   ) || usage(1);
 
-  log_info sprintf "chimer booted at %.2f in %s mode using %s", $boottime, $mode, $method if $verbose_p || $debug;
+  log_info sprintf "chimer booted at %.2f in %s mode%s using %s", $boottime, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method if $verbose_p || $debug;
   generate_sound_clips if $method eq METHOD__SYNTH;
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = Time::HiRes::time;
