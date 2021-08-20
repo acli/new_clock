@@ -27,6 +27,13 @@ version: n/a
 
 references:
 
+- authors:
+  - family-names: Allen
+    given-names: Don
+  title: "Timbres of Heaven"
+  type: sound-recording
+  url: "http://midkar.com/soundfonts/"
+
 - title: "Astro::Sunrise"
   type: software
   url: "https://metacpan.org/pod/Astro::Sunrise"
@@ -117,10 +124,6 @@ references:
   type: sound-recording
   repository: "https://freesound.org/people/strangehorizon/packs/32761/"
   license: CC0-1.0
-
-- title: "Timbres of Heaven"
-  type: software
-  url: "http://midkar.com/soundfonts/"
 
 - authors:
   - family-names: Walter

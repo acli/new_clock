@@ -41,7 +41,7 @@ Dependencies
 - [Fluidsynth](https://www.fluidsynth.org/) (optional)
 - [Expect::Simple](https://metacpan.org/pod/Expect::Simple)
   to interact with Fluidsynth
-- [Timbres of Heaven](http://midkar.com/soundfonts/) by Don Allen
+- The [Timbres of Heaven](http://midkar.com/soundfonts/) soundfont by Don Allen
   for gong, carillon and woodblock synthesis,
   if using Fluidsynth
 - Sound files listed in the [CREDITS file](doc/CREDITS.md)

@@ -61,6 +61,8 @@ use vars qw( %apa_type_to_cff_type );
   'Computer software' => 'software',
   'Dataset' => 'data',
   'Data set' => 'data', # typo
+  'Perl module' => 'software-code',	# custom type
+  'Soundfont' => 'sound-recording',	# custom type
   'Weblog post' => 'blog',
 );
 
@@ -174,6 +176,21 @@ sub compare_reference_list_entries ($$) {
   return $it;
 }
 
+sub generate_initials_from ($) {
+  my($s) = @_;
+  return join(' ', map { join('-', map { substr($_, 0, 1) . '.' } split/-/) } split(/\s+/, $s));
+}
+
+sub invert_name ($) {
+  my($s) = @_;
+  my $it = $s;
+  if ($s =~ /^(.*?)\s+(\S+)$/) {
+    my($given_names, $last_name) = ($1, $2);
+    $it = sprintf('%s, <span title="%s">%s</span>', $last_name, $given_names, generate_initials_from($given_names));
+  }
+  return $it;
+}
+
 
 use vars qw( $month_re $day_re );
 $month_re = '(?:\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b)';
@@ -183,6 +200,24 @@ use vars qw( $date_ref_re $date_ref_re_no_captures );
 $date_ref_re = '\s*\((?:(\d{4,})(?:, ('.$month_re.')(?: ('.$day_re.'))?)?|(n\.d\.))([a-z])?\)\.(?:\s|$)'; # NOTE: 5 captures - yyyy Mmm dd n.d. a/b/c
 $date_ref_re_no_captures = $date_ref_re;
 $date_ref_re_no_captures =~ s/(?<!\\)\((?![\?])/(?:/sg;
+
+use vars qw( $name_re );
+$name_re = '(?:\b[A-Z][-a-z]*(?:\s+[A-Z][-a-z]*)+\b)'; # FIXME this is really Western-centric and can't even handle some Western names
+
+# Dependency types that the dependency scanner should recognize. These are mapped to (possibly non-standard) APA types that
+# we inject into fake citations that go into the @citations array. Anything appear on the RHS here should be defined in
+# %apa_type_to_cff_type above so that analyze_citations knows what to do with them.
+use vars qw( %dependency_types $dependency_type_re );
+%dependency_types = (
+  'Perl module'	=> 'Perl module',
+  'soundfont'	=> 'Soundfont',
+);
+$dependency_type_re = sprintf('(?:\b(?:%s)\b)', join('|', reverse sort keys %dependency_types));
+
+use vars qw( $version_re $version_re_no_captures );
+$version_re = '(?:\([Vv](?:\.|er(?:\.|s\.|sion)\s+)((?:[-\.\w]|\([-\.\w]+\))+)[^\(\)]*\))';
+$version_re_no_captures = $version_re;
+$version_re_no_captures =~ s/(?<!\\)\((?![\?])/(?:/sg;
 
 
 # Scan for citations in credits file
@@ -213,10 +248,19 @@ sub scan_for_citations ($) {
 	  $state = STATE__UNKNOWN;
 	}
       } elsif ($state eq STATE__DEPENDENCIES_SECTION) {
-	if ($s =~ /\s\[(.*?)\]\((https?:.*?)\).*?\(version (\S+).*?\)/s) {
-	  push @citations, "$1 (Version $3) [Computer software]. (n.d.). Retrieved from $2"; # synthesize fake reference for analyze_citations()
-	} elsif ($s =~ /\s\[(.*?)\]\((https?:.*?)\)/s) {
-	  push @citations, "$1 [Computer software]. (n.d.). Retrieved from $2"; # synthesize fake reference for analyze_citations()
+	if ($s =~ /\s\[(.*?)\]\(((?:ftp|https?):\S*?)\)(?:\s+($dependency_type_re)s?)?(?:\s+by\s+($name_re))?(?:(?!$version_re_no_captures).)*$version_re?/s) {
+	  my($title, $url, $type, $name, $version) = ($1, $2, $3, $4, $5);
+
+	  # synthesize fake reference for analyze_citations()
+	  my $fake_citation = $title;
+	  my $inverted_name = invert_name($name);
+	  $fake_citation .= " (Version $version)" if defined $version;
+	  $fake_citation .= sprintf(' [%s]', defined $dependency_types{$type}? $dependency_types{$type}: 'Computer software');
+	  $fake_citation = defined $name? sprintf('%s%s (n.d.). %s.', $inverted_name,
+						  ($inverted_name =~ /\.(?:<\/span>)?$/? '': '.'), $fake_citation):
+					  sprintf('%s. (n.d.).', $fake_citation);
+	  $fake_citation .= " Retrieved from $url";
+	  push @citations, $fake_citation;
 	} elsif ($s =~ /^\s*$/) {
 	  $state = STATE__UNKNOWN;
 	}
@@ -371,7 +415,7 @@ sub analyze_citations (@) {
       $node->{'day'} = $day if defined $day;
       $node->{'title'} = $title;
       $node->{'type'} = $type if defined $type;
-    } elsif ($s =~ /^$date_ref_re$/s && $possible_author_list =~ /^(.*?) \[(Computer software)\]\.$/s) { # fake reference that we synthesized
+    } elsif ($s =~ /^$date_ref_re$/s && $possible_author_list =~ /^(.*?) \[(Computer software|$dependency_type_re)\]\.$/s) { # fake reference that we synthesized
       my($title, $type) = ($1, $2);
       my($year, $month, $day, $nd, $serial) = ($1, $2, $3, $4, $5) if $s =~ /^$date_ref_re$/;
       ($title, my $version) = ($1, $2) if $title =~ /^(.*\S) \(Version (.*?)\)$/s;
