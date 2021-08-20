@@ -9,7 +9,8 @@ all: $(targets)
 clean:
 	rm -f data/carillon-*.flac
 
-test:
+test: all
+	perl -cw chimer
 	tests/test_chimer
 
 # Volume must be specified, otherwise mpv will convert at a random volume (whatever was used last)
