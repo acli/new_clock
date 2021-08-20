@@ -355,11 +355,11 @@ use vars qw( %melody );
       q( D = \relative e' { \f gis4 e fis b,2 }),
       q( E = \relative e' { \f b4 fis' gis e2 })),
   &MELODY__WHITTINGTON => interpret_quarters(0.5, 'E', 'AB', 'CDE', 'ABCD',
-      q( A = \relative e' { \mp e'4 fis, dis' gis, cis a b e, }),
-      q( B = \relative e' { \mp e'4 cis a fis dis' b gis e    }),
-      q( C = \relative e' { \mp e'4 dis a gis cis b fis e     }),
-      q( D = \relative e' { \mp fis4 a cis e dis b gis e      }),
-      q( E = \relative e' { \mp e'4 dis cis b a gis fis e     })),
+      q( A = \relative e' { \mf e'4 fis, dis' gis, cis a b e, }),
+      q( B = \relative e' { \mf e'4 cis a fis dis' b gis e    }),
+      q( C = \relative e' { \mf e'4 dis a gis cis b fis e     }),
+      q( D = \relative e' { \mf fis4 a cis e dis b gis e      }),
+      q( E = \relative e' { \mf e'4 dis cis b a gis fis e     })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
