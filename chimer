@@ -1391,6 +1391,7 @@ for my $test (['morning',		'1'],
   die "parse_named_deciday_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
 }
 for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef],
+	      ['Thursday 19:45-22:00: 0.25',	20, 0,   0, 5.95, 4, 0.25,  undef],	# actual failure on 20210819
 	      ['Thursday 19:45-22:00: 0.25',	21, 30,  0, 6.66, 0, undef, undef],
 	      ['morning: 0.5',			17, 53, 36, 5.14, 0, undef, undef],
 	      ['E-evening: 0.75',		17, 53,  0, 5.14, 0, 0.75,  undef],
