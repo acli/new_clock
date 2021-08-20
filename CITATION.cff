@@ -103,6 +103,12 @@ references:
   type: software
   url: "https://www.freedesktop.org/wiki/Software/PulseAudio/"
 
+- section: "Relative Octave Entry"
+  title: "LilyPond — Notation Reference v2.22.1 (stable-branch)"
+  type: book
+  date-accessed: 2021-08-18
+  url: "http://lilypond.org/doc/v2.22/Documentation/notation/writing-pitches#relative-octave-entry"
+
 - authors:
   - name: strangehorizon
     url: "https://soundcloud.com/sonic_kitchen"
@@ -140,4 +146,12 @@ references:
   date-accessed: 2021-08-18
   url: "https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189"
 
-# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/GITHUB_CITATION_BUGS.md, doc/CREDITS.md, and README.md
+- authors:
+  - name: Yamaha.
+  section: "Everything You've Ever Wanted to Know About Using MIDI with a Disklavier"
+  title: "Yamaha Disklavier Education Network"
+  type: website
+  date-accessed: 2021-08-19
+  url: "https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier"
+
+# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/GITHUB_CITATION_BUGS.md, doc/CREDITS.md, README.md, and chimer

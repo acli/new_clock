@@ -250,6 +250,16 @@ I<interpret_quarters> calls I<interpret_melody> to convert this notation into th
 but this conversion is just a simple pattern match and therefore can produce incorrect results.
 If results are incorrect but the notation typesets correctly in LilyPond, the bug is in I<interpret_melody>.
 
+The mapping between Lilypond expressive marks and MIDI velocities is based on
+
+=over
+
+Yamaha. (n.d.). I<Everything You've Ever Wanted to Know About Using MIDI with a Disklavier>.
+Yamaha Disklavier Education Network.
+Retrieved August 19, 2021, from https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier
+
+=back
+
 =cut
 
 use vars qw( %ly_notes );
@@ -264,14 +274,18 @@ use vars qw( %ly_notes );
 );
 use vars qw( %expressive_mark_to_midi_velocity );
 %expressive_mark_to_midi_velocity = (
-  'ppp'	=> 64,
-  'pp'	=> 73,
-  'p'	=> 82,
-  'mp'	=> 91,
-  'mf'	=> 100,
-  'f'	=> 109,
-  'ff'	=> 118,
-  'fff'	=> 127,
+  'ppppp'	=> 7,
+  'pppp'	=> 13,
+  'ppp'		=> 20,	# this should be close to 20
+  'pp'		=> 33,
+  'p'		=> 46,
+  'mp'		=> 59,
+  'mf'		=> 71,
+  'f'		=> 84,
+  'ff'		=> 97,
+  'fff'		=> 110,	# this should be close to 110
+  'ffff'	=> 119,
+  'fffff'	=> 127,
 );
 
 sub interpret_absolute_pitch ($) { # interpret c' as c4
@@ -349,17 +363,17 @@ sub interpret_quarters ($$$$$@) {
 use vars qw( %melody );
 %melody = (
   &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE',
-      q( A = \relative e' { \f gis4 fis e b2  }),
-      q( B = \relative e' { \f e4 gis fis b,2 }),
-      q( C = \relative e' { \f e4 fis gis e2  }),
-      q( D = \relative e' { \f gis4 e fis b,2 }),
-      q( E = \relative e' { \f b4 fis' gis e2 })),
+      q( A = \relative e' { \fff gis4 fis e b2  }),
+      q( B = \relative e' { \fff e4 gis fis b,2 }),
+      q( C = \relative e' { \fff e4 fis gis e2  }),
+      q( D = \relative e' { \fff gis4 e fis b,2 }),
+      q( E = \relative e' { \fff b4 fis' gis e2 })),
   &MELODY__WHITTINGTON => interpret_quarters(0.5, 'E', 'AB', 'CDE', 'ABCD',
-      q( A = \relative e' { \mf e'4 fis, dis' gis, cis a b e, }),
-      q( B = \relative e' { \mf e'4 cis a fis dis' b gis e    }),
-      q( C = \relative e' { \mf e'4 dis a gis cis b fis e     }),
-      q( D = \relative e' { \mf fis4 a cis e dis b gis e      }),
-      q( E = \relative e' { \mf e'4 dis cis b a gis fis e     })),
+      q( A = \relative e' { \ff e'4 fis, dis' gis, cis a b e, }),
+      q( B = \relative e' { \ff e'4 cis a fis dis' b gis e    }),
+      q( C = \relative e' { \ff e'4 dis a gis cis b fis e     }),
+      q( D = \relative e' { \ff fis4 a cis e dis b gis e      }),
+      q( E = \relative e' { \ff e'4 dis cis b a gis fis e     })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};

@@ -193,14 +193,18 @@ sub scan_for_citations ($) {
   my @lookahead;
   for my $credits_input (@$files) {
     open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
+    my $perl_p = -x $credits_input || $credits_input =~ /\.p[hlm]$/;
     for (my $state = STATE__INITIAL;;) {
       my $s = @lookahead? pop @lookahead: scalar <INPUT>;
     last unless defined $s;
+      $s =~ s/\bI<([^<>]+)>/<cite>\1<\/cite>/sg if $perl_p; # NOTE assume all italics are titles (this isn't always correct)
       if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
 	if ($s =~ /^Dependencies:?\s*$/) {
 	  $state = STATE__DEPENDENCIES_HEAD_SEEN;
 	} elsif ($s =~ /^References:?\s*$/) {
 	  $state = STATE__REFERENCES_HEAD_SEEN;
+	} elsif ($perl_p && $s =~ /^=pod\s*$/) {
+	  $state = STATE__REFERENCES_SECTION;
 	}
       } elsif ($state eq STATE__DEPENDENCIES_HEAD_SEEN) {
 	if ($s =~ /^---+\s*$/ || $s =~ /^===+\s*$/) {
@@ -243,7 +247,8 @@ sub scan_for_citations ($) {
 	} elsif ($s =~ /(?:This \w+ is|These \w+ are)\s+(?:(public domain)|((?:CC|cc)(?:-[a-z]{2})+-\d+\.\d+))\b/s) { # looks like a license?
 	  my($cc0, $cc) = ($1, $2);
 	  $citations[$#citations] .= sprintf("\x1e%s", uc(defined $cc0? 'cc0-1.0': $cc));
-	} else {
+	} elsif ($perl_p && $s =~ /^=cut\s*$/) {
+	  $state = STATE__UNKNOWN;
 	}
       } else {
 	die "$0: INTERNAL ERROR: Reached unknown state $state";
@@ -381,6 +386,13 @@ sub analyze_citations (@) {
       warn "OOPS, can't handle s=($s)\n";
     }
 
+    # Double-check the title. If we have a title with a <cite> followed by something without a <cite> it's probably a page in a website
+    if (defined $node->{'title'} && $node->{'title'} =~ /^<cite>(.*?)<\/cite>\.\s+(.+)$/ && !defined $node->{'section'}) {
+      $node->{'section'} = $1;
+      $node->{'title'} = $2;
+      $node->{'type'} = 'website';
+    }
+
     $node->{'unknown'} = $s if $s =~ /\S/s;
     $citations[$i] = $node;
   }
@@ -463,6 +475,8 @@ for my $arg (@ARGV) {
     die "$0: $arg: CFF template already defined\n" if defined $template_input;
     $template_input = $arg;
   } elsif ($arg =~ /\.md$/) {
+    push @$credits_input, $arg;
+  } elsif ($arg =~ /\.p[hlm]$/ || -x $arg) { # perl code
     push @$credits_input, $arg;
   } else {
     die "$0: $arg: Unknown input\n";
