@@ -379,7 +379,6 @@ $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
 
 
-
 sub start_of_day ($) {
   my($t) = @_;
   my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime $t;
@@ -707,6 +706,19 @@ sub determine_chinese_time ($) {
   return $it;
 }
 
+sub determine_prechime_length ($$) {
+  my($quarter, $default) = @_;
+  my $it = $default;
+  if ($mode eq MODE__CARILLON && defined $melody{$melody}) {
+    $it = 0;
+    for my $note (@{$melody{$melody}->[$quarter%4]}) {
+      no integer;
+      $it += $note->[1];
+    }
+  }
+  return $it;
+}
+
 sub determine_events ($$$$$$$$$) {
   my($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size) = @_;
   my @it;
@@ -735,13 +747,13 @@ sub determine_events ($$$$$$$$$) {
 	'type' => 'hour',
 	'comment' => "hour $next_hour chime",
       };
-      $prechime_length = 25;
+      $prechime_length = determine_prechime_length(0, 24) + 1;
     } elsif ($next_quarter == 1) {
-      $prechime_length = 5;
+      $prechime_length = determine_prechime_length(1, 4) + 1;
     } elsif ($next_quarter == 2) {
-      $prechime_length = 10;
+      $prechime_length = determine_prechime_length(2, 9) + 1;
     } elsif ($next_quarter == 3) {
-      $prechime_length = 15;
+      $prechime_length = determine_prechime_length(3, 14) + 1;
     }
     if ($t_next_quarter_chime - $prechime_length >= $t0) {
       push @it, {
@@ -1124,7 +1136,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   if ($method eq METHOD__SYNTH) {
-    send_midi_command sprintf('noteon 2 %d %s', $wood_note, $expressive_mark_to_midi_velocity{'ff'});
+    send_midi_command sprintf('noteon 2 %d %s', $wood_note, $expressive_mark_to_midi_velocity{'f'});
   } else {
     #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
     play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
@@ -1140,6 +1152,7 @@ sub transpose_note ($;$) {
 sub strike_tune (@) {
   my @tune = @_;
   log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
+  my $semitones = 8;
   for my $spec (@tune) {
     my($note, $time, $velocity) = @$spec;
     $velocity = 127 unless defined $velocity; # NOTE backward compatibility
@@ -1151,8 +1164,8 @@ sub strike_tune (@) {
     if ($method eq METHOD__SYNTH) {
       send_midi_command sprintf 'noteon 1 %d %d', $note_to_midi_number{$note}, $velocity if defined $note_to_midi_number{$note};
     } else {
-      #strike_gong transpose_note $note, 8;
-      strike_bell transpose_note $note, 8;
+      #strike_gong transpose_note $note, $semitones;
+      strike_bell transpose_note $note, $semitones;
     }
     no integer;
     Time::HiRes::sleep $time * $beat_length;
