@@ -1124,7 +1124,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   if ($method eq METHOD__SYNTH) {
-    send_midi_command sprintf('noteon 2 %d %s', $wood_note, $expressive_mark_to_midi_velocity{'fff'});
+    send_midi_command sprintf('noteon 2 %d %s', $wood_note, $expressive_mark_to_midi_velocity{'ff'});
   } else {
     #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
     play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
@@ -1527,7 +1527,7 @@ if (!caller) {
     $dt = 0 if $dt < 0;
 
     # Debug message
-    log_comment sprintf "%10.2f=%02d %2.2f/%2.2f/%2.2f (Δt=%2.2f) > %s",
+    log_comment sprintf "%10.2f=%02d+%2.2f=%2.2f=%2.2f (Δt=%2.2f) > %s",
 	$t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
 	join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
 
