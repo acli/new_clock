@@ -934,7 +934,11 @@ sub get_cache_pathname_for_event ($) {
 sub send_midi_command ($) {
   my($cmd) = @_;
   log_output $cmd if $debug || $verbose_p;
-  $synth->send($cmd);
+  if (defined $synth) {
+    $synth->send($cmd);
+  } else { # cached synth output disappeared
+    log_error "trying to send midi command while synth is not connected";
+  }
 }
 
 sub probe_synth_instruments () {
@@ -974,7 +978,7 @@ sub connect_synth ($) {
       }
     }
     if (defined $sf_path && $key eq 'Timbres Of Heaven') {
-      $gain = 0.18; # even default gain (0.2) feels too loud for a chiming clock
+      $gain = 0.2; # default gain
       $delay = 3.5;
     }
   last if defined $sf_path;
@@ -1097,9 +1101,9 @@ sub play_sound_file ($;$$$) {
 sub strike_gong (;$) {
   my($note) = @_;
   if ($note ne 'r') {
-    $note = 'd#5' if !defined $note || !defined $gong_scale{$note};
+    $note = 'a#5' if !defined $note || !defined $gong_scale{$note};
     if ($method eq METHOD__SYNTH) {
-      send_midi_command sprintf('noteon 0 %d 127', $note_to_midi_number{$note});
+      send_midi_command sprintf('noteon 0 %d %s', $note_to_midi_number{$note}, $expressive_mark_to_midi_velocity{'fff'});
     } else {
       play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
     }
@@ -1111,7 +1115,7 @@ sub strike_bell ($) {
   if ($note ne 'r') {
     $note = 'd#5' if !defined $note || !defined $chime_scale{$note};
     if ($method eq METHOD__SYNTH) {
-      send_midi_command sprintf('noteon 1 %d 127', $note_to_midi_number{$note});
+      send_midi_command sprintf('noteon 1 %d %s', $note_to_midi_number{$note}, $expressive_mark_to_midi_velocity{'fff'});
     } else {
       play_sound_file sprintf('%s/%s', $datadir, $chime_scale{$note}), 100;
     }
@@ -1120,7 +1124,7 @@ sub strike_bell ($) {
 
 sub strike_stick () {
   if ($method eq METHOD__SYNTH) {
-    send_midi_command sprintf('noteon 2 %d 127', $wood_note);
+    send_midi_command sprintf('noteon 2 %d %s', $wood_note, $expressive_mark_to_midi_velocity{'fff'});
   } else {
     #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
     play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
