@@ -375,7 +375,7 @@ use vars qw( %melody );
       q( C = \relative e' { \ff e'4 dis a gis cis b fis e     }),
       q( D = \relative e' { \ff fis4 a cis e dis b gis e      }),
       q( E = \relative e' { \ff e'4 dis cis b a gis fis e     }),
-      q( F = \relative e' { r2 })),
+      q( F = \relative e' { r1 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
