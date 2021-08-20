@@ -362,18 +362,20 @@ sub interpret_quarters ($$$$$@) {
 
 use vars qw( %melody );
 %melody = (
-  &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE',
+  &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F',
       q( A = \relative e' { \fff gis4 fis e b2  }),
       q( B = \relative e' { \fff e4 gis fis b,2 }),
       q( C = \relative e' { \fff e4 fis gis e2  }),
       q( D = \relative e' { \fff gis4 e fis b,2 }),
-      q( E = \relative e' { \fff b4 fis' gis e2 })),
-  &MELODY__WHITTINGTON => interpret_quarters(0.5, 'E', 'AB', 'CDE', 'ABCD',
+      q( E = \relative e' { \fff b4 fis' gis e2 }),
+      q( F = \relative e' { r1 })),
+  &MELODY__WHITTINGTON => interpret_quarters(0.5, 'E', 'AB', 'CDE', 'ABCD F',
       q( A = \relative e' { \ff e'4 fis, dis' gis, cis a b e, }),
       q( B = \relative e' { \ff e'4 cis a fis dis' b gis e    }),
       q( C = \relative e' { \ff e'4 dis a gis cis b fis e     }),
       q( D = \relative e' { \ff fis4 a cis e dis b gis e      }),
-      q( E = \relative e' { \ff e'4 dis cis b a gis fis e     })),
+      q( E = \relative e' { \ff e'4 dis cis b a gis fis e     }),
+      q( F = \relative e' { r2 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
@@ -747,13 +749,13 @@ sub determine_events ($$$$$$$$$) {
 	'type' => 'hour',
 	'comment' => "hour $next_hour chime",
       };
-      $prechime_length = determine_prechime_length(0, 24) + 1;
+      $prechime_length = determine_prechime_length(0, 25);
     } elsif ($next_quarter == 1) {
-      $prechime_length = determine_prechime_length(1, 4) + 1;
+      $prechime_length = determine_prechime_length(1, 5);
     } elsif ($next_quarter == 2) {
-      $prechime_length = determine_prechime_length(2, 9) + 1;
+      $prechime_length = determine_prechime_length(2, 10);
     } elsif ($next_quarter == 3) {
-      $prechime_length = determine_prechime_length(3, 14) + 1;
+      $prechime_length = determine_prechime_length(3, 15);
     }
     if ($t_next_quarter_chime - $prechime_length >= $t0) {
       push @it, {
