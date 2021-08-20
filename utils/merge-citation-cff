@@ -426,6 +426,8 @@ sub analyze_citations (@) {
       $node->{'title'} = $title;
       $node->{'version'} = $version if defined $version;
       $node->{'type'} = $type if defined $type;
+    } elsif (" $s " =~ /^$date_ref_re$/s && defined $node->{'url'} && $possible_author_list =~ /^(.*?)\.$/) { # random webpage with no author
+      $node->{'title'} = $1;
     } else {
       warn "OOPS, can't handle s=($s)\n";
     }

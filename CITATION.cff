@@ -61,6 +61,10 @@ references:
   type: software
   url: "https://www.fluidsynth.org/"
 
+- title: "General MIDI instrument codes"
+  date-accessed: 2021-08-20
+  url: "http://www.ccarh.org/courses/253/handout/gminstruments/"
+
 - authors:
   - family-names: Gossner
     given-names: Samuel
@@ -100,6 +104,12 @@ references:
 - title: mpv
   type: software
   repository-code: "https://github.com/mpv-player/mpv"
+
+- section: "Percussion notes"
+  title: "LilyPond — Notation Reference v2.22.1 (stable-branch)"
+  type: book
+  date-accessed: 2021-08-20
+  url: "http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes"
 
 - title: Perl
   version: 5.14

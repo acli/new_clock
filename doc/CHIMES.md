@@ -28,6 +28,10 @@ https://freesound.org/people/strangehorizon/packs/32761/
 - pros: the whole scale, public domain (cc0)
 - cons: need lots of mpv subprocesses to play chime melodies
 
+using MIDI drum kit:
+- 57 (crash cymbal 2) sounds good
+- 52 (Chinese cymbal) would be appropriate
+
 Bell options
 ------------
 We can use gongs, but it sounds a little off
@@ -60,6 +64,7 @@ using MIDI drum kit:
 - 61 (low bongo)
 - 76 (high wood block)
 - 77 (low wood block)
+- 75 (claves) sounds good
 
 https://freesound.org/people/Theriavirra/sounds/269735/
 https://freesound.org/people/Theriavirra/sounds/269750/

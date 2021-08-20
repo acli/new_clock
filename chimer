@@ -39,11 +39,20 @@ use Encode qw( encode decode );
 use strict;
 use integer;
 
+
+package Chimer;
+
 use POSIX;
 use POSIX ":sys_wait_h"; # for nonblocking read
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 use Expect::Simple;
+
+use Exporter;
+require Exporter;
+use vars qw( @ISA @EXPORT @EXPORT_OK );
+@ISA = qw(Exporter);
+@EXPORT_OK = qw( $dow_re $dow_range_re %expressive_mark_to_midi_velocity );
 
 use vars qw( @restart_cmd );
 @restart_cmd = ($0, @ARGV); # save this because GetOpt will clear @ARGV
@@ -78,13 +87,11 @@ use vars qw( @sinks );
 use vars qw( $synth );
 use vars qw( %children );
 
-use vars qw( $fluidR3 $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note );
+use vars qw( $fluidR3 $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note $perc_bank $perc_inst );
 $fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
 
 use vars qw( $beat_length );
 $beat_length = 1;
-
-sub MAX_UPTIME_ALLOWED () { 14400 }
 
 use vars qw( $boottime );
 $boottime = Time::HiRes::time;
@@ -260,6 +267,18 @@ Retrieved August 19, 2021, from https://www.yamahaden.com/easyblog/entry/everyth
 
 =back
 
+The mapping between Lilypond percussion notes and MIDI percussion notes is based on
+
+=over
+
+General MIDI instrument codes. (n.d.).
+Retrieved August 20, 2021, from http://www.ccarh.org/courses/253/handout/gminstruments/
+
+Percussion notes. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
+Retrieved August 20, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes
+
+=back
+
 =cut
 
 use vars qw( %ly_notes );
@@ -271,6 +290,83 @@ use vars qw( %ly_notes );
   'ges' => 6, 'g' => 7, 'gis' => 8,
   'aes' => 8, 'a' => 9, 'ais' => 10,
   'bes' => 10, 'b' => 11, 'bis' => 12,
+);
+use vars qw( %percussion_note_to_midi_number );
+%percussion_note_to_midi_number = (
+  'bassdrum'		=> 36,		'bd'	=> 36,
+  'acousticbassdrum'	=> 35,		'bda'	=> 35,
+  'snare'		=> 38,		'sn'	=> 38,		# arbitrarily map to sna
+  'acousticsnare'	=> 38,		'sna'	=> 38,
+  'electricsnare'	=> 40,		'sne'	=> 40,
+  'lowfloortom'		=> 41,		'tomfl'	=> 41,
+  'highfloortom'	=> 43,		'tomfh'	=> 43,
+  'lowtom'		=> 45,		'toml'	=> 45,
+  'hightom'		=> 50,		'tomh'	=> 50,
+  'lowmidtom'		=> 47,		'tomml'	=> 47,
+  'himidtom'		=> 48,		'tommh'	=> 48,
+  'highhat'		=> 44,		'hh'	=> 44,		# arbitrarily map to hhp
+  'closedhighhat'	=> 42,		'hhc'	=> 42,
+  'openhighhat'		=> 46,		'hho'	=> 46,
+  'halfopenhighhat'	=> undef,	'hhho'	=> undef,	# don't know how to map
+  'pedalhighhat'	=> 44,		'hhp'	=> 44,
+  'crashcymbal'		=> 49,		'cymc'	=> 49,		# arbitrarily map to cymca
+  'crashcymbala'	=> 49,		'cymca'	=> 49,
+  'crashcymbalb'	=> 57,		'cymcb'	=> 57,
+  'ridecymbal'		=> 51,		'cymr'	=> 51,		# arbitrarily map to cymra
+  'ridecymbala'		=> 51,		'cymra'	=> 51,
+  'ridecymbalb'		=> 59,		'cymrb'	=> 59,
+  'chinesecymbal'	=> 52,		'cymch'	=> 52,
+  'splashcymbal'	=> 55,		'cyms'	=> 55,
+  'ridebell'		=> 53,		'rb'	=> 53,
+  'cowbell'		=> 56,		'cb'	=> 56,
+  'hibongo'		=> 60,		'boh'	=> 60,
+  'openhibongo'		=> undef,	'boho'	=> undef,	# don't know how to map
+  'muteopenhibongo'	=> undef,	'bohm'	=> undef,	# don't know how to map
+  'lobongo'		=> 61,		'bol'	=> 61,
+  'openlobongo'		=> undef,	'bolo'	=> undef,	# don't know how to map
+  'muteopenlobongo'	=> undef,	'bolm'	=> undef,	# don't know how to map
+  'hiconga'		=> 63,		'cgh'	=> 63,		# arbitrarily map to cgho
+  'openhiconga'		=> 63,		'cgho'	=> 63,
+  'mutehiconga'		=> 62,		'cghm'	=> 62,
+  'loconga'		=> 64,		'cgl'	=> 64,
+  'openloconga'		=> undef,	'cglo'	=> undef,	# don't know how to map
+  'muteloconga'		=> undef,	'cglm'	=> undef,	# don't know how to map
+  'hitimbale'		=> 65,		'timh'	=> 65,
+  'lotimbale'		=> 66,		'timl'	=> 66,
+  'hiagogo'		=> 67,		'agh'	=> 67,
+  'loagogo'		=> 68,		'agl'	=> 68,
+  'sidestick'		=> 37,		'ss'	=> 37,
+  'hisidestick'		=> undef,	'ssh'	=> undef,	# don't know how to map
+  'losidestick'		=> undef,	'ssl'	=> undef,	# don't know how to map
+  'guiro'		=> 73,		'gui'	=> 73,		# arbitrarily map to guis
+  'shortguiro'		=> 73,		'guis'	=> 73,
+  'longguiro'		=> 74,		'guil'	=> 74,
+  'cabasa'		=> 69,		'cab'	=> 69,
+  'maracas'		=> 70,		'mar'	=> 70,
+  'shortwhistle'	=> 71,		'whs'	=> 71,
+  'longwhistle'		=> 72,		'whl'	=> 72,
+  'handclap'		=> 39,		'hc'	=> 39,
+  'tambourine'		=> 54,		'tamb'	=> 54,
+  'vibraslap'		=> 58,		'vibs'	=> 58,
+  'tamtam'		=> undef,	'tt'	=> undef,	# no way to map this
+  'claves'		=> 75,		'cl'	=> 75,
+  'hiwoodblock'		=> 76,		'wbh'	=> 76,
+  'lowoodblock'		=> 77,		'wbl'	=> 77,
+  'opencuica'		=> 79,		'cuio'	=> 79,
+  'mutecuica'		=> 78,		'cuim'	=> 78,
+  'triangle'		=> 81,		'tri'	=> 81,		# arbitrarily map to trio
+  'opentriangle'	=> 81,		'trio'	=> 81,
+  'mutetriangle'	=> 80,		'trim'	=> 80,
+  'oneup'		=> undef,	'ua'	=> undef,	# no idea what this is
+  'twoup'		=> undef,	'ub'	=> undef,	# no idea what this is
+  'threeup'		=> undef,	'uc'	=> undef,	# no idea what this is
+  'fourup'		=> undef,	'ud'	=> undef,	# no idea what this is
+  'fiveup'		=> undef,	'ue'	=> undef,	# no idea what this is
+  'onedown'		=> undef,	'da'	=> undef,	# no idea what this is
+  'twodown'		=> undef,	'db'	=> undef,	# no idea what this is
+  'threedown'		=> undef,	'dc'	=> undef,	# no idea what this is
+  'fourdown'		=> undef,	'dd'	=> undef,	# no idea what this is
+  'fivedown'		=> undef,	'de'	=> undef,	# no idea what this is
 );
 use vars qw( %expressive_mark_to_midi_velocity );
 %expressive_mark_to_midi_velocity = (
@@ -302,18 +398,20 @@ sub interpret_melody ($$) {
   my($s, $unit_beat) = @_;
   my $it;
   # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
+  my $percussion_note_re = sprintf('(?:(%s)?(?:(\d+)(\.+)?)?)', join('|', keys %percussion_note_to_midi_number)); # NOTE: 3 captures all optional
   my $note_re = q(([a-g](?:[ei]s)?|r)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
+
   $s =~ s/^\s*\\relative\s*\{\s*$note_re(.*?)\s*\}\s*$/\\relative \1\2\3\4\5 { \1\4\5 \6 }/s;
-  die unless $s =~ /^\s*\\relative\s+(\S+?)\s+\{\s*(.*?)\s*\}\s*$/s;
-  ($s, my $start_pitch_as_written) = ($2, $1);
-  my $starting_pitch = interpret_absolute_pitch $start_pitch_as_written;
+  die unless $s =~ /^\s*(?:(drums|drummode)|\\relative\s+(\S+?))\s+\{\s*(.*?)\s*\}\s*$/s;
+  ($s, my $start_pitch_as_written, my $drummode_p, my $instrument) = ($3, $2, $1);
+  my $starting_pitch = interpret_absolute_pitch $start_pitch_as_written unless $drummode_p;
   my $last_pitch = $starting_pitch;
   my($divisor, $dots, $volume) = (4, 0, $expressive_mark_to_midi_velocity{'mf'});
   for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
+    my $lhs;
     if ($note =~ /^$note_re$/) {
       my($base_pitch, $lower, $raise, $new_divisor, $new_dots) = (($ly_notes{$1} + 12)%12, 0 + length $2, 0 + length $3, $4, $5);
       my $last_base_pitch = ($last_pitch + 12)%12;
-      no integer;
       ($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
       log_debug "note=$note -> divisor=$divisor" if $debug > 1;
       my $tentative;
@@ -326,19 +424,32 @@ sub interpret_melody ($$) {
       last if defined $tentative;
       }
       my $pitch = $tentative + 12*($raise - $lower);
-      my $lhs = $note =~ /^r/? 'r': $midi_number_to_note[$pitch];
-      my $rhs = $unit_beat * 4 / $divisor;
-      for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
-	$rhs += $adj;
-      }
-      push @$it, [$lhs, $rhs, $volume];
+      $lhs = $note =~ /^r/? 'r': defined $percussion_note_to_midi_number{$note}? $note: $midi_number_to_note[$pitch];
       $last_pitch = $pitch;
+
+    } elsif ($note =~ /^$percussion_note_re$/) {
+      my($new_instrument, $new_divisor, $new_dots) = ($1, $2, $3);
+      if (!defined $new_instrument && !defined $instrument && defined $new_divisor) {
+	log_debug "beat \"$new_divisor$new_dots\" specified before an instrument is specified";
+      } else {
+	$instrument = $new_instrument if defined $new_instrument;
+	($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
+	$lhs = $instrument;
+      }
 
     } elsif ($note =~ /^\\(.*)/ && defined $expressive_mark_to_midi_velocity{$1}) {
       $volume = $expressive_mark_to_midi_velocity{$1};
 
     } else {
       log_debug "Unknown expression \"$note\" discarded"
+    }
+    if (defined $lhs) {
+      no integer;
+      my $rhs = $unit_beat * 4 / $divisor;
+      for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
+	$rhs += $adj;
+      }
+      push @$it, [$lhs, $rhs, $volume];
     }
   }
   log_debug sprintf "\\relative %s { %s } interpreted as %s", $start_pitch_as_written, $s,
@@ -375,7 +486,7 @@ use vars qw( %melody );
       q( C = \relative e' { \ff e'4 dis a gis cis b fis e     }),
       q( D = \relative e' { \ff fis4 a cis e dis b gis e      }),
       q( E = \relative e' { \ff e'4 dis cis b a gis fis e     }),
-      q( F = \relative e' { r1 })),
+      q( F = \relative e' { r2 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
@@ -1005,7 +1116,7 @@ sub connect_synth ($) {
   my @cmd = ('fluidsynth', '-a', 'file',
 			   '-g', $gain,
 			   '-o', "audio.file.name=$output",
-			   '--midi-channels', '3',
+			   '--midi-channels', '4',
 			   $sf_path);
 
   log_debug 'running: '. join(' ', @cmd) if $debug;
@@ -1020,13 +1131,16 @@ sub connect_synth ($) {
   my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
   my $bell = find_synth_instrument($instruments, 'Carillon', 'Tubular Bells');
   my $wood = find_synth_instrument($instruments, 'Woodblock', 'Orchestra Kit');
+  my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
   ($gong_bank, $gong_inst) = @$gong;
   ($bell_bank, $bell_inst) = @$bell;
   ($wood_bank, $wood_inst) = @$wood;
+  ($perc_bank, $perc_inst) = @$perc;
   $wood_note = synth_instrument_name($instruments, $wood) =~ / Kit\b/? 31: $note_to_midi_number{'d#5'};
   send_midi_command "select 0 1 $gong_bank $gong_inst";
   send_midi_command "select 1 1 $bell_bank $bell_inst";
   send_midi_command "select 2 1 $wood_bank $wood_inst";
+  send_midi_command "select 3 1 $perc_bank $perc_inst";
   return;
 }
 
@@ -1164,7 +1278,11 @@ sub strike_tune (@) {
     # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
     # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
     if ($method eq METHOD__SYNTH) {
-      send_midi_command sprintf 'noteon 1 %d %d', $note_to_midi_number{$note}, $velocity if defined $note_to_midi_number{$note};
+      if (defined $percussion_note_to_midi_number{$note}) {
+	send_midi_command sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity;
+      } elsif (defined $note_to_midi_number{$note}) {
+	send_midi_command sprintf 'noteon 1 %d %d', $note_to_midi_number{$note}, $velocity;
+      }
     } else {
       #strike_gong transpose_note $note, $semitones;
       strike_bell transpose_note $note, $semitones;

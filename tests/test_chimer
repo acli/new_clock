@@ -2,6 +2,7 @@
 # vi:set sw=2 ai sm:
 
 require 'chimer';
+Chimer->import(qw( $dow_re $dow_range_re %expressive_mark_to_midi_velocity ));
 
 no integer;
 
@@ -18,7 +19,7 @@ sub test_in_range () {
 		[2.5,	'1-3',		1],
 		[5,	'1, 3-8, 10',	1]) {
     my($n, $range_spec, $expected_result) = @$test;
-    my $actual_result = in_range($n, $range_spec);
+    my $actual_result = Chimer::in_range($n, $range_spec);
     die "in_range($n, \"$range_spec\"): test failed: expected $expected_result but got $actual_result\n"
 	unless $expected_result == $actual_result;
   }
@@ -51,7 +52,7 @@ sub test_parse_dow () {
 		['S',			6],
 		['someday',		undef]) {
     my($s, $expected_result) = @$test;
-    my $actual_result = parse_dow($s);
+    my $actual_result = Chimer::parse_dow($s);
     die "parse_dow(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
     # dow_re
     ($expected_result, $actual_result) = (defined $expected_result, $s =~ /^$dow_re$/);
@@ -72,7 +73,7 @@ sub test_parse_dow_range () {
 		['TRF',			'2,4,5'],
 		['someday',		'ERROR']) {
     my($s, $expected_result) = @$test;
-    my $actual_result = parse_dow_range($s);
+    my $actual_result = Chimer::parse_dow_range($s);
     die "parse_dow_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
     # dow_range_re
     ($expected_result, $actual_result) = (defined $expected_result && $expected_result ne 'ERROR', $s =~ /^$dow_range_re$/);
@@ -88,7 +89,7 @@ sub test_parse_named_deciday () {
 		['midday',	3],
 		['evening',	5]) {
     my($name, $expected_result) = @$test;
-    my $actual_result = parse_named_deciday($name);
+    my $actual_result = Chimer::parse_named_deciday($name);
     die "parse_named_deciday(\"$name\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
   }
 }
@@ -99,7 +100,7 @@ sub test_parse_clocktime () {
 		['19:15',		19.25],
 		['24:00',		24.0]) {
     my($name, $expected_result) = @$test;
-    my $actual_result = parse_clocktime($name);
+    my $actual_result = Chimer::parse_clocktime($name);
     die "parse_clocktime(\"$name\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result == $actual_result;
   }
 }
@@ -110,7 +111,7 @@ sub test_parse_clocktime_range () {
 		['12:00-00:00',	'12-24'],
 		['23:00-7:00',	'23-24,0-7']) {
     my($s, $expected_result) = @$test;
-    my $actual_result = parse_clocktime_range($s);
+    my $actual_result = Chimer::parse_clocktime_range($s);
     die "parse_clocktime_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
   }
 }
@@ -122,7 +123,7 @@ sub test_named_deciday_range () {
 		['midday,A',		'3,6'],
 		['C-morning',		'8-10,1']) {
     my($s, $expected_result) = @$test;
-    my $actual_result = parse_named_deciday_range($s);
+    my $actual_result = Chimer::parse_named_deciday_range($s);
     die "parse_named_deciday_range(\"$s\"): test failed: expected $expected_result but got $actual_result\n" unless $expected_result eq $actual_result;
   }
 }
@@ -138,7 +139,7 @@ sub test_determine_volume_from_directive_and_time () {
 		['A: 0.5',				21, 30,  0, 6.66, 0, 0.5,   undef],
 		['0.5',                           	12, 30,  0, 3.20, 0, 0.5,   undef]) {
     my($directive, $hour, $min, $sec, $deciday, $wday, $expected_result1, $expected_result2) = @$test;
-    my($actual_result1, $actual_result2) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
+    my($actual_result1, $actual_result2) = Chimer::determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
     die "determine_volume_from_directive_and_time(\"$directive\", $hour, $min, $sec, $deciday, $wday): test failed: expected ($expected_result1, $expected_result2) but got ($actual_result1, $actual_result2)\n" unless $expected_result1 == $actual_result1 && $expected_result2 eq $actual_result2;
   }
 }
@@ -157,7 +158,7 @@ sub test_interpret_melody () {
 		[q(\relative c' {c \fff d \f e}),	1,	"c4 1 $mf d4 1 $fff e4 1 $f"],
 		[q(\relative e { r1 }),			1,	"r 4 $mf"]) {
     my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
-    my $actual_result = interpret_melody($lilypond_code, $beat_length);
+    my $actual_result = Chimer::interpret_melody($lilypond_code, $beat_length);
     my $stringified_actual_result = ref $actual_result? join(' ', map { @$_ } @$actual_result): defined $actual_result? $actual_result: 'undef';
     die "interpret_melody(\"$lilypond_code\", $beat_length): test failed: expected ($stringified_expected_result) but got ($stringified_actual_result)\n" unless $stringified_expected_result eq $stringified_actual_result;
   }
