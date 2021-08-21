@@ -49,7 +49,7 @@ CFF citation, as currently generated:
 
 Peculiarities:
 
-- This isn’t really a hard dependency, but one option for a hard dependency if you choose to go this path
+- This isn’t really a hard dependency, but one option to resolve a hard dependency
 
 Unresolved question:
 
