@@ -129,7 +129,7 @@ Peculiarities:
 Unresolved questions:
 
 - Is a package of `sound-recording`s itself a `sound-recording`?
-- Gossner’s role isn’t really author. He is one of the authors (full list of authors is *unknown*), but it’s most accurate to call him editor
+- Gossner would be first author if this were a paper (full list of authors is *unknown*), but it’s most accurate to call him editor
 - Should the schema handle cases where it’s impossible to avoid “et al.”?
 - Should *authors* be not required, or should `required` be anyOf authors, editors (not just authors)?
 
