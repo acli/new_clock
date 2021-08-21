@@ -16,7 +16,7 @@ Dependency mention (source: [README.md](README.md)):
 
 APA citation (using custom type “Soundfont”), as currently generated:
 
-> Allen, <span title="Don">D.</span> (n.d.). Timbres of Heaven (Soundfont). Retrieved from http://midkar.com/soundfonts/
+> Allen, <span title="Don">D.</span> (n.d.). Timbres of Heaven [Soundfont]. Retrieved from http://midkar.com/soundfonts/
 
 CFF citation, as currently generated:
 
