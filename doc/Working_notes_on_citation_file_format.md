@@ -71,6 +71,7 @@ Peculiarities:
 Unresolved questions:
 
 - Should there be a new field that tells the reader that this is a minimum requirement, as opposed to the software that is actually being by the author?
+- Or, should the schema be changed so that *version* always means a minimum requirement?
 
 Scenario: Individual web page
 -----------------------------
