@@ -983,12 +983,13 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
   my($target_dow, $target_times, $target_volume, $dow_in_range_p, $time_in_range_p);
   my($result, $error);
   no integer;
+  my $hours_past_midnight = $hour + $min/60 + $sec/3600;
   if ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {		# integer to integer
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range($hour, $target_times);
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:\.\d+)?(?:[-,]\d+(?:\.\d+)?)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
-    $time_in_range_p = in_range($hour + $min/60 + $sec/3600, $target_times);
+    $time_in_range_p = in_range($hours_past_midnight, $target_times);
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?decidays?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {	# integer to integer
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range(int($deciday), $target_times);
@@ -997,7 +998,7 @@ sub determine_volume_from_directive_and_time ($$$$$$) {
     $time_in_range_p = in_range($deciday, $target_times);
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?($clocktime_re-$clocktime_re)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
-    $time_in_range_p = in_semi_closed_range($hour + $min/60 * $sec/3600, parse_clocktime_range $target_times);
+    $time_in_range_p = in_semi_closed_range($hours_past_midnight, parse_clocktime_range $target_times);
   } elsif ($directive =~ /^(?:($dow_range_re)\s+)?($deciday_re(?:\s*-\s*$deciday_re)?)\s*[:=]\s*(\d+(?:\.\d+)?)$/) {
     ($target_dow, $target_times, $target_volume) = ($1, $2, $3);
     $time_in_range_p = in_range(int($deciday), parse_named_deciday_range $target_times);
