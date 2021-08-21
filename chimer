@@ -1099,54 +1099,60 @@ sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
   my($sf_path, $gain, $delay);
+  if (!defined $synth) { # if we're connected don't try to create a second instance, we tried that before and it was disastrous
+    my $immediate_p = $id eq 'test';
 
-  # Figure out where our soundfont is
-  for my $key ('Timbres Of Heaven', 'FluidR3') {
-    if (defined $config->{'/'}->{$key}) {
-      foreach my $candidate (@{$config->{'/'}->{$key}}) {
-	$sf_path = $candidate if -f $candidate;
-      last if defined $sf_path;
+    # Figure out where our soundfont is
+    for my $key ('Timbres Of Heaven', 'FluidR3') {
+      if (defined $config->{'/'}->{$key}) {
+	foreach my $candidate (@{$config->{'/'}->{$key}}) {
+	  $sf_path = $candidate if -f $candidate;
+	last if defined $sf_path;
+	}
       }
+      if (defined $sf_path && $key eq 'Timbres Of Heaven') {
+	$gain = 0.2; # default gain
+	$delay = 3.5;
+      }
+    last if defined $sf_path;
     }
-    if (defined $sf_path && $key eq 'Timbres Of Heaven') {
-      $gain = 0.2; # default gain
-      $delay = 3.5;
-    }
-  last if defined $sf_path;
+    $sf_path = $fluidR3 if !defined $sf_path; # hmm hope this works
+    $gain = 1 if !defined $gain;
+    $delay = 1 if !defined $delay;
+
+    log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
+    set_sink $sinks[0] if $immediate_p && @sinks;
+    my @cmd = ('fluidsynth', '-g', $gain,
+			     '--midi-channels', '4',
+			     ($immediate_p?
+				('-a', 'pulseaudio'):
+				('-a', 'file',
+				 '-o', "audio.file.name=$output")),
+			     $sf_path);
+
+    log_debug 'running: '. join(' ', @cmd) if $debug;
+    $synth = new Expect::Simple({
+	'Cmd' => \@cmd,
+	'Prompt' => "\n> ",
+	'DisconnectCmd' => 'quit',
+      });
+
+    # Figure out what instruments to use
+    my $instruments = probe_synth_instruments;
+    my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
+    my $bell = find_synth_instrument($instruments, 'Carillon', 'Tubular Bells');
+    my $wood = find_synth_instrument($instruments, 'Woodblock', 'Orchestra Kit');
+    my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
+    ($gong_bank, $gong_inst) = @$gong;
+    ($bell_bank, $bell_inst) = @$bell;
+    ($wood_bank, $wood_inst) = @$wood;
+    ($perc_bank, $perc_inst) = @$perc;
+    $wood_note = synth_instrument_name($instruments, $wood) =~ / Kit\b/? 31: $note_to_midi_number{'d#5'};
+    send_midi_command "select 0 1 $gong_bank $gong_inst";
+    send_midi_command "select 1 1 $bell_bank $bell_inst";
+    send_midi_command "select 2 1 $wood_bank $wood_inst";
+    send_midi_command "select 3 1 $perc_bank $perc_inst";
   }
-  $sf_path = $fluidR3 if !defined $sf_path; # hmm hope this works
-  $gain = 1 if !defined $gain;
-  $delay = 1 if !defined $delay;
-
-  log_comment "Connecting synth for write to $output" if $debug || $verbose_p;
-  my @cmd = ('fluidsynth', '-a', 'file',
-			   '-g', $gain,
-			   '-o', "audio.file.name=$output",
-			   '--midi-channels', '4',
-			   $sf_path);
-
-  log_debug 'running: '. join(' ', @cmd) if $debug;
-  $synth = new Expect::Simple({
-      'Cmd' => \@cmd,
-      'Prompt' => "\n> ",
-      'DisconnectCmd' => 'quit',
-    });
-
-  # Figure out what instruments to use
-  my $instruments = probe_synth_instruments;
-  my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
-  my $bell = find_synth_instrument($instruments, 'Carillon', 'Tubular Bells');
-  my $wood = find_synth_instrument($instruments, 'Woodblock', 'Orchestra Kit');
-  my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
-  ($gong_bank, $gong_inst) = @$gong;
-  ($bell_bank, $bell_inst) = @$bell;
-  ($wood_bank, $wood_inst) = @$wood;
-  ($perc_bank, $perc_inst) = @$perc;
-  $wood_note = synth_instrument_name($instruments, $wood) =~ / Kit\b/? 31: $note_to_midi_number{'d#5'};
-  send_midi_command "select 0 1 $gong_bank $gong_inst";
-  send_midi_command "select 1 1 $bell_bank $bell_inst";
-  send_midi_command "select 2 1 $wood_bank $wood_inst";
-  send_midi_command "select 3 1 $perc_bank $perc_inst";
   return;
 }
 
