@@ -216,7 +216,7 @@ Unresolved questions:
 
 Scenario: Wikipedia article
 ---------------------------
-APA citation (source: [Night_watches.md](Night_watches.md):
+APA citation (source: [Night_watches.md](Night_watches.md)):
 
 > 打更 [Calling out the hour]. (2021).
 > <cite>Wikipedia</cite>.
