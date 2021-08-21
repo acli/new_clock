@@ -402,7 +402,9 @@ sub interpret_melody ($$) {
   my $note_re = q(([a-g](?:[ei]s)?|r)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
 
   $s =~ s/^\s*\\relative\s*\{\s*$note_re(.*?)\s*\}\s*$/\\relative \1\2\3\4\5 { \1\4\5 \6 }/s;
-  die unless $s =~ /^\s*(?:(drums|drummode)|\\relative\s+(\S+?))\s+\{\s*(.*?)\s*\}\s*$/s;
+  die "interpret_melody: \\drums or \\relative expected at start of first argument, but got \"$s\"\n"
+      unless $s =~ /^\s*(?:\\(drums|drummode)|\\relative\s+(\S+?))\s+\{\s*(.*?)\s*\}\s*$/s;
+
   ($s, my $start_pitch_as_written, my $drummode_p, my $instrument) = ($3, $2, $1);
   my $starting_pitch = interpret_absolute_pitch $start_pitch_as_written unless $drummode_p;
   my $last_pitch = $starting_pitch;
@@ -1047,12 +1049,15 @@ sub set_sink_volumes ($$$$$) {
 
 sub get_cache_pathname_for_event ($) {
   my($id) = @_;
-  my $it = "data/cache-"; # FIXME
-  die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
-  die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-  $id =~ s/^(w\d)\.\d$/\1/sg; # we don't really distinguish between subwatches
-  $it .= "$mode-" unless $id =~ /^w/;
-  $it .= "\L$melody-" if $id =~ /^q/ && $mode eq MODE__CARILLON;
+  my $it = 'data/'; # FIXME
+  if ($id ne 'test') {
+    $it .= 'cache-';
+    die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
+    die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
+    $id =~ s/^(w\d)\.\d$/\1/sg; # we don't really distinguish between subwatches
+    $it .= "$mode-" unless $id =~ /^w/;
+    $it .= "\L$melody-" if $id =~ /^q/ && $mode eq MODE__CARILLON;
+  }
   $it .= "$id.oga";
   return $it;
 }
@@ -1427,10 +1432,8 @@ Options for debugging:
 
       --debug                 Produce debugging output
       --test                  Continue with test parameters
-      --test-hour HOUR        Play hourly chime for HOUR (1..12)
-      --test-quarter QUARTER  Play quarter chime for QUARTER (0..3)
-      --test-tune             Play the major scale from c4 to c5, if possible
-      --test-watch WATCH      Play night watch chime for WATCH (1..5)
+      --test-event ID         Fire event identified by ID, then exit
+      --test-scale            Play the major scale from c4 to c5, if possible
 EOF
   print $h <<EOF;
 
@@ -1476,10 +1479,9 @@ if (!caller) {
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'test' => sub { set_test_params },
-    'test-tune' => sub { set_test_params; exit strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]) },
-    'test-hour=i' => sub { set_test_params; exit announce_hour(($_[1] - 1) % 12 + 1) },
-    'test-quarter=i' => sub { set_test_params; exit announce_quarter_hour($_[1] % 4) },
-    'test-watch=i' => sub { set_test_params; exit announce_night_watch(($_[1] - 1) % 5 + 1, 1) },
+    'test-event=s' => sub { set_test_params; exit do_event($_[1]) },
+    'test-scale' => sub { set_test_params; exit strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]) },
+    'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; exit strike_tune @{interpret_melody($_[1], 1)} },
     'v|verbose' => \$verbose_p,
     'help' => \&usage,
   ) || usage(1);
