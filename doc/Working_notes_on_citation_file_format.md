@@ -237,9 +237,9 @@ Equivalent Chicago citation (see note below):
 > https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028<!---->.
 
 Note:
-- The citation file format treats an encyclopedia as the thing you cite, then treats an individual article as a `section`.
+- The citation file format treats an encyclopedia as the thing you cite, then treats an individual article as a `term`.
   This is easier to understand in Chicago style since Chicago treats encyclopedia articles the same way
-  (`section` in the citation file format = “s.v.” in Chicago style).
+  (`term` in the citation file format = “s.v.” in Chicago style).
 - Note that the equivalent Chicago citation shows that translated titles *should* be a separate field because Chicago, unlike APA
   (or maybe IEEE – I’m not familiar enough with IEEE to have any instincts for it), clearly treats it as separate 
 
