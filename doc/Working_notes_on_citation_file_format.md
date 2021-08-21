@@ -123,13 +123,13 @@ CFF citation, as currently generated:
 
 Peculiarities:
 
-- Edited work, unknown list of authors (where in normal citation styles we’d use “et al.” as a workaround)
+- Edited work (Gossner would be first author if this were a paper, but it’s most accurate to call him editor if this were a book),
+  unknown list of authors (where in normal citation styles we’d use “et al.” as a workaround)
 - Not really one sound recording but an organized collection of sound recordings
 
 Unresolved questions:
 
 - Is a package of `sound-recording`s itself a `sound-recording`?
-- Gossner would be first author if this were a paper (full list of authors is *unknown*), but it’s most accurate to call him editor
 - Should the schema handle cases where it’s impossible to avoid “et al.”?
 - Should *authors* be not required, or should `required` be anyOf authors, editors (not just authors)?
 
