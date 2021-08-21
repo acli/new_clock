@@ -35,17 +35,25 @@ Scenario: Perl module as dependency
 -----------------------------------
 Dependency mention (source: [README.md](README.md)):
 
-> [DateTime::Astro::Sunrise](https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01)
+> \[DateTime::Astro::Sunrise](https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01)
 
 APA citation, as currently generated:
 
-> Astro::Sunrise [Computer software]. (n.d.) Retrieved from https://metacpan.org/pod/Astro::Sunrise
+> DateTime::Astro::Sunrise [Computer software]. (n.d.) Retrieved from https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01
 
 CFF citation, as currently generated:
 
-    - title: "Astro::Sunrise"
+    - title: "DateTime::Astro::Sunrise"
       type: software
-      url: "https://metacpan.org/pod/Astro::Sunrise"
+      url: "https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01"
+
+Peculiarities:
+
+- This isn’t really a hard dependency, but one option for a hard dependency if you choose to go this path
+
+Unresolved question:
+
+- Is there currently a way to specify an anyOf relationship in a dependency? Should there be a way?
 
 Scenario: Software dependency with a minimum version number
 -----------------------------------------------------------
