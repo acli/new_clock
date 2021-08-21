@@ -172,7 +172,8 @@ sub test_interpret_melody () {
 		[q(\relative e { fis4.. }),		1,	"f#3 1.75 $mf"],
 		[q(\relative e { fis4.. e e4 }),	1,	"f#3 1.75 $mf e3 1.75 $mf e3 1 $mf"],
 		[q(\relative c' {c \fff d \f e}),	1,	"c4 1 $mf d4 1 $fff e4 1 $f"],
-		[q(\relative e { r1 }),			1,	"r 4 $mf"]) {
+		[q(\relative e { r1 }),			1,	"r 4 $mf"],
+		[q(\drums { r1 }),			1,	"r 4 $mf"]) {
     my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
     my $actual_result = Chimer::interpret_melody($lilypond_code, $beat_length);
     my $stringified_actual_result = ref $actual_result? join(' ', map { @$_ } @$actual_result): defined $actual_result? $actual_result: 'undef';

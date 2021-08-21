@@ -398,6 +398,7 @@ sub interpret_melody ($$) {
   my($s, $unit_beat) = @_;
   my $it;
   # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
+  my $rest_re = sprintf('(?:r(?:(\d+)(\.+)?)?)'); # NOTE: 2 captures
   my $percussion_note_re = sprintf('(?:(%s)?(?:(\d+)(\.+)?)?)', join('|', keys %percussion_note_to_midi_number)); # NOTE: 3 captures all optional
   my $note_re = q(([a-g](?:[ei]s)?|r)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
 
@@ -411,7 +412,12 @@ sub interpret_melody ($$) {
   my($divisor, $dots, $volume) = (4, 0, $expressive_mark_to_midi_velocity{'mf'});
   for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
     my $lhs;
-    if ($note =~ /^$note_re$/) {
+    if ($note =~ /^$rest_re$/) { # rests should be checked first because they can appear either in pitched or percussion modes
+      my($new_divisor, $new_dots) = ($1, $2);
+      ($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
+      $lhs = 'r';
+
+    } elsif ($note =~ /^$note_re$/) {
       my($base_pitch, $lower, $raise, $new_divisor, $new_dots) = (($ly_notes{$1} + 12)%12, 0 + length $2, 0 + length $3, $4, $5);
       my $last_base_pitch = ($last_pitch + 12)%12;
       ($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
@@ -475,6 +481,10 @@ sub interpret_quarters ($$$$$@) {
 
 use vars qw( %melody );
 %melody = (
+  # FIXME The timings are right but tis doesn't actually work because only carillon mode melodies should be here, but sysline is a mode
+  &MODE__SYSLINE => interpret_quarters(1, 'A', 'B', 'A', 'BAB',
+      q( A = \drums { r4 }),
+      q( B = \drums { \ff trim4 })),
   &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F',
       q( A = \relative e' { \fff gis4 fis e b2  }),
       q( B = \relative e' { \fff e4 gis fis b,2 }),
@@ -488,7 +498,7 @@ use vars qw( %melody );
       q( C = \relative e' { \ff e'4 dis a gis cis b fis e     }),
       q( D = \relative e' { \ff fis4 a cis e dis b gis e      }),
       q( E = \relative e' { \ff e'4 dis cis b a gis fis e     }),
-      q( F = \relative e' { r2 })),
+      q( F = \relative e' { r1 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
