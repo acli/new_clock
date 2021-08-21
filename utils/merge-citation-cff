@@ -247,7 +247,6 @@ sub scan_for_citations ($) {
       if ($s =~ /<!--\s*\$NOCITE\s*-->/s) { # detect $NOCITE directive
 	die "$credits_input: Line $.: \$NOCITE directive encountered, but citation already detected\n" if $something_done_p;
 	$nocite_p = 1;
-	print STDERR "GOT HERE NOCITE\n";
       }
     last if $nocite_p;
       if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
