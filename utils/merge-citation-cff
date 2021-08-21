@@ -222,17 +222,34 @@ $version_re_no_captures =~ s/(?<!\\)\((?![\?])/(?:/sg;
 
 # Scan for citations in credits file
 # This is just a quick-and-dirty hack -- it will have LOTS OF BUGS
+# If an .md file should NOT be checked for citations, put a <!-- $NOCITE --> before anything that could be detected as a citation
 sub scan_for_citations ($) {
   my($files) = @_;
   my @citations;
   my @lookahead;
+  my @files_used;
   for my $credits_input (@$files) {
     open(INPUT, '<:utf8', $credits_input) or die "$0: $credits_input: $!\n";
     my $perl_p = -x $credits_input || $credits_input =~ /\.p[hlm]$/;
+    my $nocite_p = 0;
+    my $something_done_p = 0;
+
+    sub remember_citation ($) {
+      my($citation) = @_;
+      push @citations, $citation;
+      $something_done_p = 1;
+    }
+
     for (my $state = STATE__INITIAL;;) {
       my $s = @lookahead? pop @lookahead: scalar <INPUT>;
     last unless defined $s;
       $s =~ s/\bI<([^<>]+)>/<cite>\1<\/cite>/sg if $perl_p; # NOTE assume all italics are titles (this isn't always correct)
+      if ($s =~ /<!--\s*\$NOCITE\s*-->/s) { # detect $NOCITE directive
+	die "$credits_input: Line $.: \$NOCITE directive encountered, but citation already detected\n" if $something_done_p;
+	$nocite_p = 1;
+	print STDERR "GOT HERE NOCITE\n";
+      }
+    last if $nocite_p;
       if ($state eq STATE__INITIAL || $state eq STATE__UNKNOWN) {
 	if ($s =~ /^Dependencies:?\s*$/) {
 	  $state = STATE__DEPENDENCIES_HEAD_SEEN;
@@ -260,7 +277,7 @@ sub scan_for_citations ($) {
 						  ($inverted_name =~ /\.(?:<\/span>)?$/? '': '.'), $fake_citation):
 					  sprintf('%s. (n.d.).', $fake_citation);
 	  $fake_citation .= " Retrieved from $url";
-	  push @citations, $fake_citation;
+	  remember_citation $fake_citation;
 	} elsif ($s =~ /^\s*$/) {
 	  $state = STATE__UNKNOWN;
 	}
@@ -272,7 +289,7 @@ sub scan_for_citations ($) {
 	}
       } elsif ($state eq STATE__REFERENCES_SECTION) {
 	if ($s =~ /$date_ref_re/s) { # looks like a citation?
-	  push @citations, $s;
+	  remember_citation $s;
 	  $state = STATE__CITATION;
 	}
       } elsif ($state eq STATE__CITATION) {
@@ -286,7 +303,7 @@ sub scan_for_citations ($) {
 	if ($s =~ /^\s*$/) {
 	  $state = STATE__REFERENCES_SECTION;
 	} elsif (!($s =~ /^\s*-/s || $s =~ /^\s+\S/s) && $s =~ /$date_ref_re/) { # looks like a citation?
-	  push @citations, $s;
+	  remember_citation $s;
 	  $state = STATE__CITATION;
 	} elsif ($s =~ /(?:This \w+ is|These \w+ are)\s+(?:(public domain)|((?:CC|cc)(?:-[a-z]{2})+-\d+\.\d+))\b/s) { # looks like a license?
 	  my($cc0, $cc) = ($1, $2);
@@ -299,8 +316,9 @@ sub scan_for_citations ($) {
       }
     }
     close INPUT;
+    push @files_used, $credits_input unless $nocite_p;
   }
-  return @citations;
+  return (\@citations, \@files_used);
 }
 
 
@@ -529,12 +547,12 @@ for my $arg (@ARGV) {
   }
 }
 
-my @citations = scan_for_citations($credits_input);
-@citations = analyze_citations(@citations);
+my($citations, $files_used) = scan_for_citations($credits_input);
+my @citations = analyze_citations(@$citations);
 
 emit_file_header;
 
 copy_template $template_input;
 emit_citations sort { compare_reference_list_entries($a, $b) } @citations;
 
-emit_file_footer $template_input, $credits_input;
+emit_file_footer $template_input, $files_used;

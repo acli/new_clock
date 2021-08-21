@@ -15,3 +15,5 @@ I discovered that GitHub’s CITATION.cff support is buggy:
 In addition, after getting the cff to parse,
 GitHub’s so-called APA citation is clearly not APA;
 it appears to be in IEEE or some other kind of Vancouver style.
+
+<!-- $NOCITE -->

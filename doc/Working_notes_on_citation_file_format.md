@@ -213,3 +213,5 @@ Unresolved questions:
 - Is an online manual a `book`? something else?
 - Furthermore, is a chapter in a `book` a *section*?
 - If an online manual is not a `book`, is it just a random web page? If that’s the case we go back to the question of how to handle random individual pages
+
+<!-- $NOCITE -->
