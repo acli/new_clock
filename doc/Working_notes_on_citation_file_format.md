@@ -241,6 +241,6 @@ Note:
   This is easier to understand in Chicago style since Chicago treats encyclopedia articles the same way
   (`term` in the citation file format = “s.v.” in Chicago style).
 - Note that the equivalent Chicago citation shows that translated titles *should* be a separate field because Chicago, unlike APA
-  (or maybe IEEE – I’m not familiar enough with IEEE to have any instincts for it), clearly treats it as separate 
+  (or maybe IEEE – I’m not familiar enough with IEEE), clearly treats these as separate 
 
 <!-- $NOCITE -->

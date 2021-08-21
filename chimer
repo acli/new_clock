@@ -1220,7 +1220,7 @@ sub play_sound_file_real ($;$$$) {
   push @cmd, ('--end', $end) if defined $end;
   push @cmd, ("--ao=pulse::$sink") if $sink;
   push @cmd, $input;
-  log_debug 'running: '. join(' ', @cmd) if $debug;
+  log_debug 'running: '. join(' ', @cmd);# if $debug;
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
