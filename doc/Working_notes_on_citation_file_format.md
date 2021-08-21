@@ -214,4 +214,33 @@ Unresolved questions:
 - Furthermore, is a chapter in a `book` a *section*?
 - If an online manual is not a `book`, is it just a random web page? If that’s the case we go back to the question of how to handle random individual pages
 
+Scenario: Wikipedia article
+---------------------------
+APA citation (source: [Night_watches.md](Night_watches.md):
+
+> 打更 [Calling out the hour]. (2021).
+> <cite>Wikipedia</cite>.
+> Retrieved August 17, 2021, from https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028
+
+CFF citation, as currently generated:
+
+    - term: "打更 [Calling out the hour]"
+      year: 2021
+      title: Wikipedia
+      type: encyclopedia
+      date-accessed: 2021-08-17
+      url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
+
+Equivalent Chicago citation (see note below):
+
+> Wikipedia, s.v. “打更” [Calling out the hour], accessed August 17, 2021,
+> https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028<!---->.
+
+Note:
+- The citation file format treats an encyclopedia as the thing you cite, then treats an individual article as a `section`.
+  This is easier to understand in Chicago style since Chicago treats encyclopedia articles the same way
+  (`section` in the citation file format = “s.v.” in Chicago style).
+- Note that the equivalent Chicago citation shows that translated titles *should* be a separate field because Chicago, unlike APA
+  (or maybe IEEE – I’m not familiar enough with IEEE to have any instincts for it), clearly treats it as separate 
+
 <!-- $NOCITE -->
