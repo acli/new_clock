@@ -124,7 +124,7 @@ CFF citation, as currently generated:
 Peculiarities:
 
 - Edited work (Gossner would be first author if this were a paper, but it’s most accurate to call him editor if this were a book)
-- Unknown list of authors (where in normal citation styles we’d use “et al.” as a workaround)
+- Unknown list of authors (we know the first and second authors, so to speak; in normal citation styles we’d use “et al.” as a workaround)
 - Not really one sound recording but an organized collection of sound recordings
 
 Unresolved questions:
