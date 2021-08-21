@@ -16,7 +16,7 @@ Dependency mention (source: [README.md](README.md)):
 
 APA citation (using custom type “Soundfont”), as currently generated:
 
-> Allen, D. (n.d.). Timbres of Heaven (Soundfont). Retrieved from http://midkar.com/soundfonts/
+> Allen, <span title="Don">D.</span> (n.d.). Timbres of Heaven (Soundfont). Retrieved from http://midkar.com/soundfonts/
 
 CFF citation, as currently generated:
 
@@ -53,6 +53,10 @@ Dependency mention (source: [README.md](README.md)):
 
 > \[Perl](https://www.perl.org/) 5 with Unicode support (version 5.14 or later)
 
+APA citation, as currently generated:
+
+> Perl (Version 5.14) [Computer software]. (n.d.) Retrieved from https://www.perl.org/
+
 CFF citation, as currently generated:
 
     - title: Perl
@@ -60,10 +64,13 @@ CFF citation, as currently generated:
       type: software
       url: "https://www.perl.org/"
 
+Peculiarities:
+
+- Anyone used to reading (e.g., APA style) reference lists would interpret this to mean we are *using* version 5.14, which is untrue
+
 Unresolved questions:
 
-- To anyone used to reading (e.g., APA style) reference lists, this looks like we are *using* version 5.14, which is untrue
-- Should there be some kind of notation that tells the reader that this is a minimum requirement, as opposed to the software that is actually being by the author?
+- Should there be a new field that tells the reader that this is a minimum requirement, as opposed to the software that is actually being by the author?
 
 Scenario: Individual web page
 -----------------------------
@@ -86,12 +93,12 @@ Unresolved questions:
 Scenario: Library of edited sound clips
 ---------------------------------------
 Annotated APA citation (source: [CREDITS.md](CREDITS.md))
-(note that I’m clearly using the wrong type in my APA citation):
+(note that I’m clearly using the wrong type here already):
 
 > [Gossner, <span title=Samuel>S.</span>](http://sgossner.versilstudios.com/), ed. (2019).
 > Versilian Community Sample Library [Audio file].
 > Retrieved from https://github.com/sgossner/VCSL
-> - These recordings are public domain (cc0) and are used for Westminster-style chimes
+> - These recordings are public domain (cc0) and are used for Westminster-style chimes …
 
 CFF citation, as currently generated:
 
@@ -114,7 +121,8 @@ Unresolved questions:
 
 - Is a package of `sound-recording`s itself a `sound-recording`?
 - Gossner’s role isn’t really author. He is one of the authors (full list of authors is *unknown*), but it’s most accurate to call him editor
-- We could translate this with *editors*, but *authors* is a required field, so we have to lie
+- Should the schema handle cases where it’s impossible to avoid “et al.”?
+- Should *authors* be not required, or should `required` be anyOf authors, editors (not just authors)?
 
 Scenario: Blog post
 -------------------
@@ -194,4 +202,5 @@ Peculiarities:
 Unresolved questions:
 
 - Is an online manual a `book`? something else?
-- Furthermore, is a chapter in an online manual a *section*? or is it just a random web page (in which case how do we handle random individual pages?)
+- Furthermore, is a chapter in a `book` a *section*?
+- If an online manual is not a `book`, is it just a random web page? If that’s the case we go back to the question of how to handle random individual pages
