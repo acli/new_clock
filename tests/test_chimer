@@ -132,6 +132,7 @@ sub test_determine_volume_from_directive_and_time () {
   for my $test (['Thursday hour 19.75-22: 0.25',	21, 30,  0, 6.66, 0, undef, undef],
 		['Thursday 19:45-22:00: 0.25',		20, 0,   0, 5.95, 4, 0.25,  undef],	# actual failure on 20210819
 		['Thursday 19:45-22:00: 0.25',		21, 30,  0, 6.66, 0, undef, undef],
+		["Tue,Fri-Sun 19:31-20:30: 0.5",	20, 45,	 0, 6.30, 5, undef, undef],	# actual failure on 20210820
 		['morning: 0.5',			17, 53, 36, 5.14, 0, undef, undef],
 		['E-evening: 0.75',			17, 53,  0, 5.14, 0, 0.75,  undef],
 		['3:00-9:00: 0.6',			14, 0,   0, 3.76, 2, undef, undef],	# actual failure on 20210817
