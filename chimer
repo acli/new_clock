@@ -478,13 +478,23 @@ sub interpret_quarters ($$$$$@) {
   }
   return $it;
 }
+sub interpret_watches ($$$$$$@) {
+  my($beat_length, $w1_spec, $w2_spec, $w3_spec, $w4_spec, $w5_spec, @elements) = @_;
+  my $it;
+  my %elements = map { /^\s*(\S+?)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
+  for my $spec ($w1_spec, $w2_spec, $w3_spec, $w4_spec, $w5_spec) {
+    my @node;
+    for my $ref (split(/\s*/, $spec)) {
+      die "interpret_watches: $spec: Unknown reference $ref\n" unless defined $elements{$ref};
+      push @node, @{$elements{$ref}};
+    }
+    push @$it, [@node];
+  }
+  return $it;
+}
 
 use vars qw( %melody );
 %melody = (
-  # FIXME The timings are right but tis doesn't actually work because only carillon mode melodies should be here, but sysline is a mode
-  &MODE__SYSLINE => interpret_quarters(1, 'A', 'B', 'A', 'BAB',
-      q( A = \drums { r4 }),
-      q( B = \drums { \ff trim4 })),
   &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F',
       q( A = \relative e' { \fff gis4 fis e b2  }),
       q( B = \relative e' { \fff e4 gis fis b,2 }),
@@ -502,6 +512,26 @@ use vars qw( %melody );
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
+
+use vars qw( %chime );
+%chime = (
+  &MODE__SYSLINE => interpret_quarters(1, 'A', 'B', 'A', 'BAB',
+      q( A = \drums { r4 }),
+      q( B = \drums { \ff trim4 })),
+);
+
+# This is a duplicate of watch_chime_pattern - this need to be fixed eventually
+use vars qw( $watch_chime_melody );
+$watch_chime_melody = interpret_watches(1,
+    'LS   RR LS   RR LS',
+    'SS    R SS',
+    'LSS   R LSS   R LSS',
+    'LSSS  R LSSS  R LSSS  R LSSS',
+    'LSSSS R LSSSS R LSSSS R LSSSS R LSSSS',
+    q( L = \drums { \ff cymch4. } ),
+    q( S = \drums { \f cl8. } ),
+    q( R = \drums { r4. } ),
+);
 
 
 sub start_of_day ($) {
@@ -848,7 +878,7 @@ sub determine_events ($$$$$$$$$) {
   my($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size) = @_;
   my @it;
   no integer;
-  my $global_delay = $config->{'/'}->{'delay'}->[0] if defined $config->{'/'}->{'delay'};
+  my $global_delay = $config->{'/'}->{'delay'}->[0] + 0 if defined $config->{'/'}->{'delay'};
   $global_delay = 0 unless defined $global_delay;
 
   # Western quarter-hour chime
@@ -1108,7 +1138,7 @@ sub synth_instrument_name ($$) {
 sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
-  my($sf_path, $gain, $delay);
+  my($sf_path, $gain);
   if (!defined $synth) { # if we're connected don't try to create a second instance, we tried that before and it was disastrous
     my $immediate_p = $id eq 'test';
 
@@ -1122,13 +1152,11 @@ sub connect_synth ($) {
       }
       if (defined $sf_path && $key eq 'Timbres Of Heaven') {
 	$gain = 0.2; # default gain
-	$delay = 3.5;
       }
     last if defined $sf_path;
     }
     $sf_path = $fluidR3 if !defined $sf_path; # hmm hope this works
     $gain = 1 if !defined $gain;
-    $delay = 1 if !defined $delay;
 
     log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
     set_sink $sinks[0] if $immediate_p && @sinks;
@@ -1224,9 +1252,11 @@ sub play_sound_file_real ($;$$$) {
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
+    no integer;
     my $sink = get_sink;
-    my $dt = $config->{$sink}->{'delay'}->[0] if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
-    Time::HiRes::sleep $dt if $dt > 0;
+    my $dt = $config->{$sink}->{'delay'}->[0] + 0 if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
+    log_debug sprintf "delay %s (interpreted as %f) for %s", $config->{$sink}->{'delay'}->[0], $dt, $sink;#XXXZZ
+    Time::HiRes::sleep $dt if defined $dt && $dt > 0;
     POSIX::close(0);
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
@@ -1330,10 +1360,17 @@ sub announce_quarter_hour_by_cuckoo ($) {
   }
 }
 
+sub announce_quarter_hour_by_sysline_beeps ($) {
+  my($quarter) = @_;
+  strike_tune @{$chime{'sysline'}->[$quarter%4]};
+}
+
 sub announce_quarter_hour ($) {
   my($quarter) = @_;
   if ($mode eq MODE__CUCKOO) {
     announce_quarter_hour_by_cuckoo($quarter);
+  } elsif ($mode eq MODE__SYSLINE) {
+    announce_quarter_hour_by_sysline_beeps($quarter);
   } else {
     announce_quarter_hour_by_carillon($quarter);
   }
@@ -1365,7 +1402,7 @@ sub announce_hour ($) {
   }
 }
 
-sub announce_night_watch ($$) {
+sub announce_night_watch_normal ($$) {
   my($watch, $subwatch) = @_;
   my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
   no integer;
@@ -1382,6 +1419,16 @@ sub announce_night_watch ($$) {
       }
     }
     $sleep += GAP;
+  }
+}
+
+sub announce_night_watch ($$) {
+  my($watch, $subwatch) = @_;
+  if ($method eq METHOD__SYNTH) {
+    print STDERR Dumper $watch_chime_melody;
+    strike_tune @{$watch_chime_melody->[$watch - 1]};
+  } else {
+    announce_night_watch_normal $watch, $subwatch;
   }
 }
 
@@ -1495,8 +1542,9 @@ if (!caller) {
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'test' => sub { set_test_params },
-    'test-event=s' => sub { set_test_params; exit do_event($_[1]) },
-    'test-scale' => sub { set_test_params; exit strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]) },
+    'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; exit do_event($_[1]) },
+    'test-scale' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH;
+	exit strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]) },
     'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; exit strike_tune @{interpret_melody($_[1], 1)} },
     'v|verbose' => \$verbose_p,
     'help' => \&usage,
