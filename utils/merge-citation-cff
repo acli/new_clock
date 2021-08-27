@@ -50,7 +50,7 @@ sub STATE__UNKNOWN               () { 'UNKNOWN' }
 # hack in trying to make GitHub happy. error messages are garbage, docs are unclear, official tools don't work, we're left guessing what's wrong
 sub quotable ($) {
   my($s) = @_;
-  return ($s =~ /[:\s]/s)? "\"$s\"": $s;
+  return ($s =~ /:\s/s)? "\"$s\"": $s;
 }
 
 
@@ -489,7 +489,7 @@ sub copy_template ($) {
   close INPUT;
 
   # GitHub doesn't like files that don't have a version key, even though version is optional
-  print "version: n/a\n" unless defined $keys_in_template{'version'};
+  print "version: n/a\n# note: dummy version number injected for GitHub compatibility\n" unless defined $keys_in_template{'version'};
 }
 
 

@@ -24,60 +24,61 @@ message: The title and abstract of this code and my ORCid are the
 
 cff-version: 1.2.0
 version: n/a
+# note: dummy version number injected for GitHub compatibility
 
 references:
 
 - authors:
   - family-names: Allen
     given-names: Don
-  title: "Timbres of Heaven"
+  title: Timbres of Heaven
   type: sound-recording
-  url: "http://midkar.com/soundfonts/"
+  url: http://midkar.com/soundfonts/
 
-- title: "Astro::Sunrise"
+- title: Astro::Sunrise
   type: software
-  url: "https://metacpan.org/pod/Astro::Sunrise"
+  url: https://metacpan.org/pod/Astro::Sunrise
 
-- term: "打更 [Calling out the hour]"
+- term: 打更 [Calling out the hour]
   year: 2021
   title: Wikipedia
   type: encyclopedia
   date-accessed: 2021-08-17
-  url: "https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028"
+  url: https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028
 
-- title: "DateTime::Astro::Sunrise"
+- title: DateTime::Astro::Sunrise
   type: software
-  url: "https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01"
+  url: https://metacpan.org/release/RKHILL/DateTime-Astro-Sunrise-0.01_01
 
-- title: "DateTime::Event::Sunrise"
+- title: DateTime::Event::Sunrise
   type: software
-  url: "https://metacpan.org/pod/DateTime::Event::Sunrise"
+  url: https://metacpan.org/pod/DateTime::Event::Sunrise
 
-- title: "Expect::Simple"
+- title: Expect::Simple
   type: software
-  url: "https://metacpan.org/pod/Expect::Simple"
+  url: https://metacpan.org/pod/Expect::Simple
 
 - title: Fluidsynth
   type: software
-  url: "https://www.fluidsynth.org/"
+  url: https://www.fluidsynth.org/
 
-- title: "General MIDI instrument codes"
+- title: General MIDI instrument codes
   date-accessed: 2021-08-20
-  url: "http://www.ccarh.org/courses/253/handout/gminstruments/"
+  url: http://www.ccarh.org/courses/253/handout/gminstruments/
 
 - authors:
   - family-names: Gossner
     given-names: Samuel
-    url: "http://sgossner.versilstudios.com/"
+    url: http://sgossner.versilstudios.com/
   year: 2019
-  title: "Versilian Community Sample Library"
+  title: Versilian Community Sample Library
   type: sound-recording
-  repository-code: "https://github.com/sgossner/VCSL"
+  repository-code: https://github.com/sgossner/VCSL
   license: CC0-1.0
 
 - title: hebcal
   type: software
-  repository-code: "https://github.com/hebcal/hebcal"
+  repository-code: https://github.com/hebcal/hebcal
 
 - authors:
   - family-names: Li
@@ -85,86 +86,86 @@ references:
   year: 2018
   month: 1
   day: 8
-  title: "sysline beeps are music, or the multisensory Unix text mode interface"
+  title: sysline beeps are music, or the multisensory Unix text mode interface
   type: blog
-  url: "http://incd.ambroseli.ca/node/308"
+  url: http://incd.ambroseli.ca/node/308
 
 - authors:
   - family-names: Lin
     given-names: Tsung-Yi
   year: 2007
-  title: "午時三刻⸺古中國的時間制度 [“Three after seven”? Systems for timekeeping in ancient China]"
+  title: 午時三刻⸺古中國的時間制度 [“Three after seven”? Systems for timekeeping in ancient China]
   type: article
-  journal: "Science Development"
+  journal: Science Development
   issue: 420
   start: 58
   end: 63
-  url: "https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422"
+  url: https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422
 
 - title: mpv
   type: software
-  repository-code: "https://github.com/mpv-player/mpv"
+  repository-code: https://github.com/mpv-player/mpv
 
-- section: "Percussion notes"
-  title: "LilyPond — Notation Reference v2.22.1 (stable-branch)"
+- section: Percussion notes
+  title: LilyPond — Notation Reference v2.22.1 (stable-branch)
   type: book
   date-accessed: 2021-08-20
-  url: "http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes"
+  url: http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes
 
 - title: Perl
   version: 5.14
   type: software
-  url: "https://www.perl.org/"
+  url: https://www.perl.org/
 
 - title: Pulseaudio
   type: software
-  url: "https://www.freedesktop.org/wiki/Software/PulseAudio/"
+  url: https://www.freedesktop.org/wiki/Software/PulseAudio/
 
-- section: "Relative Octave Entry"
-  title: "LilyPond — Notation Reference v2.22.1 (stable-branch)"
+- section: Relative Octave Entry
+  title: LilyPond — Notation Reference v2.22.1 (stable-branch)
   type: book
   date-accessed: 2021-08-18
-  url: "http://lilypond.org/doc/v2.22/Documentation/notation/writing-pitches#relative-octave-entry"
+  url: http://lilypond.org/doc/v2.22/Documentation/notation/writing-pitches#relative-octave-entry
 
 - authors:
   - name: strangehorizon
-    url: "https://soundcloud.com/sonic_kitchen"
+    url: https://soundcloud.com/sonic_kitchen
   year: 2021
-  title: "Tuned Chau Gongs"
+  title: Tuned Chau Gongs
   type: sound-recording
-  repository: "https://freesound.org/people/strangehorizon/packs/32761/"
+  repository: https://freesound.org/people/strangehorizon/packs/32761/
   license: CC0-1.0
 
 - authors:
   - family-names: Walter
     given-names: Thomas
-    url: "http://www.inchadney.com/"
+    url: http://www.inchadney.com/
   year: 2011
   title: "Birds: Cuckoo.wav"
   type: sound-recording
-  repository: "https://freesound.org/people/inchadney/sounds/121203/"
+  repository: https://freesound.org/people/inchadney/sounds/121203/
   license: CC-BY-3.0
 
-- term: "Westminster Quarters"
+- term: Westminster Quarters
   year: 2021
   title: Wikipedia
   type: encyclopedia
   date-accessed: 2021-08-18
-  url: "https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380"
+  url: https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
 
-- term: "Whittington chimes"
+- term: Whittington chimes
   year: 2021
   title: Wikipedia
   type: encyclopedia
   date-accessed: 2021-08-18
-  url: "https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189"
+  url: https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189
 
 - authors:
   - name: Yamaha.
-  section: "Everything You've Ever Wanted to Know About Using MIDI with a Disklavier"
-  title: "Yamaha Disklavier Education Network"
+  section: Everything You've Ever Wanted to Know About Using MIDI with a Disklavier
+  title: Yamaha Disklavier Education Network
   type: website
   date-accessed: 2021-08-19
-  url: "https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier"
+  url: https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier
 
 # This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/CREDITS.md, README.md, and chimer
