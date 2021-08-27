@@ -1,9 +1,9 @@
 title:              "chimer: A Chiming Clock in Perl"
-repository-code:   "https://github.com/acli/new_clock"
+repository-code:    https://github.com/acli/new_clock
 authors:
 - family-names:   Li
   given-names:    Ambrose
-  orcid:         "https://orcid.org/0000-0002-9996-7486"
+  orcid:          https://orcid.org/0000-0002-9996-7486
 
 abstract: This script was designed to replace two Javascript-based
           chiming clocks that deliver time information from two
@@ -18,7 +18,7 @@ abstract: This script was designed to replace two Javascript-based
           each other.  Future work includes making resource use more
           predictable.
 
-message: The title and abstract of this code and my ORCid are the
+message:  The title and abstract of this code and my ORCid are the
   only things not listed elsewhere.  These references are generated;
   files in the doc directory should be considered more definitive.
 
