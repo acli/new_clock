@@ -526,19 +526,18 @@ $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
 
 use vars qw( %chime );
 %chime = (
-  &MODE__SYSLINE => interpret_quarters(1, 'A', 'B', 'A', 'BAB',
-      q( A = \drums { r4 }),
-      q( B = \drums { \ff trim4 })),
+  &MODE__SYSLINE => interpret_melody(q( \drums { \ff trio4 r4 }), 1),
+  'w1'   => interpret_watch(1, 'ff', 'cymch', 'f', 'cl'),
+  'w2'   => interpret_watch(2, 'ff', 'cymch', 'f', 'cl'),
+  'w3'   => interpret_watch(3, 'ff', 'cymch', 'f', 'cl'),
+  'w4'   => interpret_watch(4, 'ff', 'cymch', 'f', 'cl'),
+  'w5'   => interpret_watch(5, 'ff', 'cymch', 'f', 'cl'),
+  'w1.5' => interpret_watch(1, 'ff', 'cymch', 'f', 'mar'),
+  'w2.5' => interpret_watch(2, 'ff', 'cymch', 'f', 'mar'),
+  'w3.5' => interpret_watch(3, 'ff', 'cymch', 'f', 'mar'),
+  'w4.5' => interpret_watch(4, 'ff', 'cymch', 'f', 'mar'),
+  'w5.5' => interpret_watch(5, 'ff', 'cymch', 'f', 'mar'),
 );
-
-use vars qw( $watch_chime_melody );
-$watch_chime_melody = [
-  interpret_watch(1, 'ff', 'cymch', 'f', 'cl'),
-  interpret_watch(2, 'ff', 'cymch', 'f', 'cl'),
-  interpret_watch(3, 'ff', 'cymch', 'f', 'cl'),
-  interpret_watch(4, 'ff', 'cymch', 'f', 'cl'),
-  interpret_watch(5, 'ff', 'cymch', 'f', 'cl'),
-];
 
 
 sub start_of_day ($) {
@@ -1101,7 +1100,8 @@ sub get_cache_pathname_for_event ($) {
     $it .= 'cache-';
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-    $id =~ s/^(w\d)\.\d$/\1/sg; # we don't really distinguish between subwatches
+    $id =~ s/^(w\d)\.[1-4]$/\1/sg; # we don't really distinguish between subwatches except the last one
+    $id =~ s/^(h)\d+$/\1/sg if $mode eq MODE__SYSLINE; # we don't really distinguish between hours for sysline
     $it .= "$mode-" unless $id =~ /^w/;
     $it .= "\L$melody-" if $id =~ /^q/ && $mode eq MODE__CARILLON;
   }
@@ -1369,7 +1369,7 @@ sub announce_quarter_hour_by_cuckoo ($) {
 
 sub announce_quarter_hour_by_sysline_beeps ($) {
   my($quarter) = @_;
-  strike_tune @{$chime{'sysline'}->[$quarter%4]};
+  strike_tune @{$chime{'sysline'}} if ($quarter & 1) == 0;
 }
 
 sub announce_quarter_hour ($) {
@@ -1400,10 +1400,18 @@ sub announce_hour_by_cuckoo ($) {
   }
 }
 
+sub announce_hour_by_sysline_beeps ($) {
+  my($hour) = @_;
+  my @tune = (@$strike) x $hour;
+  strike_tune @{$chime{'sysline'}}; # it's always just one beep
+}
+
 sub announce_hour ($) {
   my($hour) = @_;
   if ($mode eq MODE__CUCKOO) {
     announce_hour_by_cuckoo($hour);
+  } elsif ($mode eq MODE__SYSLINE) {
+    announce_hour_by_sysline_beeps($hour);
   } else {
     announce_hour_by_carillon($hour);
   }
@@ -1432,7 +1440,7 @@ sub announce_night_watch_normal ($$) {
 sub announce_night_watch ($$) {
   my($watch, $subwatch) = @_;
   if ($method eq METHOD__SYNTH) {
-    strike_tune @{$watch_chime_melody->[$watch - 1]};
+    strike_tune @{defined $chime{"w$watch.$subwatch"}? $chime{"w$watch.$subwatch"}: $chime{"w$watch"}};
   } else {
     announce_night_watch_normal $watch, $subwatch;
   }
