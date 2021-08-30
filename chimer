@@ -870,9 +870,15 @@ sub determine_chinese_time ($) {
 sub determine_prechime_length ($$) {
   my($quarter, $default) = @_;
   my $it = $default;
+  my $melody;
   if ($mode eq MODE__CARILLON && defined $melody{$melody}) {
+    $melody = $melody{$melody}->[$quarter%4];
+  } elsif (defined $chime{$mode}) {
+    $melody = $chime{$mode};
+  }
+  if (defined $melody) {
     $it = 0;
-    for my $note (@{$melody{$melody}->[$quarter%4]}) {
+    for my $note (@$melody) {
       no integer;
       $it += $note->[1];
     }
