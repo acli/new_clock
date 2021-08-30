@@ -35,6 +35,11 @@ use warnings qw( FATAL utf8 );
 use Encode qw( encode decode );
 #@ARGV = map { decode("UTF-8", $_) } @ARGV if grep /\P{ASCII}/ => @ARGV;
 
+binmode STDIN, ':utf8';
+binmode STDOUT, ':utf8';
+binmode STDERR, ':utf8';
+
+
 
 use strict;
 use integer;
@@ -133,8 +138,6 @@ use vars qw( @watch_chime_pattern );
    [3, '— . .'		],
    [4, '— . . .'	],
    [5, '— . . . .'	],
-   [1, '—'		],		# test chime X
-   [1, '.'		],		# test chime Y
 );
 
 use vars qw( @midi_number_to_note %note_to_midi_number );
@@ -478,19 +481,27 @@ sub interpret_quarters ($$$$$@) {
   }
   return $it;
 }
-sub interpret_watches ($$$$$$@) {
-  my($beat_length, $w1_spec, $w2_spec, $w3_spec, $w4_spec, $w5_spec, @elements) = @_;
-  my $it;
-  my %elements = map { /^\s*(\S+?)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
-  for my $spec ($w1_spec, $w2_spec, $w3_spec, $w4_spec, $w5_spec) {
-    my @node;
-    for my $ref (split(/\s*/, $spec)) {
-      die "interpret_watches: $spec: Unknown reference $ref\n" unless defined $elements{$ref};
-      push @node, @{$elements{$ref}};
+sub interpret_watch ($$$$$) {
+  my($watch, $volume1, $instrument1, $volume2, $instrument2) = @_;
+  my $score;
+  my $beat_length = 1;
+  my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
+  no integer;
+  for (my $i = 0; $i < $repeats; $i += 1) {
+    my $previous_length;
+    $score .= ($watch == 1? ' r2': ' r4.') if defined $score;
+    for my $length (map { $_ ne '.' } split(/\s+/, $pattern)) {
+      $score .= ' ' if defined $score;
+      if ($length) {
+	$score .= (!defined $previous_length || !$previous_length)? sprintf('\%s %s4.', $volume1, $instrument1): $instrument1;
+      } else {
+	$score .= (!defined $previous_length ||  $previous_length)? sprintf('\%s %s8.', $volume2, $instrument2): $instrument2;
+      }
+      $previous_length = $length;
     }
-    push @$it, [@node];
   }
-  return $it;
+  #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
+  return interpret_melody sprintf('\drums { %s }', $score), $beat_length;
 }
 
 use vars qw( %melody );
@@ -520,18 +531,14 @@ use vars qw( %chime );
       q( B = \drums { \ff trim4 })),
 );
 
-# This is a duplicate of watch_chime_pattern - this need to be fixed eventually
 use vars qw( $watch_chime_melody );
-$watch_chime_melody = interpret_watches(1,
-    'LS   RR LS   RR LS',
-    'SS    R SS',
-    'LSS   R LSS   R LSS',
-    'LSSS  R LSSS  R LSSS  R LSSS',
-    'LSSSS R LSSSS R LSSSS R LSSSS R LSSSS',
-    q( L = \drums { \ff cymch4. } ),
-    q( S = \drums { \f cl8. } ),
-    q( R = \drums { r4. } ),
-);
+$watch_chime_melody = [
+  interpret_watch(1, 'ff', 'cymch', 'f', 'cl'),
+  interpret_watch(2, 'ff', 'cymch', 'f', 'cl'),
+  interpret_watch(3, 'ff', 'cymch', 'f', 'cl'),
+  interpret_watch(4, 'ff', 'cymch', 'f', 'cl'),
+  interpret_watch(5, 'ff', 'cymch', 'f', 'cl'),
+];
 
 
 sub start_of_day ($) {
@@ -1425,7 +1432,6 @@ sub announce_night_watch_normal ($$) {
 sub announce_night_watch ($$) {
   my($watch, $subwatch) = @_;
   if ($method eq METHOD__SYNTH) {
-    print STDERR Dumper $watch_chime_melody;
     strike_tune @{$watch_chime_melody->[$watch - 1]};
   } else {
     announce_night_watch_normal $watch, $subwatch;
@@ -1508,10 +1514,6 @@ EOF
 }
 
 ###############################################################################
-
-binmode STDIN, ':utf8';
-binmode STDOUT, ':utf8';
-binmode STDERR, ':utf8';
 
 select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
 
