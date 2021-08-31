@@ -246,13 +246,16 @@ I<var> = B<\relative> I<pitch> B<{> I<melody> B<}>
 =back
 
 I<melody> is written in LilyPond notation
-(in relative pitch, optionally including note lengths and basic expressive marks),
+(in either relative pitch or drum mode, optionally including note lengths and basic expressive marks),
 described in
 
 =over
 
 Relative Octave Entry. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
 Retrieved August 18, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/writing-pitches#relative-octave-entry
+
+Percussion notes. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
+Retrieved August 20, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes
 
 =back
 
@@ -276,9 +279,6 @@ The mapping between Lilypond percussion notes and MIDI percussion notes is based
 
 General MIDI instrument codes. (n.d.).
 Retrieved August 20, 2021, from http://www.ccarh.org/courses/253/handout/gminstruments/
-
-Percussion notes. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
-Retrieved August 20, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes
 
 =back
 
