@@ -519,7 +519,7 @@ use vars qw( %melody );
       q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2.     }),
       q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2.      }),
       q( E = \relative e' { \ff e'8. dis cis b4 a8. gis fis e2.     }),
-      q( F = \relative e' { r1 })),
+      q( F = \relative e' { r8 r4 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
@@ -1125,6 +1125,7 @@ sub send_midi_command ($) {
   log_output $cmd if $debug || $verbose_p;
   if (defined $synth) {
     $synth->send($cmd);
+    $synth->{'.last-note'} = Time::HiRes::time if $cmd =~ /\bnoteon\b/; # XXX
   } else { # cached synth output disappeared
     log_error "trying to send midi command while synth is not connected";
   }
@@ -1213,7 +1214,7 @@ sub connect_synth ($) {
 }
 
 sub disconnect_synth () {
-  sleep 6;					# FIXME wait a bit for things to stabilize
+  sleep 6 if defined $synth && defined $synth->{'.last-note'};		# FIXME wait a bit for things to stabilize if we sent anything
   $synth = undef;
 }
 
