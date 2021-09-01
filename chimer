@@ -527,6 +527,11 @@ $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
 use vars qw( %chime );
 %chime = (
   &MODE__SYSLINE => interpret_melody(q( \drums { \ff trio4 r4 }), 1),
+  'w1.1' => interpret_watch(1, 'ff', 'cyms', 'f', 'tamb'),
+  'w2.1' => interpret_watch(2, 'ff', 'cyms', 'f', 'tamb'),
+  'w3.1' => interpret_watch(3, 'ff', 'cyms', 'f', 'tamb'),
+  'w4.1' => interpret_watch(4, 'ff', 'cyms', 'f', 'tamb'),
+  'w5.1' => interpret_watch(5, 'ff', 'cyms', 'f', 'tamb'),
   'w1'   => interpret_watch(1, 'ff', 'cymch', 'f', 'cl'),
   'w2'   => interpret_watch(2, 'ff', 'cymch', 'f', 'cl'),
   'w3'   => interpret_watch(3, 'ff', 'cymch', 'f', 'cl'),
@@ -1106,7 +1111,7 @@ sub get_cache_pathname_for_event ($) {
     $it .= 'cache-';
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-    $id =~ s/^(w\d)\.[1-4]$/\1/sg; # we don't really distinguish between subwatches except the last one
+    $id =~ s/^(w\d)\.[1-4]$/\1/s unless defined $chime{$id}; # we don't really distinguish between most of the subwatches
     $id =~ s/^(h)\d+$/\1/sg if $mode eq MODE__SYSLINE; # we don't really distinguish between hours for sysline
     $it .= "$mode-" unless $id =~ /^w/;
     $it .= "\L$melody-" if $id =~ /^q/ && $mode eq MODE__CARILLON;
