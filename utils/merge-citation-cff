@@ -37,6 +37,7 @@ sub STATE__INITIAL               () { 'INITIAL' }
 
 sub STATE__DEPENDENCIES_HEAD_SEEN() { 'DEPENDENCIES_HEAD_SEEN' }
 sub STATE__DEPENDENCIES_SECTION  () { 'DEPENDENCIES_SECTION' }
+sub STATE__DEPENDENCIES_LIMINAL  () { 'DEPENDENCIES_LIMINAL' }
 
 sub STATE__REFERENCES_HEAD_SEEN  () { 'REFERENCES_HEAD_SEEN' }
 sub STATE__REFERENCES_SECTION    () { 'REFERENCES_SECTION' }
@@ -278,6 +279,13 @@ sub scan_for_citations ($) {
 	  $fake_citation .= " Retrieved from $url";
 	  remember_citation $fake_citation;
 	} elsif ($s =~ /^\s*$/) {
+	  $state = STATE__DEPENDENCIES_LIMINAL;
+	}
+      } elsif ($state eq STATE__DEPENDENCIES_LIMINAL) {
+	if ($s =~ /^(.*?):\s*/s) {
+	  $state = STATE__DEPENDENCIES_SECTION;
+	} elsif ($s =~ /\S/s) {
+	  push @lookahead, $s;
 	  $state = STATE__UNKNOWN;
 	}
       } elsif ($state eq STATE__REFERENCES_HEAD_SEEN) {

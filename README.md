@@ -38,15 +38,15 @@ Dependencies
   or [Astro::Sunrise](https://metacpan.org/pod/Astro::Sunrise),
   to calculate sunrise and sundown
   (not all three are equally tested)
+
+If using *samples* method:
+- Sound files listed in the [CREDITS file](doc/CREDITS.md)
+  (sound files not provided here because they are large and this is still a work-in-progress)
+
+If using *synth* method:
 - [Fluidsynth](https://www.fluidsynth.org/) (optional)
 - [Expect::Simple](https://metacpan.org/pod/Expect::Simple)
-  to interact with Fluidsynth
 - The [Timbres of Heaven](http://midkar.com/soundfonts/) soundfont by Don Allen
-  for gong, carillon and woodblock synthesis,
-  if using Fluidsynth
-- Sound files listed in the [CREDITS file](doc/CREDITS.md)
-  if not using Fluidsynth
-  (sound files not provided here because they are large and this is still a work-in-progress)
 
 Please
 place the wav files in the “raw” directory and run make to generate the mp3 files.
