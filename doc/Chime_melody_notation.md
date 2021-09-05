@@ -6,8 +6,8 @@ night watch announcements when using the **synth** method,
 and sysline mode when using the **synth** method.
 
 Conversion from Lilypond notation to the script’s internal data structure is performed by *interpret_melody*.
-The only commands understood are **\relative**, **\drums**, **tempo**, **tuplex**,
-and the expressive marks (**\ppp**, **\pp**, **\p**, etc.).
+The only commands understood are **\relative**, **\drums**, **\tempo**, **\tuplex**,
+and basic expressive marks (**\ppp**, **\pp**, **\p**, etc.).
 
 Only relative mode is currently supported, but correctness is not guaranteed.
 If a score typesets correctly in Lilypond but *interpret_melody* converts it incorrectly
