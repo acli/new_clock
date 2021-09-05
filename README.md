@@ -1,4 +1,4 @@
-This script sounds Westminster-style chimes every quarter hour.
+This script sounds Westminster- or Whittington-style chimes every quarter hour.
 Between sundown and sunrise,
 it also sounds chimes every 1/5 of a [Chinese night watch](doc/Night_watches.md) (0.2 proportional decimal hours)
 using traditional chiming patterns for night watches and
@@ -21,6 +21,7 @@ Status
 This is still a work-in-progress but is already usable,
 although it requires running many copies of mpv at the same time,
 which can potentially be a problem.
+The current tested configuration is `method = synth` and `melody = whittington`.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
 
@@ -41,7 +42,6 @@ Dependencies
 
 If using *samples* method:
 - Sound files listed in the [CREDITS file](doc/CREDITS.md)
-  (sound files not provided here because they are large and this is still a work-in-progress)
 
 If using *synth* method:
 - [Fluidsynth](https://www.fluidsynth.org/)
