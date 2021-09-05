@@ -271,6 +271,9 @@ Yamaha. (n.d.). I<Everything You've Ever Wanted to Know About Using MIDI with a 
 Yamaha Disklavier Education Network.
 Retrieved August 19, 2021, from https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier
 
+Vandenneucker, D.Z<Dominique> (2012). MIDI tutorial.
+Retrieved September 5, 2021, from http://www.music-software-development.com/midi-tutorial.html
+
 =back
 
 The mapping between Lilypond percussion notes and MIDI percussion notes is based on
@@ -373,17 +376,17 @@ use vars qw( %percussion_note_to_midi_number );
 );
 use vars qw( %expressive_mark_to_midi_velocity );
 %expressive_mark_to_midi_velocity = (
-  'ppppp'	=> 7,
-  'pppp'	=> 13,
-  'ppp'		=> 20,	# this should be close to 20
-  'pp'		=> 33,
-  'p'		=> 46,
-  'mp'		=> 59,
-  'mf'		=> 71,
-  'f'		=> 84,
-  'ff'		=> 97,
-  'fff'		=> 110,	# this should be close to 110
-  'ffff'	=> 119,
+  'ppppp'	=> 4,
+  'pppp'	=> 8,	# this should be 8 according to Vandenneucker (2012)
+  'ppp'		=> 20,	# this should be close to 20 according to Yamaha (n.d.), exactly 20 according to Vandenneucker (2012)
+  'pp'		=> 31,
+  'p'		=> 42,
+  'mp'		=> 53,
+  'mf'		=> 64,
+  'f'		=> 80,
+  'ff'		=> 96,
+  'fff'		=> 112,	# this should be close to 110 according to Yamaha (n.d.), exactly 112 according to Vandenneucker (2012)
+  'ffff'	=> 119,	# this should be 127 according to Vandenneucker (2012)
   'fffff'	=> 127,
 );
 

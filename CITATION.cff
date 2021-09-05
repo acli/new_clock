@@ -137,6 +137,14 @@ references:
   license: CC0-1.0
 
 - authors:
+  - family-names: Vandenneucker
+    given-names: Dominique
+  year: 2012
+  title: MIDI tutorial
+  date-accessed: 2021-09-05
+  url: http://www.music-software-development.com/midi-tutorial.html
+
+- authors:
   - family-names: Walter
     given-names: Thomas
     url: http://www.inchadney.com/
