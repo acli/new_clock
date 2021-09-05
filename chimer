@@ -568,9 +568,11 @@ use vars qw( %melody );
       q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2.      }),
       q( E = \relative e' { \ff e'4 \tuplet 3/2 { dis8 cis b a gis fis } e2. }),
       q( F = \relative e' { r8 })),
-);
-$melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
-$melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
+) unless caller;
+unless (caller) {
+  $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
+  $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
+}
 
 use vars qw( %chime );
 %chime = (
@@ -590,7 +592,7 @@ use vars qw( %chime );
   'w3.5' => interpret_watch(3, 'ff', 'cymch', 'ff', 'mar'),
   'w4.5' => interpret_watch(4, 'ff', 'cymch', 'ff', 'mar'),
   'w5.5' => interpret_watch(5, 'ff', 'cymch', 'ff', 'mar'),
-);
+) unless caller;
 
 
 sub start_of_day ($) {
@@ -1591,27 +1593,27 @@ EOF
 
 ###############################################################################
 
-select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
-
-# SIGCHLD handler must be IGNORE, otherwise Time::HiRes::sleep will fail randomly
-$SIG{CHLD} = 'IGNORE';
-
-# Handle config file
-$config = read_ini("$ENV{HOME}/.chimerrc");
-@sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
-$method = $config->{'/'}->{'method'}->[0] if defined $config->{'/'}->{'method'};
-$melody = lc $config->{'/'}->{'melody'}->[0] if defined $config->{'/'}->{'melody'};
-$coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
-    if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
-die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
-
-# Guess location if not specified in config file
-$coords = guess_coordinates unless defined $coords;
-($lat, $lon) = ($coords->{'lat'}, $coords->{'lon'}) unless defined $lat;
-die "$0: Can't determine coordinates\n" unless defined $coords;
-
-# Check command-line arguments
 if (!caller) {
+  select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
+
+  # SIGCHLD handler must be IGNORE, otherwise Time::HiRes::sleep will fail randomly
+  $SIG{CHLD} = 'IGNORE';
+
+  # Handle config file
+  $config = read_ini("$ENV{HOME}/.chimerrc");
+  @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
+  $method = $config->{'/'}->{'method'}->[0] if defined $config->{'/'}->{'method'};
+  $melody = lc $config->{'/'}->{'melody'}->[0] if defined $config->{'/'}->{'melody'};
+  $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
+      if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
+  die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
+
+  # Guess location if not specified in config file
+  $coords = guess_coordinates unless defined $coords;
+  ($lat, $lon) = ($coords->{'lat'}, $coords->{'lon'}) unless defined $lat;
+  die "$0: Can't determine coordinates\n" unless defined $coords;
+
+  # Check command-line arguments
   Getopt::Long::config('bundling');
   GetOptions(
     'D|debug' => sub { $debug += 1; },
