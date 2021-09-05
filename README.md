@@ -44,7 +44,7 @@ If using *samples* method:
   (sound files not provided here because they are large and this is still a work-in-progress)
 
 If using *synth* method:
-- [Fluidsynth](https://www.fluidsynth.org/) (optional)
+- [Fluidsynth](https://www.fluidsynth.org/)
 - [Expect::Simple](https://metacpan.org/pod/Expect::Simple)
 - The [Timbres of Heaven](http://midkar.com/soundfonts/) soundfont by Don Allen
 
