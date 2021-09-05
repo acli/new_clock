@@ -397,34 +397,82 @@ sub interpret_absolute_pitch ($) { # interpret c' as c4
   }
   return $it;
 }
+
+sub interpret_divisor ($) {
+  my($s) = @_;
+  no integer;
+  return !defined $s? $s: $s =~ /\x{5c}longa/? 0.25: $s =~ /\x{5c}breve/? 0.5: $s =~ /^\d+$/? $s + 0: $s; # XXX
+}
+
 sub interpret_melody ($$) {
-  my($s, $unit_beat) = @_;
+  my($s0, $unit_beat) = @_;
   my $it;
+  no integer;
+
   # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
-  my $rest_re = sprintf('(?:r(?:(\d+)(\.+)?)?)'); # NOTE: 2 captures
-  my $percussion_note_re = sprintf('(?:(%s)?(?:(\d+)(\.+)?)?)', join('|', keys %percussion_note_to_midi_number)); # NOTE: 3 captures all optional
-  my $note_re = q(([a-g](?:[ei]s)?|r)(?:(,*)|('*))(?:(\d+)(\.+)?)?); # NOTE: 5 captures - pitch commas apostrophes divisor dots
+  my $rest_re = sprintf('(?:r)');
+  my $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
+  my $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));			# NOTE: 3 captures: base pitch, commas, apostrophes
+  my $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
+  my $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
+  my $end_re = q((?=\s|\x{7d}|$));					# space or braceright or eof
 
-  $s =~ s/^\s*\\relative\s*\{\s*$note_re(.*?)\s*\}\s*$/\\relative \1\2\3\4\5 { \1\4\5 \6 }/s;
-  die "interpret_melody: \\drums or \\relative expected at start of first argument, but got \"$s\"\n"
-      unless $s =~ /^\s*(?:\\(drums|drummode)|\\relative\s+(\S+?))\s+\{\s*(.*?)\s*\}\s*$/s;
-
-  ($s, my $start_pitch_as_written, my $drummode_p, my $instrument) = ($3, $2, $1);
-  my $starting_pitch = interpret_absolute_pitch $start_pitch_as_written unless $drummode_p;
-  my $last_pitch = $starting_pitch;
-  my($divisor, $dots, $volume) = (4, 0, $expressive_mark_to_midi_velocity{'mf'});
-  for my $note (split(/[\s<>\(\)\[\]\|]+/, $s)) {
+  my($relative_p, $last_pitch, $drummode_p, $instrument);
+  my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
+  for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
+    my $gsave =    sub { push @stack,  [$unit_beat, $relative_p, $drummode_p] };
+    my $grestore = sub { if (@stack) { ($unit_beat, $relative_p, $drummode_p) = @{ pop @stack }
+			      } else { log_error "grestore called but stack is empty" } };
+    $s =~ s/^\s*//s;
     my $lhs;
-    if ($note =~ /^$rest_re$/) { # rests should be checked first because they can appear either in pitched or percussion modes
+    if ($s =~ s/^\x{7b}\s*//s) {		# braceleft
+      &$gsave;
+
+    } elsif ($s =~ s/^\\(?:drums|drummode)\s*\x{7b}//s) {
+      &$gsave;
+      $drummode_p = 1;
+
+    } elsif ($s =~ s/^\\relative\s*\x{7b}//s) {
+      &$gsave;
+      $relative_p = 1;
+
+    } elsif ($s =~ s/^\\relative\s+($pitch_re)\s*\x{7b}//s) {
+      &$gsave;
+      $relative_p = 1;
+      $last_pitch = interpret_absolute_pitch $1;
+
+    } elsif ($s =~ s/^\x{7d}\s*//s) {		# braceright
+      &$grestore;
+    } elsif ($s =~ s/^[\[\]]\s*//s) {		# ignore bracketleft/bracketright = beam on/beam off
+      ;
+    } elsif ($s =~ s/^\(\s*//s) {		# ignore parenleft = phrasing slur start
+      ;
+    } elsif ($s =~ s/^\)\s*//s) {		# ignore parenright = phrasing slur end
+      ;
+    } elsif ($s =~ s/^\|\s*//s) {		# ignore bar checks
+      ;
+    } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
+      $unit_beat = ($1*60)/(4*$2);
+    } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
+      $unit_beat *= $2;
+      $unit_beat /= $1;
+    } elsif ($s =~ s/^$duration_re$end_re//s) {
+      ($divisor, $dots) = (interpret_divisor $1, length $2);
+      log_debug "Duration \"$divisor$dots\" encountered before any rest, pitch, or percussion instrument" unless defined $note;
+      $lhs = $note;
+
+    } elsif ($s =~ s/^$rest_re(?:$duration_re)?$end_re//s) {
       my($new_divisor, $new_dots) = ($1, $2);
-      ($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       $lhs = 'r';
 
-    } elsif ($note =~ /^$note_re$/) {
-      my($base_pitch, $lower, $raise, $new_divisor, $new_dots) = (($ly_notes{$1} + 12)%12, 0 + length $2, 0 + length $3, $4, $5);
+    } elsif ($s =~ s/^($pitch_re)(?:$duration_re)?$end_re//s) {
+      my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
+	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
+
+      ($last_pitch, $lower, $raise) = (interpret_absolute_pitch $pitch_as_written, undef, undef) if $relative_p && !defined $last_pitch;
       my $last_base_pitch = ($last_pitch + 12)%12;
-      ($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
-      log_debug "note=$note -> divisor=$divisor" if $debug > 1;
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       my $tentative;
       for (my $i = 0; $i < 8; $i += 1) {
 	for my $dir (-1, 1) {
@@ -435,42 +483,39 @@ sub interpret_melody ($$) {
       last if defined $tentative;
       }
       my $pitch = $tentative + 12*($raise - $lower);
-      $lhs = $note =~ /^r/? 'r': defined $percussion_note_to_midi_number{$note}? $note: $midi_number_to_note[$pitch];
+      $lhs = $midi_number_to_note[$pitch];
       $last_pitch = $pitch;
 
-    } elsif ($note =~ /^$percussion_note_re$/) {
-      my($new_instrument, $new_divisor, $new_dots) = ($1, $2, $3);
-      if (!defined $new_instrument && !defined $instrument && defined $new_divisor) {
-	log_debug "beat \"$new_divisor$new_dots\" specified before an instrument is specified";
-      } else {
-	$instrument = $new_instrument if defined $new_instrument;
-	($divisor, $dots) = ($new_divisor, length $new_dots) if defined $new_divisor;
-	$lhs = $instrument;
-      }
+    } elsif ($s =~ s/^($percussion_instrument_re)(?:$duration_re)?$end_re//s) {
+      ($instrument, my $new_divisor, my $new_dots) = ($1, $2, $3);
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
+      $lhs = $instrument;
 
-    } elsif ($note =~ /^\\(.*)/ && defined $expressive_mark_to_midi_velocity{$1}) {
+    } elsif ($s =~ s/^\\($expressive_mark_re)\b//s) {
       $volume = $expressive_mark_to_midi_velocity{$1};
 
+    } elsif ($s =~ s/^(\S+)//s) {
+      log_debug "Unknown expression \"$1\" discarded";
     } else {
-      log_debug "Unknown expression \"$note\" discarded"
+      log_debug "Internal error: \"else\" case reached in interpret_melody, s=($s)";
     }
     if (defined $lhs) {
-      no integer;
       my $rhs = $unit_beat * 4 / $divisor;
+      $note = $lhs;
       for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
 	$rhs += $adj;
       }
-      push @$it, [$lhs, $rhs, $volume];
+      push @$it, [$note, $rhs, $volume];
     }
   }
-  log_debug sprintf "\\relative %s { %s } interpreted as %s", $start_pitch_as_written, $s,
+  log_debug sprintf "%s interpreted as %s", $s0,
       join(' ', map { $_->[0] . ($_->[1] == $unit_beat? '': sprintf('(%s)', $_->[1]/$unit_beat)) } @$it) if $debug;
   return $it;
 }
 sub interpret_quarters ($$$$$@) {
   my($beat_length, $q1_spec, $q2_spec, $q3_spec, $q4_spec, @elements) = @_;
   my $it;
-  my %elements = map { /^\s*(\S+?)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
+  my %elements = map { /^\s*(\w+)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
   for my $spec ($q4_spec, $q1_spec, $q2_spec, $q3_spec) {
     my @node;
     for my $ref (split(/\s*/, $spec)) {
