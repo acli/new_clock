@@ -518,8 +518,8 @@ use vars qw( %melody );
       q( B = \relative e' { \ff e'8. cis a fis4 dis'8. b gis e2.    }),
       q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2.     }),
       q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2.      }),
-      q( E = \relative e' { \ff e'8. dis cis b4 a8. gis fis e2.     }),
-      q( F = \relative e' { r8 r4 })),
+      q( E = \relative e' { \ff e'4 dis8 cis b a gis fis e2.        }),
+      q( F = \relative e' { r8 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
 $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
@@ -527,21 +527,21 @@ $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
 use vars qw( %chime );
 %chime = (
   &MODE__SYSLINE => interpret_melody(q( \drums { \ff trio4 r4 }), 1),
-  'w1.1' => interpret_watch(1, 'ff', 'cyms', 'f', 'tamb'),
-  'w2.1' => interpret_watch(2, 'ff', 'cyms', 'f', 'tamb'),
-  'w3.1' => interpret_watch(3, 'ff', 'cyms', 'f', 'tamb'),
-  'w4.1' => interpret_watch(4, 'ff', 'cyms', 'f', 'tamb'),
-  'w5.1' => interpret_watch(5, 'ff', 'cyms', 'f', 'tamb'),
-  'w1'   => interpret_watch(1, 'ff', 'cymch', 'f', 'cl'),
-  'w2'   => interpret_watch(2, 'ff', 'cymch', 'f', 'cl'),
-  'w3'   => interpret_watch(3, 'ff', 'cymch', 'f', 'cl'),
-  'w4'   => interpret_watch(4, 'ff', 'cymch', 'f', 'cl'),
-  'w5'   => interpret_watch(5, 'ff', 'cymch', 'f', 'cl'),
-  'w1.5' => interpret_watch(1, 'ff', 'cymch', 'f', 'mar'),
-  'w2.5' => interpret_watch(2, 'ff', 'cymch', 'f', 'mar'),
-  'w3.5' => interpret_watch(3, 'ff', 'cymch', 'f', 'mar'),
-  'w4.5' => interpret_watch(4, 'ff', 'cymch', 'f', 'mar'),
-  'w5.5' => interpret_watch(5, 'ff', 'cymch', 'f', 'mar'),
+  'w1.1' => interpret_watch(1, 'ff', 'cyms', 'ff', 'tamb'),
+  'w2.1' => interpret_watch(2, 'ff', 'cyms', 'ff', 'tamb'),
+  'w3.1' => interpret_watch(3, 'ff', 'cyms', 'ff', 'tamb'),
+  'w4.1' => interpret_watch(4, 'ff', 'cyms', 'ff', 'tamb'),
+  'w5.1' => interpret_watch(5, 'ff', 'cyms', 'ff', 'tamb'),
+  'w1'   => interpret_watch(1, 'ff', 'cymch', 'ff', 'cl'),
+  'w2'   => interpret_watch(2, 'ff', 'cymch', 'ff', 'cl'),
+  'w3'   => interpret_watch(3, 'ff', 'cymch', 'ff', 'cl'),
+  'w4'   => interpret_watch(4, 'ff', 'cymch', 'ff', 'cl'),
+  'w5'   => interpret_watch(5, 'ff', 'cymch', 'ff', 'cl'),
+  'w1.5' => interpret_watch(1, 'ff', 'cymch', 'ff', 'mar'),
+  'w2.5' => interpret_watch(2, 'ff', 'cymch', 'ff', 'mar'),
+  'w3.5' => interpret_watch(3, 'ff', 'cymch', 'ff', 'mar'),
+  'w4.5' => interpret_watch(4, 'ff', 'cymch', 'ff', 'mar'),
+  'w5.5' => interpret_watch(5, 'ff', 'cymch', 'ff', 'mar'),
 );
 
 
@@ -1340,14 +1340,13 @@ sub strike_tune (@) {
   my @tune = @_;
   log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
   my $semitones = 8;
+  my $t0 = Time::HiRes::time;
+  my $elapsed;
   for my $spec (@tune) {
+    no integer;
     my($note, $time, $velocity) = @$spec;
     $velocity = 127 unless defined $velocity; # NOTE backward compatibility
-    # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
-    # for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
-    # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
-    # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
-    # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
+    my $t_i = Time::HiRes::time;
     if ($method eq METHOD__SYNTH) {
       if (defined $percussion_note_to_midi_number{$note}) {
 	send_midi_command sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity;
@@ -1355,11 +1354,20 @@ sub strike_tune (@) {
 	send_midi_command sprintf 'noteon 1 %d %d', $note_to_midi_number{$note}, $velocity;
       }
     } else {
+      # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
+      # for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
+      # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
+      # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
+      # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
       #strike_gong transpose_note $note, $semitones;
       strike_bell transpose_note $note, $semitones;
     }
-    no integer;
-    Time::HiRes::sleep $time * $beat_length;
+    # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
+    # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
+    my $note_length = $time * $beat_length;
+    my $dt = $t0 + $elapsed + $note_length - Time::HiRes::time;
+    Time::HiRes::sleep $dt if $dt > 0;
+    $elapsed += $note_length;
   }
 }
 
