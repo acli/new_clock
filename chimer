@@ -421,6 +421,7 @@ sub interpret_melody ($$) {
   my $end_re = q((?=\s|\x{7d}|$));					# space or braceright or eof
 
   my($relative_p, $last_pitch, $drummode_p, $instrument);
+  my($tie_p);
   my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
     my $gsave =    sub { push @stack,  [$unit_beat, $relative_p, $drummode_p] };
@@ -454,6 +455,8 @@ sub interpret_melody ($$) {
       ;
     } elsif ($s =~ s/^\|\s*//s) {		# ignore bar checks
       ;
+    } elsif ($s =~ s/^\~\s*//s) {		# tie
+      $tie_p = 1;
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
       $unit_beat = ($1*60)/(4*$2);
     } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
@@ -504,11 +507,23 @@ sub interpret_melody ($$) {
     }
     if (defined $lhs) {
       my $rhs = $unit_beat * 4 / $divisor;
-      $note = $lhs;
       for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
 	$rhs += $adj;
       }
-      push @$it, [$note, $rhs, $volume];
+      if ($tie_p) {
+	if (!defined $note) {
+	  $tie_p = 0;
+	  log_error "Tie ignored because there is no note to tie to";
+	} elsif ($note ne $lhs) {
+	  $tie_p = 0;
+	  log_error "Tie ignored because $note and $lhs are different";
+	} else {
+	  $it->[+scalar @$it - 1][1] += $rhs;
+	}
+      }
+      push @$it, [$lhs, $rhs, $volume] unless $tie_p;
+      $note = $lhs;
+      $tie_p = 0;
     }
   }
   log_debug sprintf "%s interpreted as %s", $s0,

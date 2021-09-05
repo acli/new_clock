@@ -5,6 +5,7 @@ require 'chimer';
 Chimer->import(qw( $dow_re $dow_range_re %expressive_mark_to_midi_velocity ));
 
 no integer;
+$debug = 1;
 
 ###############################################################################
 
@@ -173,6 +174,8 @@ sub test_interpret_melody () {
 		[q(\relative e { fis4.. e e4 }),	1,	"f#3 1.75 $mf e3 1.75 $mf e3 1 $mf"],
 		[q(\relative c' {c \fff d \f e}),	1,	"c4 1 $mf d4 1 $fff e4 1 $f"],
 		[q(\relative e { r1 }),			1,	"r 4 $mf"],
+		[q(\relative e { r1 ~ 2 }),		1,	"r 6 $mf"],
+		[q(\relative c' { c4 ~ c16 }),		1,	"c4 1.25 $mf"],
 		[q(\relative { c'' \longa \breve 1 2 4 8 16 32 64 128}), 1, "c5 16 $mf c5 8 $mf c5 4 $mf c5 2 $mf c5 1 $mf c5 0.5 $mf c5 0.25 $mf c5 0.125 $mf c5 0.0625 $mf c5 0.03125 $mf"],
 		[q(\drums { r1 }),			1,	"r 4 $mf"]) {
     my($lilypond_code, $beat_length, $stringified_expected_result) = @$test;
