@@ -563,7 +563,7 @@ use vars qw( %melody );
       q( B = \relative e' { \ff e'8. cis a fis4 dis'8. b gis e2.    }),
       q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2.     }),
       q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2.      }),
-      q( E = \relative e' { \ff e'4 dis8 cis b a gis fis e2.        }),
+      q( E = \relative e' { \ff e'4 \tuplet 3/2 { dis8 cis b a gis fis } e2. }),
       q( F = \relative e' { r8 })),
 );
 $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
