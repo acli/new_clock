@@ -577,11 +577,11 @@ use vars qw( %melody );
       q( E = \relative e' { \fff b4 fis' gis e2 }),
       q( F = \relative e' { r1 })),
   &MELODY__WHITTINGTON => interpret_quarters(0.625, 'E', 'AB', 'CDE', 'ABCD F',	# 0.5 sounds way to rushed, but 0.75 sounds too slow
-      q( A = \relative e' { \ff e'8. fis, dis' gis,4 cis8. a b e,2. }),
-      q( B = \relative e' { \ff e'8. cis a fis4 dis'8. b gis e2.    }),
-      q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2.     }),
-      q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2.      }),
-      q( E = \relative e' { \ff e'4 \tuplet 3/2 { dis8 cis b a gis fis } e2. }),
+      q( A = \relative e' { \ff e'8. fis, dis' gis,4 cis8. a b e,2..            }),
+      q( B = \relative e' { \ff e'8. cis a fis4 dis'8. b gis e2..               }),
+      q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2..                }),
+      q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2..                 }),
+      q( E = \relative e' { \ff \tuplet 22/21 { e'8. dis cis b a gis fis } e2.. }),
       q( F = \relative e' { r8 })),
 ) unless caller;
 unless (caller) {
