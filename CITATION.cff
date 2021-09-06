@@ -106,6 +106,10 @@ references:
   type: software
   repository-code: https://github.com/mpv-player/mpv
 
+- title: MuseScore_General.sf2
+  type: sound-recording
+  url: ftp://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2
+
 - section: Percussion notes
   title: LilyPond — Notation Reference v2.22.1 (stable-branch)
   type: book
@@ -176,4 +180,4 @@ references:
   date-accessed: 2021-08-19
   url: https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier
 
-# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/Chime_melody_notation.md, doc/CREDITS.md, README.md, and chimer
+# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/Chime_melody_notation.md, doc/sysline.md, doc/CREDITS.md, README.md, and chimer
