@@ -10,6 +10,8 @@ The following non-standard instruments seem to be promising:
   - An analog “ding” sound
 - Timbres of Heaven (Allen, n.d.) or MuseScore General (Collins, n.d.), Sine Wave (008-080), note 70 or 82
   - A fairly convincing digital “beep” if we keep the note short (need to send a noteoff), at in theory 440 or 880 Hz
+  - Note 84 would be closer to 1000 Hz, at theoretically about 988 Hz
+  - Timbres of Heaven, C64 Pulse (101-000), C64 Saw (101-001), C64 Triangle (101-002) and Echo Pan (002-102) appear to work too
 
 References
 ----------

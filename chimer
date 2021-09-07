@@ -83,6 +83,7 @@ use Data::Dumper;
 use vars qw( $config );
 use vars qw( $debug );
 use vars qw( $verbose_p );
+use vars qw( $quit_p );
 use vars qw( $enable_nonproportional_watches );
 use vars qw( $enable_qing_quarters );
 
@@ -92,7 +93,9 @@ use vars qw( @sinks );
 use vars qw( $synth );
 use vars qw( %children );
 
-use vars qw( $fluidR3 $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note $perc_bank $perc_inst );
+use vars qw( $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note $perc_bank $perc_inst $beep_bank $beep_inst );
+use vars qw( %instrument_name_to_channel_number );
+use vars qw( $fluidR3 );
 $fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
 
 use vars qw( $beat_length );
@@ -420,7 +423,8 @@ sub interpret_melody ($$) {
   my $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
   my $end_re = q((?=\s|\x{7d}|$));					# space or braceright or eof
 
-  my($relative_p, $last_pitch, $drummode_p, $instrument);
+  my($relative_p, $last_pitch, $drummode_p, $percussive_instrument);
+  my $main_instrument = 'Carillon';
   my($tie_p);
   my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
@@ -493,12 +497,15 @@ sub interpret_melody ($$) {
       $last_pitch = $pitch;
 
     } elsif ($s =~ s/^($percussion_instrument_re)(?:$duration_re)?$end_re//s) {
-      ($instrument, my $new_divisor, my $new_dots) = ($1, $2, $3);
+      ($percussive_instrument, my $new_divisor, my $new_dots) = ($1, $2, $3);
       ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
-      $lhs = $instrument;
+      $lhs = $percussive_instrument;
 
     } elsif ($s =~ s/^\\($expressive_mark_re)\b//s) {
       $volume = $expressive_mark_to_midi_velocity{$1};
+
+    } elsif ($s =~ s/^\\set\s+Staff\.instrumentName\s+=\s+#"([^""]+)"\s*//s) {
+      $main_instrument = $1;
 
     } elsif ($s =~ s/^(\S+)//s) {
       log_debug "Unknown expression \"$1\" discarded";
@@ -521,7 +528,8 @@ sub interpret_melody ($$) {
 	  $it->[+scalar @$it - 1][1] += $rhs;
 	}
       }
-      push @$it, [$lhs, $rhs, $volume] unless $tie_p;
+      my $instrument = ($lhs eq $percussive_instrument || $lhs eq 'r')? undef: $main_instrument; # FIXME
+      push @$it, [$lhs, $rhs, $volume, $instrument] unless $tie_p;
       $note = $lhs;
       $tie_p = 0;
     }
@@ -591,7 +599,7 @@ unless (caller) {
 
 use vars qw( %chime );
 %chime = (
-  &MODE__SYSLINE => interpret_melody(q( \drums { \ff trio4 r4 }), 1),
+  &MODE__SYSLINE => interpret_melody(q( \relative c' { \set Staff.instrumentName = #"Terminal Bell" \f f''''8 r4. }), 1),
   'w1.1' => interpret_watch(1, 'ff', 'cyms', 'ff', 'tamb'),
   'w2.1' => interpret_watch(2, 'ff', 'cyms', 'ff', 'tamb'),
   'w3.1' => interpret_watch(3, 'ff', 'cyms', 'ff', 'tamb'),
@@ -1208,6 +1216,7 @@ sub find_synth_instrument ($@) {
   my $it;
   for my $candidate (@preferences) {
     $it = $instruments->{$candidate} if defined $instruments->{$candidate};
+    $it = $instruments->{$it} if defined $it && !ref $it && defined $instruments->{$it};
   last if defined $it;
   }
   return $it;
@@ -1245,7 +1254,7 @@ sub connect_synth ($) {
     log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
     set_sink $sinks[0] if $immediate_p && @sinks;
     my @cmd = ('fluidsynth', '-g', $gain,
-			     '--midi-channels', '4',
+			     '--midi-channels', '5',
 			     ($immediate_p?
 				('-a', 'pulseaudio'):
 				('-a', 'file',
@@ -1263,17 +1272,24 @@ sub connect_synth ($) {
     my $instruments = probe_synth_instruments;
     my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
     my $bell = find_synth_instrument($instruments, 'Carillon', 'Tubular Bells');
-    my $wood = find_synth_instrument($instruments, 'Woodblock', 'Orchestra Kit');
+    my $wood = find_synth_instrument($instruments, 'Woodblock'); # 000-115
     my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
+    my $beep = find_synth_instrument($instruments, 'Sine Wave', '000-008'); # fallback to any celesta
     ($gong_bank, $gong_inst) = @$gong;
     ($bell_bank, $bell_inst) = @$bell;
     ($wood_bank, $wood_inst) = @$wood;
     ($perc_bank, $perc_inst) = @$perc;
+    ($beep_bank, $beep_inst) = @$beep;
     $wood_note = synth_instrument_name($instruments, $wood) =~ / Kit\b/? 31: $note_to_midi_number{'d#5'};
     send_midi_command "select 0 1 $gong_bank $gong_inst";
     send_midi_command "select 1 1 $bell_bank $bell_inst";
     send_midi_command "select 2 1 $wood_bank $wood_inst";
     send_midi_command "select 3 1 $perc_bank $perc_inst";
+    send_midi_command "select 4 1 $beep_bank $beep_inst";
+    $instrument_name_to_channel_number{'Gong'} = 0;
+    $instrument_name_to_channel_number{'Carillon'} = 1;
+    $instrument_name_to_channel_number{'Woodblock'} = 2;
+    $instrument_name_to_channel_number{'Terminal Bell'} = 4;
 
     # Set reverb, based on advice from
     # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
@@ -1418,19 +1434,25 @@ sub transpose_note ($;$) {
 sub strike_tune (@) {
   my @tune = @_;
   log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
+  no integer;
   my $semitones = 8;
   my $t0 = Time::HiRes::time;
-  my $elapsed;
+  my $elapsed = 0;
+  my @midi_commands;
   for my $spec (@tune) {
-    no integer;
-    my($note, $time, $velocity) = @$spec;
+    my($note, $time, $velocity, $instrument) = @$spec;
     $velocity = 127 unless defined $velocity; # NOTE backward compatibility
     my $t_i = Time::HiRes::time;
+    my $note_length = $time * $beat_length;
     if ($method eq METHOD__SYNTH) {
       if (defined $percussion_note_to_midi_number{$note}) {
-	send_midi_command sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity;
+	push @midi_commands, [$elapsed, sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity];
       } elsif (defined $note_to_midi_number{$note}) {
-	send_midi_command sprintf 'noteon 1 %d %d', $note_to_midi_number{$note}, $velocity;
+	my $channel = (defined $instrument_name_to_channel_number{$instrument}? $instrument_name_to_channel_number{$instrument}: 1);
+	my $note_number = $note_to_midi_number{$note};
+	my $laisser_vibrer_p = 1 unless $instrument eq 'Terminal Bell'; # FIXME
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
+	push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       }
     } else {
       # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
@@ -1443,10 +1465,20 @@ sub strike_tune (@) {
     }
     # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
     # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
-    my $note_length = $time * $beat_length;
     my $dt = $t0 + $elapsed + $note_length - Time::HiRes::time;
-    Time::HiRes::sleep $dt if $dt > 0;
+    Time::HiRes::sleep $dt if $method ne METHOD__SYNTH && $dt > 0;
     $elapsed += $note_length;
+  }
+  if ($method eq METHOD__SYNTH) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
+    @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
+    $t0 = Time::HiRes::time; # reset start time
+    for (my $i = 0;; $i += 1) {
+      my($t, $midi_command) = @{$midi_commands[$i]};
+      send_midi_command $midi_command;
+    last if $i == $#midi_commands;
+      my $dt = $midi_commands[$i + 1]->[0] - $t;
+      Time::HiRes::sleep $dt if $dt > 0;
+    }
   }
 }
 
@@ -1622,7 +1654,7 @@ EOF
 
 ###############################################################################
 
-if (!caller) {
+sub parse_command_line_arguments () {
   select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
 
   # SIGCHLD handler must be IGNORE, otherwise Time::HiRes::sleep will fail randomly
@@ -1650,6 +1682,7 @@ if (!caller) {
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
+    'q|quit' => \$quit_p,
     'test' => sub { set_test_params },
     'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; exit do_event($_[1]) },
     'test-scale' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH;
@@ -1658,9 +1691,14 @@ if (!caller) {
     'v|verbose' => \$verbose_p,
     'help' => \&usage,
   ) || usage(1);
+}
 
+sub do_setup () {
   log_info sprintf "chimer booted at %.2f in %s mode%s using %s", $boottime, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method if $verbose_p || $debug;
   generate_sound_clips if $method eq METHOD__SYNTH;
+}
+
+sub do_main_loop () {
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = Time::HiRes::time;
     my $c = determine_chinese_time $t0;
@@ -1737,6 +1775,12 @@ if (!caller) {
     $countdown -= 1;
     $countdown = COUNTDOWN if $countdown < 0;
   }
+}
+
+if (!caller) {
+  parse_command_line_arguments;
+  do_setup;
+  do_main_loop unless $quit_p;
 }
 
 =pod
