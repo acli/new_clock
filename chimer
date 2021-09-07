@@ -599,7 +599,7 @@ unless (caller) {
 
 use vars qw( %chime );
 %chime = (
-  &MODE__SYSLINE => interpret_melody(q( \relative c' { \set Staff.instrumentName = #"Terminal Bell" \f f''''8 r4. }), 1),
+  &MODE__SYSLINE => interpret_melody(q( \relative c' { \set Staff.instrumentName = #"Terminal Bell" \mf f''''8 r4. }), 1),
   'w1.1' => interpret_watch(1, 'ff', 'cyms', 'ff', 'tamb'),
   'w2.1' => interpret_watch(2, 'ff', 'cyms', 'ff', 'tamb'),
   'w3.1' => interpret_watch(3, 'ff', 'cyms', 'ff', 'tamb'),
