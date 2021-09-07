@@ -106,6 +106,14 @@ references:
   type: software
   repository-code: https://github.com/mpv-player/mpv
 
+- authors:
+  - name: mrbumpy409.
+  year: 2012
+  month: 12
+  day: 19
+  title: The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were quite good), can still sound decent
+  url: https://forums.scummvm.org/viewtopic.php?t=11632
+
 - title: MuseScore_General.sf2
   type: sound-recording
   url: ftp://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2

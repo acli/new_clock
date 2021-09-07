@@ -1274,6 +1274,20 @@ sub connect_synth ($) {
     send_midi_command "select 1 1 $bell_bank $bell_inst";
     send_midi_command "select 2 1 $wood_bank $wood_inst";
     send_midi_command "select 3 1 $perc_bank $perc_inst";
+
+    # Set reverb, based on advice from
+    # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
+    #   quite good), can still sound decent [Reply to forum post]. Retrieved from https://forums.scummvm.org/viewtopic.php?t=11632
+    send_midi_command "rev_setroomsize 0.61";
+    send_midi_command "rev_setdamp 0.23";
+    send_midi_command "rev_setwidth 0.76";
+    send_midi_command "rev_setlevel 0.57";
+    send_midi_command "cho_set_nr 3";
+    send_midi_command "cho_set_level 1.2";
+    send_midi_command "cho_set_speed 0.3";
+    send_midi_command "cho_set_depth 8";
+    send_midi_command "reverb on";
+    send_midi_command "chorus on";
   }
   return;
 }

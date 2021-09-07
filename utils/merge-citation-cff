@@ -42,6 +42,7 @@ sub STATE__DEPENDENCIES_LIMINAL  () { 'DEPENDENCIES_LIMINAL' }
 sub STATE__REFERENCES_HEAD_SEEN  () { 'REFERENCES_HEAD_SEEN' }
 sub STATE__REFERENCES_SECTION    () { 'REFERENCES_SECTION' }
 sub STATE__CITATION              () { 'CITATION' }
+sub STATE__CITATION_IN_COMMENTS  () { 'CITATION_IN_COMMENTS' }
 sub STATE__ANNOTATION_OR_UNKNOWN () { 'ANNOTATION_OR_UNKNOWN' }
 sub STATE__ANNOTATION            () { 'ANNOTATION' }
 
@@ -195,10 +196,10 @@ sub invert_name ($) {
 
 use vars qw( $month_re $day_re );
 $month_re = '(?:\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b)';
-$day_re = '(?:\b(?:0?[1-9]|2\d|3[01])\b)';
+$day_re = '(?:\b(?:0?[1-9]|[12]\d|3[01])\b)';
 
 use vars qw( $date_ref_re $date_ref_re_no_captures );
-$date_ref_re = '\s*\((?:(\d{4,})(?:, ('.$month_re.')(?: ('.$day_re.'))?)?|(n\.d\.))([a-z])?\)\.(?:\s|$)'; # NOTE: 5 captures - yyyy Mmm dd n.d. a/b/c
+$date_ref_re = '\s*\((?:(\d{4,})(?:,\s+('.$month_re.')(?:\s+('.$day_re.'))?)?|(n\.d\.))([a-z])?\)\.(?:\s|$)'; # NOTE: 5 captures - yyyy Mmm dd n.d. a/b/c
 $date_ref_re_no_captures = $date_ref_re;
 $date_ref_re_no_captures =~ s/(?<!\\)\((?![\?])/(?:/sg;
 
@@ -260,6 +261,9 @@ sub scan_for_citations ($) {
 	  $state = STATE__REFERENCES_HEAD_SEEN;
 	} elsif ($perl_p && $s =~ /^=pod\s*$/) {
 	  $state = STATE__REFERENCES_SECTION;
+	} elsif ($perl_p && $s =~ /^\s*#\s+-\s+(\S.*?$date_ref_re_no_captures.*?)\s*$/) { # looks like a citation?
+	  remember_citation $1;
+	  $state = STATE__CITATION_IN_COMMENTS;
 	}
       } elsif ($state eq STATE__DEPENDENCIES_HEAD_SEEN) {
 	if ($s =~ /^---+\s*$/ || $s =~ /^===+\s*$/) {
@@ -301,6 +305,8 @@ sub scan_for_citations ($) {
 	if ($s =~ /$date_ref_re/s) { # looks like a citation?
 	  remember_citation $s;
 	  $state = STATE__CITATION;
+	} elsif ($perl_p && $s =~ /^=cut\s*$/) {
+	  $state = STATE__UNKNOWN;
 	}
       } elsif ($state eq STATE__CITATION) {
 	if ($s =~ /^\s*-/s || $s =~ /^\s*$/s) {
@@ -308,6 +314,14 @@ sub scan_for_citations ($) {
 	  $state = STATE__ANNOTATION;
 	} else {
 	  $citations[$#citations] .= $s;
+	}
+      } elsif ($state eq STATE__CITATION_IN_COMMENTS) {
+	if ($s =~ /^\s*#\s+-\s+(\S.*?$date_ref_re_no_captures.*?)\s*$/s) { # looks like a citation?
+	  remember_citation $1;
+	} elsif ($s =~ /^\s*#\s+(\S.*?)\s*$/s) {
+	  $citations[$#citations] .= ' ' . $1;
+	} else {
+	  $state = STATE__UNKNOWN;
 	}
       } elsif ($state eq STATE__ANNOTATION) {
 	if ($s =~ /^\s*$/) {
