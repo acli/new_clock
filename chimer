@@ -1271,16 +1271,17 @@ sub connect_synth ($) {
     # Figure out what instruments to use
     my $instruments = probe_synth_instruments;
     my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
-    my $bell = find_synth_instrument($instruments, 'Carillon', 'Tubular Bells');
+    # XXX Chimes from Sonatina seems to sound nicer than Carillon, but Sonatina doesn't have standard percussion so we can't really use it
+    my $bell = find_synth_instrument($instruments, 'Chimes', 'Carillon', 'Tubular Bells');
     my $wood = find_synth_instrument($instruments, 'Woodblock'); # 000-115
     my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
-    my $beep = find_synth_instrument($instruments, 'Sine Wave', '000-008'); # fallback to any celesta
+    my $beep = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
     ($gong_bank, $gong_inst) = @$gong;
     ($bell_bank, $bell_inst) = @$bell;
     ($wood_bank, $wood_inst) = @$wood;
     ($perc_bank, $perc_inst) = @$perc;
     ($beep_bank, $beep_inst) = @$beep;
-    $wood_note = synth_instrument_name($instruments, $wood) =~ / Kit\b/? 31: $note_to_midi_number{'d#5'};
+    $wood_note = (synth_instrument_name($instruments, $wood) =~ / Kit\b/ || $wood_bank == 128)? 31: $note_to_midi_number{'d#5'};
     send_midi_command "select 0 1 $gong_bank $gong_inst";
     send_midi_command "select 1 1 $bell_bank $bell_inst";
     send_midi_command "select 2 1 $wood_bank $wood_inst";
