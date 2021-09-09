@@ -228,6 +228,7 @@ sub log_debug   ($) { log_internal '#', $_[0], 'DEBUG', 1, 1 }
 sub log_info    ($) { log_internal '#', $_[0], undef,   0, 1 }
 sub log_error   ($) { log_internal '#', $_[0], 'ERROR', 1, 1 }
 sub log_warning ($) { log_internal '#', $_[0], 'WARNING', 1, 1 }
+sub log_command (@) { log_debug 'running: '. join(' ', map { s/([\\"])/\\\1/sg if /\s/; /\s/? "\"$_\"": $_ } @_) }
 
 
 =pod
@@ -702,7 +703,7 @@ sub guess_coordinates () {
   my $city = guess_city;
   log_comment "guessed city=($city)" if $debug;
   my @cmd = qw(hebcal cities);
-  log_comment 'DEBUG: running: '. join(' ', @cmd) if $debug;
+  log_command @cmd if $debug;
   my $pid = open(INPUT, '-|');
   die "$0: guess_coordinates: $cmd[0]: fork: $!\n" unless defined $pid;
   if ($pid) {
@@ -1106,7 +1107,7 @@ sub set_test_params () {
 sub set_sink_volume ($$) {
   my($sink, $volume) = @_;
   my @cmd = ('pactl', 'set-sink-volume', $sink, int($volume));
-  log_debug 'running: '. join(' ', @cmd) if $debug;
+  log_command @cmd if $debug;
   system { $cmd[0] } @cmd;
 }
 
@@ -1261,7 +1262,7 @@ sub connect_synth ($) {
 				 '-o', "audio.file.name=$output")),
 			     $sf_path);
 
-    log_debug 'running: '. join(' ', @cmd) if $debug;
+    log_command @cmd if $debug;
     $synth = new Expect::Simple({
 	'Cmd' => \@cmd,
 	'Prompt' => "\n> ",
@@ -1363,7 +1364,7 @@ sub play_sound_file_real ($;$$$) {
   push @cmd, ('--end', $end) if defined $end;
   push @cmd, ("--ao=pulse::$sink") if $sink;
   push @cmd, $input;
-  log_debug 'running: '. join(' ', @cmd);# if $debug;
+  log_command @cmd;# if $debug;
   my $h = fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
@@ -1611,7 +1612,7 @@ sub restart_script () {
 
 sub safe_to_restart_p () {
   my @cmd = ('perl', '-cw', $restart_cmd[0]);
-  log_comment 'DEBUG: running: '. join(' ', @cmd) if $debug;
+  log_command @cmd if $debug;
   local $SIG{'CHLD'} = 'DEFAULT'; # need this to check exit status
   return 0 == system { $cmd[0] } @cmd;
 }
