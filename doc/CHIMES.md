@@ -22,14 +22,28 @@ and multiple copies of mpv are needed to play a chime melody.
 This is clearly not ideal since resource usage is unpredictable
 so there’s both a danger of thrashing and audio distortion.
 
+
+Chime melodies
+==============
+The script’s actual chime melodies have been sourced from Wikipedia
+(“Westminster Quarters”, 2021; “Whittington chimes”, 2021).
+
+More melodies are available from Oliver (n.d.) and Harrison (2000),
+but I have not used these additional melodies
+because it is unclear whether any other melody can be used
+(except those that clearly are still copyrighted and therefore cannot be used).
+
+
 Chime melody notation
 =====================
 When the script is run in *synth* mode, some sonic notifications
 (carillon mode chime melodies, night watch announcements, and sysline beeps)
-are currently encoded in a small subset of Lilypond notation.
+are currently encoded in a small subset of Lilypond notation,
+partly because encoding melodies as arrays is cumbersome, and
+partly because Lilypond notation might actually be more accessible (Zahnke, 2020).
 
 Conversion from Lilypond notation to the script’s internal data structure is performed by *interpret_melody*.
-The only commands understood are **\relative**, **\drums**, **\tempo**, **\tuplex**,
+The only commands currently understood are **\relative**, **\drums**, **\tempo**, **\tuplex**,
 **\set Staff.instrumentName = #"Terminal Bell"**
 and basic expressive marks (**\ppp**, **\pp**, **\p**, etc.).
 In particular, **\laisserVibrer** is not understood;
@@ -152,20 +166,27 @@ https://freesound.org/people/RTB45/sounds/234921/
 - cons: noisy background (wind)
 
 
-Chime melody options
-====================
-https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
-- This page contains the actual chime melodies, but the copyright status of most melodies are unclear
-
-
 References
 ==========
+Harrison, <span title=Daniel>D.</span> (2000, October).
+Tolling Time.
+<cite>Music Theory Online, 6</cite>(4), Article 6.4.1.
+Retrieved September 10, 2021, from https://www.mtosmt.org/issues/mto.00.6.4/mto.00.6.4.harrison.html
+
+Li, <span title=Ambrose>A.</span> (2018, January 8).
+sysline beeps are music, or the multisensory Unix text mode interface [Weblog post].
+Retrieved from http://incd.ambroseli.ca/node/308
+
+Oliver, <span title=Richard>R.</span> (n.d.).
+Clock Chime Tunes: History and Examples You Can Hear.
+Retrieved September 10, 2021, from https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
+
 Westminster Quarters. (2021). <cite>Wikipedia</cite>.
 Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
 
 Whittington chimes. (2021). <cite>Wikipedia</cite>.
 Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189
 
-Li, <span title=Ambrose>A.</span> (2018, January 8).
-sysline beeps are music, or the multisensory Unix text mode interface [Weblog post].
-Retrieved from http://incd.ambroseli.ca/node/308
+Zahnke, <span title=Tyler>T.</span> (2020, January 25).
+Hello, I am a totally blind composer, and I'v tweaked LilyPond so it's accessible for me [Facebook post].
+Retrieved September 10, 2021, from https://www.facebook.com/groups/gnulilypond/permalink/10157912670783529/

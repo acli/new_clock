@@ -48,7 +48,7 @@ Retrieved August 17, 2021, from https://zh.wikipedia.org/w/index.php?title=%E6%8
 Lin, <span title="Tsung-Yi">T.-Y.</span> (2007).
 午時三刻⸺古中國的時間制度
 [“Three after seven”? Systems for timekeeping in ancient China].
-<cite>Science Development</cite>, 420, 58–63.
+<cite>Science Development, 420</cite>, 58–63.
 Retrieved from https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422
 <!--or https://scitechvista.nat.gov.tw/Article/C000003/detail?ID=588a04c7-1a5f-46f9-b3a3-f6ce16c3af17-->
 

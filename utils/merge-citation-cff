@@ -130,6 +130,7 @@ use vars qw( %citation_key_order );
   'version' => -970,
   'type' => -900,
   'journal' => -450,
+  'volume' => -411,
   'issue' => -410,
   'start' => -401,
   'end' => -400,
@@ -415,8 +416,8 @@ sub analyze_citations (@) {
     }
 
     # Does it look like we have a title?
-    if (!defined $node->{'authors'} && $s =~ s/^$date_ref_re\s*(In )?<cite>(.*?)<\/cite>\.$//s) {
-      my($year, $month, $day, $nd, $serial, $in_p, $in) = ($1, $2, $3, $4, $5, $6, $7);
+    if (!defined $node->{'authors'} && $s =~ s/^$date_ref_re\s*(In )?<cite>(.*?)<\/cite>(?:, (?:(\d+)(–(\d+))?|Article (\S+?)))?\.$//s) { # book chapter or encyclopedia/dictionary entry
+      my($year, $month, $day, $nd, $serial, $in_p, $in, $start, $end, $elocator) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
       my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?\.$/;
       $node->{'year'} = $year if defined $year;
       $node->{'month'} = parse_month $month if defined $month;
@@ -433,21 +434,28 @@ sub analyze_citations (@) {
 	  $node->{'section'} = $node->{'title'};
 	  $node->{'title'} = $in;
 	  $node->{'type'} = 'book';
-	} else {
+	} else { # FIXME This should not be correct
+	  print STDERR "WARNING: \"article\" case reached when journal article is unlikely\n";
 	  $node->{'journal'} = $in;
 	  $node->{'type'} = 'article';
 	}
+	if (defined $start || defined $elocator) {
+	  $node->{'start'} = defined $elocator? $elocator: $start;
+	  $node->{'end'} = defined $elocator? $elocator: defined $end? $end: $start;
+	}
       }
-    } elsif ($s =~ s/^$date_ref_re\s*(.*?)\s+\[(.*?)\]\. <cite>(.*)<\/cite>, (\d+), (\d+)–(\d+)\.$//s) {
-      my($year, $month, $day, $nd, $serial, $title, $translated_title, $journal, $issue, $start, $end) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+    } elsif ($s =~ s/^$date_ref_re\s*(.*?)(?:\s+\[(.*?)\])?\. <cite>(.*?), (\d+)<\/cite>(?:\((\d+)\))?, (?:(\d+)(?:–(\d+))?|Article (\S+?))\.$//s) { # journal article with a translated title
+      my($year, $month, $day, $nd, $serial, $title, $translated_title, $journal, $volume, $issue, $start, $end, $elocator) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
+      ($volume, $issue) = (undef, $volume) if defined $volume && !defined $issue;
       $node->{'year'} = $year if defined $year;
       $node->{'month'} = parse_month $month if defined $month;
       $node->{'day'} = $day if defined $day;
-      $node->{'title'} = "$title [$translated_title]";
+      $node->{'title'} = defined $translated_title? "$title [$translated_title]": $title;
       $node->{'journal'} = $journal;
-      $node->{'issue'} = $issue;
-      $node->{'start'} = $start;
-      $node->{'end'} = $end;
+      $node->{'volume'} = $volume if defined $volume;
+      $node->{'issue'} = $issue if defined $issue;
+      $node->{'start'} = defined $elocator? $elocator: $start;
+      $node->{'end'} = defined $elocator? $elocator: defined $end? $end: $start;
       $node->{'type'} = 'article';
     } elsif ($s =~ s/^$date_ref_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
       my($year, $month, $day, $nd, $serial, $title, $type) = ($1, $2, $3, $4, $5, $6, $7);

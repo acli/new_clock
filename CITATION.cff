@@ -74,6 +74,21 @@ references:
   repository-code: https://github.com/sgossner/VCSL
   license: CC0-1.0
 
+- authors:
+  - family-names: Harrison
+    given-names: Daniel
+  year: 2000
+  month: 10
+  title: Tolling Time
+  type: article
+  journal: Music Theory Online
+  volume: 6
+  issue: 4
+  start: 6.4.1
+  end: 6.4.1
+  date-accessed: 2021-09-10
+  url: https://www.mtosmt.org/issues/mto.00.6.4/mto.00.6.4.harrison.html
+
 - title: hebcal
   type: software
   repository-code: https://github.com/hebcal/hebcal
@@ -115,6 +130,13 @@ references:
 - title: MuseScore_General.sf2
   type: sound-recording
   url: ftp://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2
+
+- authors:
+  - family-names: Oliver
+    given-names: Richard
+  title: "Clock Chime Tunes: History and Examples You Can Hear"
+  date-accessed: 2021-09-10
+  url: https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
 
 - section: Percussion notes
   title: LilyPond — Notation Reference v2.22.1 (stable-branch)
@@ -185,5 +207,15 @@ references:
   type: website
   date-accessed: 2021-08-19
   url: https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier
+
+- authors:
+  - family-names: Zahnke
+    given-names: Tyler
+  year: 2020
+  month: 1
+  day: 25
+  title: Hello, I am a totally blind composer, and I'v tweaked LilyPond so it's accessible for me
+  date-accessed: 2021-09-10
+  url: https://www.facebook.com/groups/gnulilypond/permalink/10157912670783529/
 
 # This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/sysline.md, doc/CREDITS.md, README.md, and chimer

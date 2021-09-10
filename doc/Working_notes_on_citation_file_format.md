@@ -163,7 +163,7 @@ APA citation (source: [Night_watches.md](Night_watches.md)):
 > Lin, <span title="Tsung-Yi">T.-Y.</span> (2007).
 > 午時三刻⸺古中國的時間制度
 > [“Three after seven”? Systems for timekeeping in ancient China].
-> <cite>Science Development</cite>, 420, 58–63.
+> <cite>Science Development, 420</cite>, 58–63.
 > Retrieved from https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422
 
 CFF citation, as currently generated:
