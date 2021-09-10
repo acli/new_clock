@@ -16,8 +16,9 @@ applets therefore is no longer an attractive option. Also, because two different
 applets were producing two kinds of unrelated chimes, what we often got was
 “illegible” sonic output. A replacement was in order.
 
-Unlike Javascript (or Python), Perl has no native support for audio.
-The script currently uses [mpv](http://mpv.io) to play audio recordings,
+I chose Perl for the rewrite out of laziness.
+But unlike Javascript (or Python), Perl has no native support for audio.
+The new code currently uses [mpv](http://mpv.io) to play audio recordings,
 and multiple copies of mpv are needed to play a chime melody.
 This is clearly not ideal since resource usage is unpredictable
 so there’s both a danger of thrashing and audio distortion.
@@ -31,7 +32,7 @@ The script’s actual chime melodies have been sourced from Wikipedia
 More melodies are available from Oliver (n.d.) and Harrison (2000),
 but I have not used these additional melodies
 because it is unclear whether any other melody can be used
-(except those that clearly are still copyrighted and therefore cannot be used).
+– except those that clearly are still copyrighted and therefore cannot be used.
 
 According to Wilson (2005, 2006),
 the Whittington chimes actually has nothing to do with Whittington.
