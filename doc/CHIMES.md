@@ -44,19 +44,22 @@ The name “Whittington” only started to take off around 1900.
 
 Chime melody notation
 =====================
-Some sonic notifications
-(carillon mode chime melodies in *synth* mode, night watch announcements, sysline beeps)
+Carillon mode chime melodies
 are currently encoded in a small subset of Lilypond notation,
 partly because encoding melodies as arrays is cumbersome, and
-partly because Lilypond notation might actually be more accessible (Zahnke, 2020).
+partly because Lilypond notation might actually be reasonably accessible (Zahnke, 2020).
+Some other sonic notifications –
+specifically night watch announcements and sysline beeps in *synth* mode –
+are also encoded in this notation.
 
-Conversion from Lilypond notation to the script’s internal data structure is performed by *interpret_melody*.
-The only commands currently understood are **\relative**, **\drums**, **\tempo**, **\tuplex**,
+Before the encoded melodies can be used,
+the code converts them to an internal data structure by calling the function *interpret_melody*.
+This function currently only understands the commands **\relative**, **\drums**, **\tempo**, **\tuplex**,
 **\set Staff.instrumentName = #"Terminal Bell"**
 and basic expressive marks (**\ppp**, **\pp**, **\p**, etc.).
 In particular, **\laisserVibrer** is not understood;
 whether to *laisser vibrer* is currently hard-coded as a hack.
-Ties are understood, but not slurs.
+Ties are understood, but slurs are ignored.
 
 Absolute mode is not supported,
 but the scripts’s understanding of relative mode is not guaranteed to be correct.
