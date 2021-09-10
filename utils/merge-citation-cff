@@ -375,6 +375,11 @@ sub analyze_citations (@) {
 
     # Does it look like we have an author? sigh.
     my $possible_author_list;
+    my $possible_surname_re = q((?:[A-Z][-’A-Za-z]*(?:\s+[A-Z][-’A-Za-z]*)*));
+    my $possible_initials_re = q((?:(?:[A-Z]\.(?:-[A-Z]\.)*\s*)+));
+    my $possible_inverted_name_re = sprintf q((%s),\s+(?:<span title=(?:"([^""<>]+)"|([^<>]+))>(%s)</span>|(%s))),
+	$possible_surname_re, $possible_initials_re, $possible_initials_re; # 5 CAPTURES: last n., given n. 1, given n. 2, initials 1, initials 2
+
     if ($s =~ s/^((?:(?!$date_ref_re_no_captures).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$date_ref_re_no_captures)//s) {
       ($possible_author_list, my $author_type) = ($1);
       ($possible_author_list, $author_type) = ($1, $2) if $possible_author_list =~ /^(.*?), (ed\.)$/;
@@ -382,14 +387,21 @@ sub analyze_citations (@) {
       for (my $i = 0; substr($possible_author_list, $i) =~ /\S/s;) {
 	my $s = substr($possible_author_list, $i);
 	my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $node);
-	if ($s =~ /^\[(.*?)\]\((.*?)\)(?:,|$)/s) {
+	if ($s =~ /^\[$possible_inverted_name_re\]\((.*?)\)(?:,\s*|\s+\&\s*|$)/s) {
+	  ($last_name, $given_names, $initials, $url) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6);
+	  $s = $&;
+	} elsif ($s =~ /^\[(.*?)\]\((.*?)\)\.(?:,\s*|\s+\&\s*|$)/s) { # linkified handle/single name/team name/company name?
 	  ($possible_name, $url) = ($1, $2);
-	} elsif ($s =~ /^\[(.*?)\]\((.*?)\)\.(?:,|$)/s) { # certainly a handle/team name/company name?
-	  ($possible_name, $url) = ($1, $2);
+	  $s = $&;
+	} elsif ($s =~ /^$possible_inverted_name_re(?:,\s*|\s+\&\s*|$)/s) { # unlinkified normal name
+	  ($last_name, $given_names, $initials) = ($1, (defined $2? $2: $3), (defined $4? $4: $5));
+	  $s = $&;
 	} else {
 	  $possible_name = $s;
 	}
-	if ($possible_name =~ /^(.*?), <span title="([^""]+)">((?:\w\.(?:-\w\.)*\s*)+)<\/span>$/) {
+	if (defined $last_name) {
+	  ;
+	} elsif ($possible_name =~ /^(.*?), <span title="([^""]+)">((?:\w\.(?:-\w\.)*\s*)+)<\/span>$/) {
 	  ($last_name, $given_names, $initials) = ($1, $2, $3);
 	} elsif ($possible_name =~ /^(.*?), <span title=([^""<>]+)>((?:\w\.(?:-\w\.)*\s*)+)<\/span>$/) {
 	  ($last_name, $given_names, $initials) = ($1, $2, $3);
@@ -410,13 +422,13 @@ sub analyze_citations (@) {
 	push @people, $node if $node;
 
 	$i += length $s;
-	$i += length $& if substr($s, $i) =~ /^,\s*/;
+	$i += length $& if substr($s, $i) =~ /^(?:,\s+|\s+\&\s+)/;
       }
       $node->{'authors'} = [@people] if @people;
     }
 
     # Does it look like we have a title?
-    if (!defined $node->{'authors'} && $s =~ s/^$date_ref_re\s*(In )?<cite>(.*?)<\/cite>(?:, (?:(\d+)(–(\d+))?|Article (\S+?)))?\.$//s) { # book chapter or encyclopedia/dictionary entry
+    if (!defined $node->{'authors'} && $s =~ s/^$date_ref_re\s*(In )?<cite>(.*?)<\/cite>(?:, (?:(\d+)(–(\d+))?|Article (\S+?)))?\.$//s) { # book chapter or encyclopedia/dictionary entry (no plausible authors)
       my($year, $month, $day, $nd, $serial, $in_p, $in, $start, $end, $elocator) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
       my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?\.$/;
       $node->{'year'} = $year if defined $year;
@@ -444,6 +456,19 @@ sub analyze_citations (@) {
 	  $node->{'end'} = defined $elocator? $elocator: defined $end? $end: $start;
 	}
       }
+    } elsif ($s =~ s/^$date_ref_re\s*<cite>(.*?)<\/cite>(?: \[(.*?)\])?(?:, (?:(\d+)(–(\d+))?|Article (\S+?)))?\. (.*?), (.*?): (.*?)\.$//s) { # a whole book
+      my($year, $month, $day, $nd, $serial, $title, $translated_title, $start, $end, $elocator, $city, $province_or_country, $publisher) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+      my($title, $translated_title) = ($1, $2) if $possible_author_list =~ /^(.*?)(?: \[(.*?)\])?\.$/;
+      $node->{'year'} = $year if defined $year;
+      $node->{'month'} = parse_month $month if defined $month;
+      $node->{'day'} = $day if defined $day;
+      $node->{'title'} = $title;
+      $node->{'title'} .= " [$translated_title]" if defined $translated_title;
+      $node->{'type'} = 'book';
+      if (defined $start || defined $elocator) {
+	$node->{'start'} = defined $elocator? $elocator: $start;
+	$node->{'end'} = defined $elocator? $elocator: defined $end? $end: $start;
+      }
     } elsif ($s =~ s/^$date_ref_re\s*(.*?)(?:\s+\[(.*?)\])?\. <cite>(.*?), (\d+)<\/cite>(?:\((\d+)\))?, (?:(\d+)(?:–(\d+))?|Article (\S+?))\.$//s) { # journal article with a translated title
       my($year, $month, $day, $nd, $serial, $title, $translated_title, $journal, $volume, $issue, $start, $end, $elocator) = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
       ($volume, $issue) = (undef, $volume) if defined $volume && !defined $issue;
@@ -459,6 +484,7 @@ sub analyze_citations (@) {
       $node->{'type'} = 'article';
     } elsif ($s =~ s/^$date_ref_re\s*(.*?)(?: \[(.*)\])?\.$//s) {
       my($year, $month, $day, $nd, $serial, $title, $type) = ($1, $2, $3, $4, $5, $6, $7);
+	print STDERR "XYZZY GOT HERE 2 title=($title)\n";
       $type = convert_apa_type_to_cff_type($type);
       $node->{'year'} = $year if defined $year;
       $node->{'month'} = parse_month $month if defined $month;

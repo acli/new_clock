@@ -12,7 +12,7 @@ These proportional hours had names:
 
 In this system, the five night watches (ˈgaŋ), numbered 1, 2, 3, 4, 5,
 were the hours A, B, C, D, E.
-(“Page:Gujin Tushu Jicheng, Volume 024 (1700-1725).djvu/54”, 2020)
+(Li & Jiang, 2018; cf. “Page:Gujin Tushu Jicheng, Volume 024 (1700-1725).djvu/54”, 2020)
 
 Each watch was subdivided into five equal parts
 which we could call subwatches.
@@ -45,6 +45,12 @@ References
 打更 [Calling out the hour]. (2021).
 <cite>Wikipedia</cite>.
 Retrieved August 17, 2021, from https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028
+
+Li, M. & Jiang, Z. (2018).
+<cite>時光奧秘</cite> [The mystery of time].
+Taipei City, Taiwan: Son Book.
+Retrieved September 10, 2021,
+from https://books.google.ca/books?id=QG-BDwAAQBAJ&pg=PT135&lpg=PT135&dq=%22%E5%8D%81%E6%99%82%E5%88%B6%22&source=bl&ots=ENC5L7th9-&sig=ACfU3U3aJYsGu7cDqL9gC7JllOcae0sQdw&hl=fr&sa=X&ved=2ahUKEwjOqcyp-LTyAhV2FjQIHbhPAXYQ6AF6BQi0AhAD#v=onepage&q=%22%E5%8D%81%E6%99%82%E5%88%B6%22&f=false
 
 Lin, <span title="Tsung-Yi">T.-Y.</span> (2007).
 午時三刻⸺古中國的時間制度
