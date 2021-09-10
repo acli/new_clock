@@ -83,6 +83,9 @@ ideally with the Timbres of Heaven soundfont.
 The synth code always uses only one soundfont (either Timbres of Heaven or FluidR3);
 it is not currently possible to mix-and-match instruments from different soundfonts.
 
+The result of synthesis is saved into an .oga (OGG audio) file in the data directory,
+for later playback using mpv.
+
 The following were noted when synthesis was originally explored:
 - pros: one subprocess only for each sink
 - cons: if we have more than one sink configured, running two copies of fluidsynth at the same time will cause massive distortion.
