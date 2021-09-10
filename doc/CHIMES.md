@@ -29,7 +29,7 @@ Chime melodies
 The script’s actual chime melodies have been sourced from Wikipedia
 (“Westminster Quarters”, 2021; “Whittington chimes”, 2021).
 
-More melodies are available from Oliver (n.d.) and Harrison (2000),
+Oliver (n.d.) and Harrison (2000) have documented many more melodies,
 but I have not used these additional melodies
 because it is unclear whether any other melody can be used
 – except those that clearly are still copyrighted and therefore cannot be used.
