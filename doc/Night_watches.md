@@ -48,9 +48,9 @@ Retrieved August 17, 2021, from https://zh.wikipedia.org/w/index.php?title=%E6%8
 
 Li, M. & Jiang, Z. (2018).
 <cite>時光奧秘</cite> [The mystery of time].
-Taipei City, Taiwan: Son Book.
+Taipei, Taiwan: Son Book.
 Retrieved September 10, 2021,
-from https://books.google.ca/books?id=QG-BDwAAQBAJ&pg=PT135&lpg=PT135&source=bl&ots=ENC5L7th9-&sig=ACfU3U3aJYsGu7cDqL9gC7JllOcae0sQdw&sa=X&ved=2ahUKEwjOqcyp-LTyAhV2FjQIHbhPAXYQ6AF6BQi0AhAD
+from https://books.google.ca/books?id=QG-BDwAAQBAJ&pg=PT135&lpg=PT135
 
 Lin, <span title="Tsung-Yi">T.-Y.</span> (2007).
 午時三刻⸺古中國的時間制度
