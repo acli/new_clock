@@ -2,7 +2,7 @@ Chiming
 =======
 I see chiming clocks as a kind of sonic interface (Li, 2018).
 My original chiming clock reproduced
-the half-hour beeps produced by *sysline* (a now-uncommon Unix
+the half-hour beeps produced by [*sysline*](sysline.md) (a now-uncommon Unix
 program) using Javascript and required a browser to run. At that time,
 WebAudioAPI was still somewhat of a “first-class object” –
 at least some browsers wouldn’t actively sabotage audio. Soon
