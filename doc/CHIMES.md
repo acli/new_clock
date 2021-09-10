@@ -36,8 +36,8 @@ because it is unclear whether any other melody can be used
 
 Chime melody notation
 =====================
-When the script is run in *synth* mode, some sonic notifications
-(carillon mode chime melodies, night watch announcements, and sysline beeps)
+Some sonic notifications
+(carillon mode chime melodies in *synth* mode, night watch announcements, sysline beeps)
 are currently encoded in a small subset of Lilypond notation,
 partly because encoding melodies as arrays is cumbersome, and
 partly because Lilypond notation might actually be more accessible (Zahnke, 2020).
