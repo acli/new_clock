@@ -196,10 +196,10 @@ Whittington chimes. (2021). <cite>Wikipedia</cite>.
 Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189
 
 Wilson, <span title=Steve>S.</span> [@SrWilson]. (2005, February 12). The actual melody
-which became later known as the whittington chimes is much older than the westminster chimes [Forum post].
+which became later known as the whittington chimes is much older than the westminster chimes [Reply to forum post].
 Retrieved September 1, 2021, from https://mb.nawcc.org/threads/when-did-the-whittington-chime-get-developed.17426/
 
-Wilson, <span title=Steve>S.</span> [@SrWilson]. (2006, August 9). I think I know what your clock does [Forum post].
+Wilson, <span title=Steve>S.</span> [@SrWilson]. (2006, August 9). I think I know what your clock does [Reply to forum post].
 Retrieved September 1, 2021, from https://mb.nawcc.org/threads/jauch-grandfather-movement-with-11-note-chime.27915/
 
 Zahnke, <span title=Tyler>T.</span> (2020, January 25).
