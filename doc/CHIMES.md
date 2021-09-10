@@ -16,7 +16,7 @@ could solve the “unwanted audio” problem
 Doing chiming with web applets therefore was no longer an attractive option.
 Also, because two different
 applets were producing two kinds of unrelated chimes,
-“illegible” sonic output often resulted.
+the result was often “illegible” sonic output.
 A replacement was in order.
 
 I chose Perl for the rewrite out of laziness.
@@ -33,8 +33,9 @@ The script’s actual chime melodies have been sourced from Wikipedia
 (“Westminster Quarters”, 2021; “Whittington chimes”, 2021).
 
 Oliver (n.d.) and Harrison (2000) have documented many more melodies,
+including many that in theory should be in the public domain and thus usable;
 but I have not used these additional melodies
-because it is unclear whether any other melody can be used
+because it is unclear whether any of these are in fact in the public domain
 – except those that clearly are still copyrighted and therefore cannot be used.
 
 The Whittington chimes actually has nothing to do with Whittington.
@@ -47,10 +48,10 @@ The name “Whittington” only started to take off around 1900.
 
 Chime melody notation
 =====================
-Carillon mode chime melodies
+The chime melodies for carillon mode
 are currently encoded in a small subset of Lilypond notation,
 partly because encoding melodies as arrays is cumbersome, and
-partly because Lilypond notation might actually be reasonably accessible (Zahnke, 2020).
+partly because Lilypond notation might be reasonably accessible (Zahnke, 2020).
 Some other sonic notifications –
 specifically night watch announcements and sysline beeps in *synth* mode –
 are also encoded in this notation.
@@ -58,7 +59,7 @@ are also encoded in this notation.
 Before the encoded melodies can be used,
 the code converts them to an internal data structure by calling the function *interpret_melody*.
 This function currently only understands the commands **\relative**, **\drums**, **\tempo**, **\tuplex**,
-**\set Staff.instrumentName = #"Terminal Bell"**
+**\set Staff.instrumentName**
 and basic expressive marks (**\ppp**, **\pp**, **\p**, etc.).
 In particular, **\laisserVibrer** is not understood;
 whether to *laisser vibrer* is currently hard-coded as a hack.
