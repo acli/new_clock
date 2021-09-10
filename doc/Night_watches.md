@@ -23,7 +23,8 @@ The system was later realigned to modern duodecimal hour boundaries,
 but it’s superfluous to announce night watches of this later kind
 if we’re already sounding Westminster-style chimes.
 This is why this script follows the older, original system.
-(Also, it’s useful to know “it’s now sundown”, etc.)
+(Also, it’s useful to know “it’s now sundown”
+or “it’s already past the middle of the night”, etc.)
 
 This script uses chimes that follow the patterns described by
 [the Wikipedia article for Chinese night watches](https://zh.wikipedia.org/wiki/打更):
