@@ -44,7 +44,7 @@ volume = Sunday hour 9.5-10.5: 0.1
 volume = hour 22-23: 0.8
 
 ; workdays between office hours
-; days of the week can be specified as U, M, T, W, R, F, S (if you don't get U and R you didn't study at Waterloo :-)
+; days of the week can be specified in Waterloo style as U, M, T, W, R, F, S
 ; if you write 24-hour hh:mm times you don't write the word "hour"
 volume = M-F 9:00-17:00: 0.7
 
