@@ -1397,10 +1397,10 @@ sub play_sound_file ($;$$$) {
 sub strike_gong (;$) {
   my($note) = @_;
   if ($note ne 'r') {
-    $note = 'a#5' if !defined $note || !defined $gong_scale{$note};
     if ($method eq METHOD__SYNTH) {
       send_midi_command sprintf('noteon 0 %d %s', $note_to_midi_number{$note}, $expressive_mark_to_midi_velocity{'ffff'});
     } else {
+      $note = 'a#5' if !defined $note || !defined $gong_scale{$note};
       play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
     }
   }
@@ -1409,10 +1409,10 @@ sub strike_gong (;$) {
 sub strike_bell ($) {
   my($note) = @_;
   if ($note ne 'r') {
-    $note = 'd#5' if !defined $note || !defined $chime_scale{$note};
     if ($method eq METHOD__SYNTH) {
       send_midi_command sprintf('noteon 1 %d %s', $note_to_midi_number{$note}, $expressive_mark_to_midi_velocity{'fff'});
     } else {
+      $note = 'd#5' if !defined $note || !defined $chime_scale{$note};
       play_sound_file sprintf('%s/%s', $datadir, $chime_scale{$note}), 100;
     }
   }
