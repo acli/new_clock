@@ -10,11 +10,14 @@ after I made this first applet, I wrote a second one, based on this
 first one, that announces [night watches](Night_watches.md).
 
 By 2020, the WebAudioAPI scene had become drastically different. Browsers now
-actively suppress audio output, on the misguided idea that this
-could solve the “unwanted audio” problem. Doing chiming with web
-applets therefore is no longer an attractive option. Also, because two different
-applets were producing two kinds of unrelated chimes, what we often got was
-“illegible” sonic output. A replacement was in order.
+actively block audio, on the misguided idea that this
+could solve the “unwanted audio” problem
+(even though things like cookie notices had already rendered audio blocking worse than useless).
+Doing chiming with web applets therefore was no longer an attractive option.
+Also, because two different
+applets were producing two kinds of unrelated chimes,
+“illegible” sonic output often resulted.
+A replacement was in order.
 
 I chose Perl for the rewrite out of laziness.
 But unlike Javascript (or Python), Perl has no native support for audio.
@@ -34,12 +37,12 @@ but I have not used these additional melodies
 because it is unclear whether any other melody can be used
 – except those that clearly are still copyrighted and therefore cannot be used.
 
+The Whittington chimes actually has nothing to do with Whittington.
 According to Wilson (2005, 2006),
-the Whittington chimes actually has nothing to do with Whittington.
-The melody dates from at least the 1700’s
+the melody dates from at least the 1700’s
 and was originally called simply the “chime on 8 bells”,
-even though it was originally a 6-bell chime before later becoming an 8-bell one
-(then an 11-bell version composed specifically for St Mary Le Bow).
+even though it was originally a 6-bell chime
+(an 11-bell version was later composed specifically for St Mary Le Bow).
 The name “Whittington” only started to take off around 1900.
 
 Chime melody notation
