@@ -46,7 +46,7 @@ References
 <cite>Wikipedia</cite>.
 Retrieved August 17, 2021, from https://zh.wikipedia.org/w/index.php?title=%E6%89%93%E6%9B%B4&oldid=65321028
 
-Li, M. & Jiang, Z. (2018).
+Li, M.-N. & Jiang, Z.-Z. (2018).
 <cite>時光奧秘</cite> [The mystery of time].
 Taipei, Taiwan: Son Book.
 Retrieved September 10, 2021,
