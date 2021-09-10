@@ -13,7 +13,7 @@ By 2020, the WebAudioAPI scene had become drastically different. Browsers now
 actively block audio, on the misguided idea that this
 could solve the “unwanted audio” problem
 (even though things like cookie notices had already rendered audio blocking worse than useless).
-Doing chiming with web applets therefore was no longer an attractive option.
+Doing chiming with web applets was no longer an attractive option.
 Also, because two different
 applets were producing two kinds of unrelated chimes,
 the result was often “illegible” sonic output.
@@ -34,8 +34,8 @@ The script’s actual chime melodies have been sourced from Wikipedia
 
 Oliver (n.d.) and Harrison (2000) have documented many more melodies,
 including many that in theory should be in the public domain and thus usable;
-but I have not used these additional melodies
-because it is unclear whether any of these are in fact in the public domain
+but I have not included any of these
+because it is unclear whether which, if any, are in fact in the public domain
 – except those that clearly are still copyrighted and therefore cannot be used.
 
 The Whittington chimes actually has nothing to do with Whittington.
