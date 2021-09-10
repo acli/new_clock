@@ -9,10 +9,10 @@ These proportional hours had names:
   (ˈdziu, ˌjy, ˈdzuŋ, ˈbou, ˍdzik)
 - nighttime hours: A, B, C, D, E
   (ˉgap, ˍjyt, ˊbiŋ, ˈdiŋ, ˍmou)
-  [(no kidding)](https://books.google.ca/books?id=QG-BDwAAQBAJ&pg=PT135&lpg=PT135&dq=%22%E5%8D%81%E6%99%82%E5%88%B6%22&source=bl&ots=ENC5L7th9-&sig=ACfU3U3aJYsGu7cDqL9gC7JllOcae0sQdw&hl=fr&sa=X&ved=2ahUKEwjOqcyp-LTyAhV2FjQIHbhPAXYQ6AF6BQi0AhAD#v=onepage&q=%22%E5%8D%81%E6%99%82%E5%88%B6%22&f=false)
 
 In this system, the five night watches (ˈgaŋ), numbered 1, 2, 3, 4, 5,
 were the hours A, B, C, D, E.
+(“Page:Gujin Tushu Jicheng, Volume 024 (1700-1725).djvu/54”, 2020)
 
 Each watch was subdivided into five equal parts
 which we could call subwatches.
@@ -53,3 +53,7 @@ Lin, <span title="Tsung-Yi">T.-Y.</span> (2007).
 Retrieved from https://ejournal.stpi.narl.org.tw/sd/view?vlId=E8E36F2F-73CB-4924-8F5F-D18489D89422
 <!--or https://scitechvista.nat.gov.tw/Article/C000003/detail?ID=588a04c7-1a5f-46f9-b3a3-f6ce16c3af17-->
 
+Page:Gujin Tushu Jicheng, Volume 024 (1700-1725).djvu/54. (2020).
+In <cite>Wikisource</cite>.
+Retrieved September 10, 2021,
+from https://zh.wikisource.org/w/index.php?title=Page:Gujin_Tushu_Jicheng,_Volume_024_(1700-1725).djvu/54&oldid=1817171
