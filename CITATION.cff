@@ -219,6 +219,24 @@ references:
   url: https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189
 
 - authors:
+  - family-names: Wilson
+    given-names: Steve
+  year: 2005
+  month: 2
+  day: 12
+  title: The actual melody which became later known as the whittington chimes is much older than the westminster chimes
+  url: https://mb.nawcc.org/threads/when-did-the-whittington-chime-get-developed.17426/
+
+- authors:
+  - family-names: Wilson
+    given-names: Steve
+  year: 2006
+  month: 8
+  day: 9
+  title: I think I know what your clock does
+  url: https://mb.nawcc.org/threads/jauch-grandfather-movement-with-11-note-chime.27915/
+
+- authors:
   - name: Yamaha.
   section: Everything You've Ever Wanted to Know About Using MIDI with a Disklavier
   title: Yamaha Disklavier Education Network

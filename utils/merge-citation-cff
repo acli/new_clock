@@ -377,8 +377,9 @@ sub analyze_citations (@) {
     my $possible_author_list;
     my $possible_surname_re = q((?:[A-Z][-’A-Za-z]*(?:\s+[A-Z][-’A-Za-z]*)*));
     my $possible_initials_re = q((?:(?:[A-Z]\.(?:-[A-Z]\.)*\s*)+));
-    my $possible_inverted_name_re = sprintf q((%s),\s+(?:<span title=(?:"([^""<>]+)"|([^<>]+))>(%s)</span>|(%s))),
-	$possible_surname_re, $possible_initials_re, $possible_initials_re; # 5 CAPTURES: last n., given n. 1, given n. 2, initials 1, initials 2
+    my $handle_re = q((?:\s+\[\@?(\w+)\]\.)); # 1 CAPTURE: handle
+    my $possible_inverted_name_re = sprintf q((?:(%s),\s+(?:<span title=(?:"([^""<>]+)"|([^<>]+))>(%s)</span>|(%s))%s?)),
+	$possible_surname_re, $possible_initials_re, $possible_initials_re, $handle_re; # 6 CAPTURES: l/n, g/n 1, g/n 2, init. 1, init. 2, handle
 
     if ($s =~ s/^((?:(?!$date_ref_re_no_captures).)*\.(?:<\/span>)?(?:\]\([^\(\)]+\))?) (?=$date_ref_re_no_captures)//s) {
       ($possible_author_list, my $author_type) = ($1);
@@ -388,13 +389,13 @@ sub analyze_citations (@) {
 	my $s = substr($possible_author_list, $i);
 	my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $node);
 	if ($s =~ /^\[$possible_inverted_name_re\]\((.*?)\)(?:,\s*|\s+\&\s*|$)/s) {
-	  ($last_name, $given_names, $initials, $url) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6);
+	  ($last_name, $given_names, $initials, my $handle, $url) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6, $7);
 	  $s = $&;
 	} elsif ($s =~ /^\[(.*?)\]\((.*?)\)\.(?:,\s*|\s+\&\s*|$)/s) { # linkified handle/single name/team name/company name?
 	  ($possible_name, $url) = ($1, $2);
 	  $s = $&;
 	} elsif ($s =~ /^$possible_inverted_name_re(?:,\s*|\s+\&\s*|$)/s) { # unlinkified normal name
-	  ($last_name, $given_names, $initials) = ($1, (defined $2? $2: $3), (defined $4? $4: $5));
+	  ($last_name, $given_names, $initials, my $handle) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6);
 	  $s = $&;
 	} else {
 	  $possible_name = $s;

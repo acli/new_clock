@@ -33,6 +33,13 @@ but I have not used these additional melodies
 because it is unclear whether any other melody can be used
 (except those that clearly are still copyrighted and therefore cannot be used).
 
+According to Wilson (2005, 2006),
+the Whittington chimes actually has nothing to do with Whittington.
+The melody dates from at least the 1700’s
+and was originally called simply the “chime on 8 bells”,
+even though it was originally a 6-bell chime before later becoming an 8-bell one
+(then an 11-bell version composed specifically for St Mary Le Bow).
+The name “Whittington” only started to take off around 1900.
 
 Chime melody notation
 =====================
@@ -186,6 +193,13 @@ Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Westm
 
 Whittington chimes. (2021). <cite>Wikipedia</cite>.
 Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Whittington_chimes&oldid=1039122189
+
+Wilson, <span title=Steve>S.</span> [@SrWilson]. (2005, February 12). The actual melody
+which became later known as the whittington chimes is much older than the westminster chimes [Forum post].
+Retrieved from https://mb.nawcc.org/threads/when-did-the-whittington-chime-get-developed.17426/
+
+Wilson, <span title=Steve>S.</span> [@SrWilson]. (2006, August 9). I think I know what your clock does [Forum post].
+Retrieved from https://mb.nawcc.org/threads/jauch-grandfather-movement-with-11-note-chime.27915/
 
 Zahnke, <span title=Tyler>T.</span> (2020, January 25).
 Hello, I am a totally blind composer, and I'v tweaked LilyPond so it's accessible for me [Facebook post].
