@@ -1,4 +1,4 @@
-This script sounds Westminster- or Whittington-style chimes every quarter hour.
+This script sounds [Westminster- or Whittington-style chimes](doc/CHIMES.md) every quarter hour.
 Between sundown and sunrise,
 it also sounds chimes every 1/5 of a [Chinese night watch](doc/Night_watches.md) (0.2 proportional decimal hours)
 using traditional chiming patterns for night watches and
