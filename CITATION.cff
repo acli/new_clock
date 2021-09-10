@@ -221,6 +221,7 @@ references:
 - authors:
   - family-names: Wilson
     given-names: Steve
+    alias: SrWilson
   year: 2005
   month: 2
   day: 12
@@ -231,6 +232,7 @@ references:
 - authors:
   - family-names: Wilson
     given-names: Steve
+    alias: SrWilson
   year: 2006
   month: 8
   day: 9

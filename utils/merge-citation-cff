@@ -387,15 +387,15 @@ sub analyze_citations (@) {
       my @people;
       for (my $i = 0; substr($possible_author_list, $i) =~ /\S/s;) {
 	my $s = substr($possible_author_list, $i);
-	my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $node);
+	my($possible_name, $url, $last_name, $given_names, $initials, $single_name, $handle, $node);
 	if ($s =~ /^\[$possible_inverted_name_re\]\((.*?)\)(?:,\s*|\s+\&\s*|$)/s) {
-	  ($last_name, $given_names, $initials, my $handle, $url) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6, $7);
+	  ($last_name, $given_names, $initials, $handle, $url) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6, $7);
 	  $s = $&;
 	} elsif ($s =~ /^\[(.*?)\]\((.*?)\)\.(?:,\s*|\s+\&\s*|$)/s) { # linkified handle/single name/team name/company name?
 	  ($possible_name, $url) = ($1, $2);
 	  $s = $&;
 	} elsif ($s =~ /^$possible_inverted_name_re(?:,\s*|\s+\&\s*|$)/s) { # unlinkified normal name
-	  ($last_name, $given_names, $initials, my $handle) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6);
+	  ($last_name, $given_names, $initials, $handle) = ($1, (defined $2? $2: $3), (defined $4? $4: $5), $6);
 	  $s = $&;
 	} else {
 	  $possible_name = $s;
@@ -419,6 +419,7 @@ sub analyze_citations (@) {
 	$node->{'given-names'} = $given_names if defined $given_names;
 	$node->{'given-names'} = $initials if defined $initials && !defined $given_names;
 	$node->{'name'} = $single_name if defined $single_name;
+	$node->{'alias'} = $handle if defined $handle;
 	$node->{'url'} = $url if defined $url;
 	push @people, $node if $node;
 
