@@ -196,10 +196,10 @@ Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Whitt
 
 Wilson, <span title=Steve>S.</span> [@SrWilson]. (2005, February 12). The actual melody
 which became later known as the whittington chimes is much older than the westminster chimes [Forum post].
-Retrieved from https://mb.nawcc.org/threads/when-did-the-whittington-chime-get-developed.17426/
+Retrieved September 1, 2021, from https://mb.nawcc.org/threads/when-did-the-whittington-chime-get-developed.17426/
 
 Wilson, <span title=Steve>S.</span> [@SrWilson]. (2006, August 9). I think I know what your clock does [Forum post].
-Retrieved from https://mb.nawcc.org/threads/jauch-grandfather-movement-with-11-note-chime.27915/
+Retrieved September 1, 2021, from https://mb.nawcc.org/threads/jauch-grandfather-movement-with-11-note-chime.27915/
 
 Zahnke, <span title=Tyler>T.</span> (2020, January 25).
 Hello, I am a totally blind composer, and I'v tweaked LilyPond so it's accessible for me [Facebook post].
