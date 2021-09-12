@@ -228,7 +228,7 @@ sub log_debug   ($) { log_internal '#', $_[0], 'DEBUG', 1, 1 }
 sub log_info    ($) { log_internal '#', $_[0], undef,   0, 1 }
 sub log_error   ($) { log_internal '#', $_[0], 'ERROR', 1, 1 }
 sub log_warning ($) { log_internal '#', $_[0], 'WARNING', 1, 1 }
-sub log_command (@) { log_debug 'running: '. join(' ', map { s/([\\"])/\\\1/sg if /\s/; /\s/? "\"$_\"": $_ } @_) }
+sub log_command (@) { log_debug 'running: '. join(' ', map { s/([\\"])/\\\1/sg if /\s/; /\s|^$/? "\"$_\"": $_ } @_) }
 
 
 =pod
