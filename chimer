@@ -236,16 +236,19 @@ sub log_command (@) { log_debug 'running: '. join(' ', map { s/([\\"])/\\\1/sg i
 =head2 Chime melodies
 
 Each chime melody is internally represented as an array of
-B<[>I<midi note name>, I<time in seconds>, I<percentage volume>B<]> entries,
+B<[>I<midi note name>, I<time in seconds>, I<percentage volume>, I<instrument>B<]> entries
+(I<instrument> can be undef),
 but written as calls to I<interpret_quarters> which takes 6 parameters:
 the length of a beat in seconds, first quarter, second quarter, third quarter, fourth quarter,
 definitions for the quarters.
 
-As many definitions as needed can be included, but each definition I<must> be of the form
+As many definitions as needed can be included, but each definition I<must> be of the form of either of
 
 =over
 
 I<var> = B<\relative> I<pitch> B<{> I<melody> B<}>
+
+I<var> = B<\drums> B<{> I<melody> B<}>
 
 =back
 
