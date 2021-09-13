@@ -587,6 +587,7 @@ sub interpret_watch ($$$$$) {
 use vars qw( %melody );
 %melody = (
   &MELODY__CANTERBURY => interpret_quarters(1, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 14)
+      # The score given by Starmer is a Gregorian chant, so note lengths are meaningless. We need to interpret it or the music will sound dead
       q( A = \relative c' { \ff g'8. a c4. }),
       q( B = \relative c' { \ff g'8. a c4. r4 d8. c b c2 }),
       q( C = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. }),
