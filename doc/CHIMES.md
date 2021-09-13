@@ -35,13 +35,12 @@ and an out-of-copyright paper by Starmer (1907).
 
 The Whittington chimes actually has nothing to do with Whittington.
 According to Wilson (2005, 2006),
-the melody dates from at least the 1700’s
-and was originally called simply the “chime on 8 bells”,
+the melody was originally called simply the “chime on 8 bells”,
 even though it was originally a 6-bell chime
-(actual composition since lost).
+(actual composition lost).
 The name “Whittington” only started to take off around 1900.
 An 11-bell version, later composed specifically for St Mary Le Bow,
-can be found in Starmer (1907, p. 5).
+is described by Starmer (1907, p. 5).
 
 Chime melody notation
 =====================
