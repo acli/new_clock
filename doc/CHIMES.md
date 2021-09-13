@@ -32,12 +32,6 @@ Chime melodies
 The script’s actual chime melodies have been sourced from Wikipedia
 (“Westminster Quarters”, 2021; “Whittington chimes”, 2021).
 
-Oliver (n.d.) and Harrison (2000) have documented many more melodies,
-including many that in theory should be in the public domain and thus usable;
-but I have not included any of these
-because it is unclear which, if any, are in fact in the public domain
-– except those that clearly are still copyrighted and therefore cannot be used.
-
 The Whittington chimes actually has nothing to do with Whittington.
 According to Wilson (2005, 2006),
 the melody dates from at least the 1700’s
@@ -45,6 +39,13 @@ and was originally called simply the “chime on 8 bells”,
 even though it was originally a 6-bell chime
 (an 11-bell version was later composed specifically for St Mary Le Bow).
 The name “Whittington” only started to take off around 1900.
+The 6-bell melody is probably lost but
+the 11-bell version can be found in Starmer (1907, p. 5).
+
+Since Starmer (1907) and all melodies described
+should be in the public domain,
+melodies for the 11-bell version of Whittington (`melody = whittington12`)
+and the Magdalen chimes (`melody = magdalen`) have been added.
 
 Chime melody notation
 =====================
@@ -199,6 +200,8 @@ Oliver, <span title=Richard>R.</span> (n.d.).
 Clock Chime Tunes: History and Examples You Can Hear.
 Retrieved September 10, 2021, from https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
 
+Starmer, W. W. (1907, November 19). Chimes. <cite>Proceedings of the Musical Association</cite>.
+Retrieved from https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf
 Westminster Quarters. (2021). <cite>Wikipedia</cite>.
 Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
 

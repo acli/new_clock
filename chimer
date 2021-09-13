@@ -119,8 +119,10 @@ sub MODE__CARILLON  () { 'carillon' }
 sub METHOD__SAMPLES () { 'samples' }
 sub METHOD__SYNTH   () { 'synth' }
 
-sub MELODY__WESTMINSTER () { 'westminster' }
-sub MELODY__WHITTINGTON () { 'whittington' }
+sub MELODY__MAGDALEN      () { 'magdalen' }
+sub MELODY__WESTMINSTER   () { 'westminster' }
+sub MELODY__WHITTINGTON   () { 'whittington' }
+sub MELODY__WHITTINGTON12 () { 'whittington12' }
 
 use vars qw( $mode $method $melody );
 $mode   = MODE__CARILLON;
@@ -201,11 +203,6 @@ use vars qw( %gong_scale %chime_scale );
   'e5'	=> 'chimes_E2.ogg',
   'f5'	=> 'chimes_F2.ogg',
 );
-
-use vars qw( $strike );
-$strike = [
-    ['e3', 2], # both Wikipedia and clockguy say this should be a 4, but that would make h12 last 48 seconds, which isn't good
-  ];
 
 use vars qw( $last_logged );
 sub log_internal ($$;$$$) {
@@ -467,6 +464,8 @@ sub interpret_melody ($$) {
       $tie_p = 1;
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
       $unit_beat = ($1*60)/(4*$2);
+    } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
+      ;
     } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
       $unit_beat *= $2;
       $unit_beat /= $1;
@@ -542,11 +541,11 @@ sub interpret_melody ($$) {
       join(' ', map { $_->[0] . ($_->[1] == $unit_beat? '': sprintf('(%s)', $_->[1]/$unit_beat)) } @$it) if $debug;
   return $it;
 }
-sub interpret_quarters ($$$$$@) {
-  my($beat_length, $q1_spec, $q2_spec, $q3_spec, $q4_spec, @elements) = @_;
+sub interpret_quarters ($$$$$$@) {
+  my($beat_length, $q1_spec, $q2_spec, $q3_spec, $q4_spec, $strike_spec, @elements) = @_;
   my $it;
   my %elements = map { /^\s*(\w+)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
-  for my $spec ($q4_spec, $q1_spec, $q2_spec, $q3_spec) {
+  for my $spec ($q4_spec, $q1_spec, $q2_spec, $q3_spec, $strike_spec) {
     my @node;
     for my $ref (split(/\s*/, $spec)) {
       die "interpret_quarters: $spec: Unknown reference $ref\n" unless defined $elements{$ref};
@@ -581,20 +580,34 @@ sub interpret_watch ($$$$$) {
 
 use vars qw( %melody );
 %melody = (
-  &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F',
+  &MELODY__MAGDALEN => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 10)
+      q( A = \relative c' { \ff b'4 c }),
+      q( B = \relative c' { \ff b'4 c c, g' }),
+      q( C = \relative c' { \ff g'4 a f e a d, }),
+      q( D = \relative c' { \ff g'4 a f e a d, b' c }),
+      q( S = \relative c' { \fff c1 })),
+  &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F', 'S',
       q( A = \relative e' { \fff gis4 fis e b2  }),
       q( B = \relative e' { \fff e4 gis fis b,2 }),
       q( C = \relative e' { \fff e4 fis gis e2  }),
       q( D = \relative e' { \fff gis4 e fis b,2 }),
       q( E = \relative e' { \fff b4 fis' gis e2 }),
+      q( S = \relative e' { \fff e,2 }),
       q( F = \relative e' { r1 })),
-  &MELODY__WHITTINGTON => interpret_quarters(0.625, 'E', 'AB', 'CDE', 'ABCD F',	# 0.5 sounds way to rushed, but 0.75 sounds too slow
+  &MELODY__WHITTINGTON => interpret_quarters(0.625, 'E', 'AB', 'CDE', 'ABCD F', 'S',	# 0.5 sounds way to rushed, but 0.75 sounds too slow
       q( A = \relative e' { \ff e'8. fis, dis' gis,4 cis8. a b e,2..            }),
       q( B = \relative e' { \ff e'8. cis a fis4 dis'8. b gis e2..               }),
       q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2..                }),
       q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2..                 }),
       q( E = \relative e' { \ff \tuplet 22/21 { e'8. dis cis b a gis fis } e2.. }),
+      q( S = \relative e' { \fff e,2 }),
       q( F = \relative e' { r8 })),
+  &MELODY__WHITTINGTON12 => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 5)
+      q( A = \relative c' { \ff c'4 g' f e }),
+      q( B = \relative c' { \ff c'4 g' f e g d }),
+      q( C = \relative c' { \ff a'4 g f e g d' c e d }),
+      q( D = \relative c' { \ff c'4 g' f e g d c a f e g d }),
+      q( S = \relative c' { \fff c1 })),
 ) unless caller;
 unless (caller) {
   $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
@@ -1191,7 +1204,7 @@ sub get_cache_pathname_for_event ($) {
     $id =~ s/^(w\d)\.[1-4]$/\1/s unless defined $chime{$id}; # we don't really distinguish between most of the subwatches
     $id =~ s/^(h)\d+$/\1/sg if $mode eq MODE__SYSLINE; # we don't really distinguish between hours for sysline
     $it .= "$mode-" unless $id =~ /^w/;
-    $it .= "\L$melody-" if $id =~ /^q/ && $mode eq MODE__CARILLON;
+    $it .= "\L$melody-" if $id =~ /^[qh]/ && $mode eq MODE__CARILLON;
   }
   $it .= "$id.oga";
   return $it;
@@ -1521,6 +1534,7 @@ sub announce_quarter_hour ($) {
 
 sub announce_hour_by_carillon ($) {
   my($hour) = @_;
+  my $strike = $melody{$melody}->[4]; # FIXME
   my @tune = (@$strike) x $hour;
   strike_tune @tune;
 }
@@ -1538,7 +1552,6 @@ sub announce_hour_by_cuckoo ($) {
 
 sub announce_hour_by_sysline_beeps ($) {
   my($hour) = @_;
-  my @tune = (@$strike) x $hour;
   strike_tune @{$chime{'sysline'}}; # it's always just one beep
 }
 
@@ -1689,10 +1702,13 @@ sub parse_command_line_arguments () {
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
     'test' => sub { set_test_params },
-    'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; exit do_event($_[1]) },
+    'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; do_event($_[1]);
+	exit disconnect_synth },
     'test-scale' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH;
-	exit strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]) },
-    'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; exit strike_tune @{interpret_melody($_[1], 1)} },
+	strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]);
+	exit disconnect_synth },
+    'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; strike_tune @{interpret_melody($_[1], 1)};
+	exit disconnect_synth },
     'v|verbose' => \$verbose_p,
     'help' => \&usage,
   ) || usage(1);
@@ -1786,6 +1802,7 @@ if (!caller) {
   parse_command_line_arguments;
   do_setup;
   do_main_loop unless $quit_p;
+  disconnect_synth;
 }
 
 =pod
