@@ -200,7 +200,7 @@ Oliver, <span title=Richard>R.</span> (n.d.).
 Clock Chime Tunes: History and Examples You Can Hear.
 Retrieved September 10, 2021, from https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
 
-Starmer, W. W. (1907, November 19). Chimes. <cite>Proceedings of the Musical Association, 34</cite>, 1–24.
+Starmer, <span title="William Wooding">W. W.</span> (1907, November 19). Chimes. <cite>Proceedings of the Musical Association, 34</cite>, 1–24.
 Retrieved from https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf
 
 Westminster Quarters. (2021). <cite>Wikipedia</cite>.
