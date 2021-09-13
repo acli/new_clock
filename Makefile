@@ -21,6 +21,9 @@ data/%.mp3: raw/%.wav config/%.volume
 data/%: raw/%
 	ln $< $@
 
+%.pdf: %.ly
+	lilypond $<
+
 CITATION.cff: config/CITATION.cff.in doc/*.md README.md utils/merge-citation-cff chimer
 	utils/merge-citation-cff $(filter-out utils/%,$^) > $@
 

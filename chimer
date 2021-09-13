@@ -119,7 +119,10 @@ sub MODE__CARILLON  () { 'carillon' }
 sub METHOD__SAMPLES () { 'samples' }
 sub METHOD__SYNTH   () { 'synth' }
 
+sub MELODY__CANTERBURY    () { 'canterbury' }
+sub MELODY__GUILDFORD     () { 'guildford' }
 sub MELODY__MAGDALEN      () { 'magdalen' }
+sub MELODY__NORWICH       () { 'norwich' }
 sub MELODY__WESTMINSTER   () { 'westminster' }
 sub MELODY__WHITTINGTON   () { 'whittington' }
 sub MELODY__WHITTINGTON12 () { 'whittington12' }
@@ -466,6 +469,8 @@ sub interpret_melody ($$) {
       $unit_beat = ($1*60)/(4*$2);
     } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
       ;
+    } elsif ($s =~ s/^\\breathe\s+//s) {	# ignore breath marks for now
+      ;
     } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
       $unit_beat *= $2;
       $unit_beat /= $1;
@@ -580,12 +585,30 @@ sub interpret_watch ($$$$$) {
 
 use vars qw( %melody );
 %melody = (
+  &MELODY__CANTERBURY => interpret_quarters(1, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 14)
+      q( A = \relative c' { \ff g'8. a c4. }),
+      q( B = \relative c' { \ff g'8. a c4. r4 d8. c b c2 }),
+      q( C = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. }),
+      q( D = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. r8 a8. c d c2 }),
+      q( S = \relative c' { \fff cis1 })),
+  &MELODY__GUILDFORD => interpret_quarters(0.75, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 10)
+      q( A = \relative c' { \ff c'2 e,4 a | g1 }),
+      q( B = \relative c' { \ff e4 g c b | d, f a g | e1 }),
+      q( C = \relative c' { \ff c'4 g a e | f d g e | a f g b | c1 }),
+      q( D = \relative c' { \ff c4 g' e c' | b4. a8 g4 e | f a d, g | e2. f4 | g4 c b a | g e c c' | b g a e | g1 }),
+      q( S = \relative c' { \fff c1 })),
   &MELODY__MAGDALEN => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 10)
       q( A = \relative c' { \ff b'4 c }),
       q( B = \relative c' { \ff b'4 c c, g' }),
       q( C = \relative c' { \ff g'4 a f e a d, }),
       q( D = \relative c' { \ff g'4 a f e a d, b' c }),
       q( S = \relative c' { \fff c1 })),
+  &MELODY__NORWICH => interpret_quarters(0.20, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 11)
+      q( A = \relative c' { \ff a'1 g f e d }),
+      q( B = \relative c' { \ff d1 e a g f  | g d f e d }),
+      q( C = \relative c' { \ff d1 e f a d, | f a g e f | d e g f d }),
+      q( D = \relative c' { \ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' }),
+      q( S = \relative c' { \fff r1 d1 })),				# rest inserted to make it sound less rushed
   &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F', 'S',
       q( A = \relative e' { \fff gis4 fis e b2  }),
       q( B = \relative e' { \fff e4 gis fis b,2 }),
@@ -606,7 +629,7 @@ use vars qw( %melody );
       q( A = \relative c' { \ff c'4 g' f e }),
       q( B = \relative c' { \ff c'4 g' f e g d }),
       q( C = \relative c' { \ff a'4 g f e g d' c e d }),
-      q( D = \relative c' { \ff c'4 g' f e g d c a f e g d }),
+      q( D = \relative c' { \ff c'4 g' f e g d c a f e g d r8 }),	# rest inserted to make the hour strike sound less abrupt
       q( S = \relative c' { \fff c1 })),
 ) unless caller;
 unless (caller) {
@@ -965,15 +988,15 @@ sub determine_chinese_time ($) {
 sub determine_prechime_length ($$) {
   my($quarter, $default) = @_;
   my $it = $default;
-  my $melody;
+  my $tune;
   if ($mode eq MODE__CARILLON && defined $melody{$melody}) {
-    $melody = $melody{$melody}->[$quarter%4];
+    $tune = $melody{$melody}->[$quarter%4];
   } elsif (defined $chime{$mode}) {
-    $melody = $chime{$mode};
+    $tune = $chime{$mode};
   }
-  if (defined $melody) {
+  if (defined $tune) {
     $it = 0;
-    for my $note (@$melody) {
+    for my $note (@$tune) {
       no integer;
       $it += $note->[1];
     }
@@ -1598,6 +1621,7 @@ sub announce_night_watch ($$) {
 sub do_event ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
+  log_debug sprintf "Cache file %s %s", $output, (-f $output? 'exists': 'does not exist') if $debug;
   if ($method eq METHOD__SYNTH && -f $output) {
     play_sound_file $output, 100;
   } elsif ($id =~ /^q(\d+)$/) {		# quarter hour chime
