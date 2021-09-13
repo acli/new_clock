@@ -638,10 +638,6 @@ use vars qw( %melody );
       q( D = \relative c' { \ff c'4 g' f e g d c a f e g d r8 }),	# rest inserted to make the hour strike sound less abrupt
       q( S = \relative c' { \fff c1 })),
 ) unless caller;
-unless (caller) {
-  $melody{'cambridge'} = $melody{&MELODY__WESTMINSTER};
-  $melody{'st mary'} = $melody{&MELODY__WHITTINGTON};
-}
 
 use vars qw( %chime );
 %chime = (
