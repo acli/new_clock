@@ -60,6 +60,7 @@ and basic expressive marks (**\ppp**, **\pp**, **\p**, etc.).
 In particular, **\laisserVibrer** is not understood;
 whether to *laisser vibrer* is currently hard-coded as a hack.
 Ties are understood, but slurs are ignored.
+**\breathe** and **\time** are ignored.
 
 Absolute mode is not supported,
 but the scripts’s understanding of relative mode is not guaranteed to be correct.
