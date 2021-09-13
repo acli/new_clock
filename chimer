@@ -123,6 +123,7 @@ sub MELODY__CANTERBURY    () { 'canterbury' }
 sub MELODY__GUILDFORD     () { 'guildford' }
 sub MELODY__MAGDALEN      () { 'magdalen' }
 sub MELODY__NORWICH       () { 'norwich' }
+sub MELODY__TINGTANG      () { 'tingtang' }
 sub MELODY__WESTMINSTER   () { 'westminster' }
 sub MELODY__WHITTINGTON   () { 'whittington' }
 sub MELODY__WHITTINGTON12 () { 'whittington12' }
@@ -603,6 +604,10 @@ use vars qw( %melody );
       q( C = \relative c' { \ff g'4 a f e a d, }),
       q( D = \relative c' { \ff g'4 a f e a d, b' c }),
       q( S = \relative c' { \fff c1 })),
+  &MELODY__TINGTANG => interpret_quarters(0.625, 'A', 'ABA', 'ABABA', 'ABABABABB', 'S',	# source: Starmer (1907, p. 4, option 3a)
+      q( A = \relative c' { \ff c'4 a }),
+      q( B = \relative c' { r4 }),
+      q( S = \relative c' { \fff f1 })),
   &MELODY__NORWICH => interpret_quarters(0.20, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 11)
       q( A = \relative c' { \ff a'1 g f e d }),
       q( B = \relative c' { \ff d1 e a g f  | g d f e d }),
@@ -1682,7 +1687,7 @@ Options for debugging:
 
       --debug                 Produce debugging output
       --test                  Continue with test parameters
-      --test-event ID         Fire event identified by ID, then exit
+      --test-event ID[,ID...] Fire event identified by ID, then exit
       --test-scale            Play the major scale from c4 to c5, if possible
 EOF
   print $h <<EOF;
@@ -1726,7 +1731,7 @@ sub parse_command_line_arguments () {
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
     'test' => sub { set_test_params },
-    'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; do_event($_[1]);
+    'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; for my $e (split(/,\s*/, $_[1])) { do_event $e };
 	exit disconnect_synth },
     'test-scale' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH;
 	strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]);
