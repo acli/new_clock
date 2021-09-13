@@ -33,14 +33,15 @@ The script’s actual chime melodies have been sourced from Wikipedia
 (“Westminster Quarters”, 2021; “Whittington chimes”, 2021)
 and an out-of-copyright paper by Starmer (1907).
 
-The Whittington chimes actually has nothing to do with Whittington.
+The Whittington chimes actually has nothing to do with Whittington,
+since they were clearly already in use when Whittington allegedly heard them.
 According to Wilson (2005, 2006),
 the melody was originally called simply the “chime on 8 bells”,
 even though it was originally a 6-bell chime
 (actual composition lost).
 The name “Whittington” only started to take off around 1900.
 An 11-bell version, later composed specifically for St Mary Le Bow,
-is described by Starmer (1907, p. 5).
+was based on what was still known about the 6-bell version (Starmer, 1907, p. 5).
 
 Chime melody notation
 =====================
