@@ -30,22 +30,18 @@ so there’s both a danger of thrashing and audio distortion.
 Chime melodies
 ==============
 The script’s actual chime melodies have been sourced from Wikipedia
-(“Westminster Quarters”, 2021; “Whittington chimes”, 2021).
+(“Westminster Quarters”, 2021; “Whittington chimes”, 2021)
+and an out-of-copyright paper by Starmer (1907).
 
 The Whittington chimes actually has nothing to do with Whittington.
 According to Wilson (2005, 2006),
 the melody dates from at least the 1700’s
 and was originally called simply the “chime on 8 bells”,
 even though it was originally a 6-bell chime
-(an 11-bell version was later composed specifically for St Mary Le Bow).
+(actual composition since lost).
 The name “Whittington” only started to take off around 1900.
-The 6-bell melody is probably lost but
-the 11-bell version can be found in Starmer (1907, p. 5).
-
-Since Starmer (1907) and all melodies described
-should be in the public domain,
-melodies for the 11-bell version of Whittington (`melody = whittington12`)
-and the Magdalen chimes (`melody = magdalen`) have been added.
+An 11-bell version, later composed specifically for St Mary Le Bow,
+can be found in Starmer (1907, p. 5).
 
 Chime melody notation
 =====================
