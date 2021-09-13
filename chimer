@@ -104,6 +104,9 @@ $beat_length = 1;
 use vars qw( $boottime );
 $boottime = Time::HiRes::time;
 
+use vars qw( $time_displacement );
+sub current_time () { no integer; Time::HiRes::time + $time_displacement }
+
 use vars qw( $basedir $datadir );
 $basedir = $1 if $0 =~ /^(.*?)\/+[^\/]+$/;
 $basedir =~ s/(?:^|\/+)bin$//;
@@ -218,7 +221,7 @@ sub log_internal ($$;$$$) {
   $prefix .= ': ' if defined $prefix && $prefix =~ /\S/s && $prefix !~ /: $/s;
   chomp $s;
   printf STDERR "%s%10.2f%s\t%s%s%s%s", ($newline_p? "\n": ''),
-      Time::HiRes::time, $flag, $prefix, $s, ($newline_p? '': "\033[K"), "\r";
+      current_time, $flag, $prefix, $s, ($newline_p? '': "\033[K"), "\r";
 
   $last_logged->{'keep'} = $keep_p + 0;
 }
@@ -591,7 +594,7 @@ use vars qw( %melody );
       q( A = \relative c' { \ff g'8. a c4. }),
       q( B = \relative c' { \ff g'8. a c4. r4 d8. c b c2 }),
       q( C = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. }),
-      q( D = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. r8 a8. c d c2 }),
+      q( D = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. r8 a8. c d c2 r4 }),	# rest inserted
       q( S = \relative c' { \fff cis1 })),
   &MELODY__GUILDFORD => interpret_quarters(0.75, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 10)
       q( A = \relative c' { \ff c'2 e,4 a | g1 }),
@@ -603,7 +606,7 @@ use vars qw( %melody );
       q( A = \relative c' { \ff b'4 c }),
       q( B = \relative c' { \ff b'4 c c, g' }),
       q( C = \relative c' { \ff g'4 a f e a d, }),
-      q( D = \relative c' { \ff g'4 a f e a d, b' c }),
+      q( D = \relative c' { \ff g'4 a f e a d, b' c | r }),		# rest inserted
       q( S = \relative c' { \fff c1 })),
   &MELODY__TINGTANG => interpret_quarters(0.625, 'A', 'ABA', 'ABABA', 'ABABABABB', 'S',	# source: Starmer (1907, p. 4, option 3a)
       q( A = \relative c' { \ff c'4 a }),
@@ -613,8 +616,8 @@ use vars qw( %melody );
       q( A = \relative c' { \ff a'1 g f e d }),
       q( B = \relative c' { \ff d1 e a g f  | g d f e d }),
       q( C = \relative c' { \ff d1 e f a d, | f a g e f | d e g f d }),
-      q( D = \relative c' { \ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' }),
-      q( S = \relative c' { \fff r1 d1 })),				# rest inserted to make it sound less rushed
+      q( D = \relative c' { \ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }),
+      q( S = \relative c' { \fff r1. d1 })),				# rest inserted to make it sound less rushed
   &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F', 'S',
       q( A = \relative e' { \fff gis4 fis e b2  }),
       q( B = \relative e' { \fff e4 gis fis b,2 }),
@@ -623,14 +626,14 @@ use vars qw( %melody );
       q( E = \relative e' { \fff b4 fis' gis e2 }),
       q( S = \relative e' { \fff e,2 }),
       q( F = \relative e' { r1 })),
-  &MELODY__WHITTINGTON => interpret_quarters(0.625, 'E', 'AB', 'CDE', 'ABCD F', 'S',	# 0.5 sounds way to rushed, but 0.75 sounds too slow
-      q( A = \relative e' { \ff e'8. fis, dis' gis,4 cis8. a b e,2..            }),
-      q( B = \relative e' { \ff e'8. cis a fis4 dis'8. b gis e2..               }),
-      q( C = \relative e' { \ff e'8. dis a gis4 cis8. b fis e2..                }),
-      q( D = \relative e' { \ff fis8. a cis e4 dis8. b gis e2..                 }),
-      q( E = \relative e' { \ff \tuplet 22/21 { e'8. dis cis b a gis fis } e2.. }),
+  &MELODY__WHITTINGTON => interpret_quarters(0.625, 'E', 'AB', 'CDE', 'ABCD F', 'S',
+      q( A = \relative e' { \ff e'4 fis, dis' gis, cis a b e, }),
+      q( B = \relative e' { \ff e'4 cis a fis dis' b gis e }),
+      q( C = \relative e' { \ff e'4 dis a gis cis b fis e }),
+      q( D = \relative e' { \ff fis4 a cis e dis b gis e }),
+      q( E = \relative e' { \ff e'4 dis cis b a gis fis e }),
       q( S = \relative e' { \fff e,2 }),
-      q( F = \relative e' { r8 })),
+      q( F = \relative e' { r4 })),
   &MELODY__WHITTINGTON12 => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 5)
       q( A = \relative c' { \ff c'4 g' f e }),
       q( B = \relative c' { \ff c'4 g' f e g d }),
@@ -1240,7 +1243,7 @@ sub send_midi_command ($) {
   log_output $cmd if $debug || $verbose_p;
   if (defined $synth) {
     $synth->send($cmd);
-    $synth->{'.last-note'} = Time::HiRes::time if $cmd =~ /\bnoteon\b/; # XXX
+    $synth->{'.last-note'} = current_time if $cmd =~ /\bnoteon\b/; # XXX
   } else { # cached synth output disappeared
     log_error "trying to send midi command while synth is not connected";
   }
@@ -1479,13 +1482,13 @@ sub strike_tune (@) {
   log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
   no integer;
   my $semitones = 8;
-  my $t0 = Time::HiRes::time;
+  my $t0 = current_time;
   my $elapsed = 0;
   my @midi_commands;
   for my $spec (@tune) {
     my($note, $time, $velocity, $instrument) = @$spec;
     $velocity = 127 unless defined $velocity; # NOTE backward compatibility
-    my $t_i = Time::HiRes::time;
+    my $t_i = current_time;
     my $note_length = $time * $beat_length;
     if ($method eq METHOD__SYNTH) {
       if (defined $percussion_note_to_midi_number{$note}) {
@@ -1508,13 +1511,13 @@ sub strike_tune (@) {
     }
     # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
     # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
-    my $dt = $t0 + $elapsed + $note_length - Time::HiRes::time;
+    my $dt = $t0 + $elapsed + $note_length - current_time;
     Time::HiRes::sleep $dt if $method ne METHOD__SYNTH && $dt > 0;
     $elapsed += $note_length;
   }
   if ($method eq METHOD__SYNTH) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
     @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
-    $t0 = Time::HiRes::time; # reset start time
+    $t0 = current_time; # reset start time
     for (my $i = 0;; $i += 1) {
       my($t, $midi_command) = @{$midi_commands[$i]};
       send_midi_command $midi_command;
@@ -1686,6 +1689,7 @@ Options for debugging:
       --test                  Continue with test parameters
       --test-event ID[,ID...] Fire event identified by ID, then exit
       --test-scale            Play the major scale from c4 to c5, if possible
+  -W, --what-if=TIME          Continue as if current time were TIME
 EOF
   print $h <<EOF;
 
@@ -1699,6 +1703,8 @@ EOF
 ###############################################################################
 
 sub parse_command_line_arguments () {
+  my $what_if;
+
   select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
 
   # SIGCHLD handler must be IGNORE, otherwise Time::HiRes::sleep will fail randomly
@@ -1736,18 +1742,48 @@ sub parse_command_line_arguments () {
     'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; strike_tune @{interpret_melody($_[1], 1)};
 	exit disconnect_synth },
     'v|verbose' => \$verbose_p,
+    'W|what-if=s' => \$what_if,
     'help' => \&usage,
   ) || usage(1);
+
+  if (defined $what_if) {
+    no integer;
+    if ($what_if =~ /^[-+]\d+(?:\.\d+)?$/) {
+      $time_displacement = $what_if + 0;
+    } elsif ($what_if =~ /^\d+(?:\.\d+)?$/) {
+      $time_displacement = $what_if - Time::HiRes::time;
+
+      # update the restart command
+      my $found_p = 0;
+      for (my $i = 0; $i < @restart_cmd; $i += 1) {
+	log_debug $restart_cmd[$i];
+	if ($i && $restart_cmd[$i - 1] =~ /^(?:-w|--what-if)$/ && $restart_cmd[$i] eq $what_if) {
+	  $restart_cmd[$i] = sprintf('%+f', $time_displacement);
+	  $found_p = 1;
+	} elsif ($restart_cmd[$i] =~ /^(--what-if)=$what_if$/) {
+	  $restart_cmd[$i] = sprintf('%s=%+f', $1, $time_displacement);
+	  $found_p = 1;
+	}
+      last if $found_p;
+      }
+      die "$0: Internal error: Could not update restart command\n" unless $found_p;
+    } else {
+      die "$0: $what_if: Time displacement must be specified as either absolute Unix time or as +seconds / -seconds\n";
+    }
+  }
 }
 
 sub do_setup () {
-  log_info sprintf "chimer booted at %.2f in %s mode%s using %s", $boottime, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method if $verbose_p || $debug;
+  log_info sprintf "chimer booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
+	$boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
+      if $verbose_p || $debug;
+
   generate_sound_clips if $method eq METHOD__SYNTH;
 }
 
 sub do_main_loop () {
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
-    my $t0 = Time::HiRes::time;
+    my $t0 = current_time;
     my $c = determine_chinese_time $t0;
     ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
     (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
@@ -1781,7 +1817,7 @@ sub do_main_loop () {
     @event = sort { $a->{'t'} + $a->{'delay'} <=> $b->{'t'} + $b->{'delay'} } map { $pending_events{$_} } keys %pending_events;
 
     # Determine when we should wake up; try to make some effort to align it to a second boundary
-    my $t1 = Time::HiRes::time;
+    my $t1 = current_time;
     my $dt0 = $event[0]->{'t'} - $t1;
     my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
     my $dt = $t_next - $t1;
@@ -1792,11 +1828,11 @@ sub do_main_loop () {
 	$t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
 	join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
 
-    my $t2 = Time::HiRes::time;
+    my $t2 = current_time;
     Time::HiRes::sleep $dt;
 
     # Check if any event should be fired
-    my $now = Time::HiRes::time;
+    my $now = current_time;
     my $dt_actual = $now - $t2;
     log_warning sprintf "tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
     for my $id (keys %pending_events) {

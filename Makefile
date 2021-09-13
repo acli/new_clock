@@ -1,10 +1,13 @@
 # vi: set ai sm:
 mp3_targets=$(patsubst raw/%.wav,data/%.mp3,$(wildcard raw/*.wav))
 ogg_targets=$(patsubst raw/%,data/%,$(wildcard raw/*.ogg))
+pdf_targets=$(patsubst %.ly,%.pdf,$(wildcard doc/*.ly))
 
 targets=$(mp3_targets) $(ogg_targets) CITATION.cff
 
 all: $(targets)
+
+doc: $(pdf_targets)
 
 clean:
 	rm -f data/carillon-*.flac
@@ -22,10 +25,10 @@ data/%: raw/%
 	ln $< $@
 
 %.pdf: %.ly
-	lilypond $<
+	lilypond -o $(patsubst %.pdf,%,$@) $<
 
 CITATION.cff: config/CITATION.cff.in doc/*.md README.md utils/merge-citation-cff chimer
 	utils/merge-citation-cff $(filter-out utils/%,$^) > $@
 
-PHONEY: all clean test
+PHONEY: all clean test doc
 DELETE_ON_ERROR:
