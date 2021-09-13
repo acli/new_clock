@@ -183,9 +183,13 @@ references:
   year: 1907
   month: 11
   day: 19
-  title: Chimes. <cite>Proceedings of the Musical Association</cite>. Retrieved from https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf Westminster Quarters. (2021). <cite>Wikipedia</cite>
-  date-accessed: 2021-08-18
-  url: https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
+  title: Chimes
+  type: article
+  journal: Proceedings of the Musical Association
+  issue: 34
+  start: 1
+  end: 24
+  url: https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf
 
 - authors:
   - name: strangehorizon
@@ -213,6 +217,13 @@ references:
   type: sound-recording
   repository: https://freesound.org/people/inchadney/sounds/121203/
   license: CC-BY-3.0
+
+- term: Westminster Quarters
+  year: 2021
+  title: Wikipedia
+  type: encyclopedia
+  date-accessed: 2021-08-18
+  url: https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
 
 - term: Whittington chimes
   year: 2021
