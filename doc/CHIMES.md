@@ -56,6 +56,7 @@ are also encoded in this notation.
 Before the encoded melodies can be used,
 the code converts them to an internal data structure by calling the function *interpret_melody*.
 This function currently only understands the commands **\relative**, **\drums**, **\tempo**, **\tuplex**,
+**^\fermata**,
 **\set Staff.instrumentName**
 and basic expressive marks (**\ppp**, **\pp**, **\p**, etc.).
 In particular, **\laisserVibrer** is not understood;
