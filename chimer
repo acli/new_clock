@@ -662,11 +662,11 @@ use vars qw( %melody );
       q( S = \relative e' { \fff e,2 }),
       q( F = \relative e' { r4 })),
   &MELODY__WHITTINGTON12 => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 5)
-      q( A = \relative c' { \ff c'4 g' f e }),
-      q( B = \relative c' { \ff c'4 g' f e g d }),
-      q( C = \relative c' { \ff a'4 g f e g d' c e d }),
-      q( D = \relative c' { \ff c'4 g' f e g d c a f e g d r8 }),	# rest inserted to make the hour strike sound less abrupt
-      q( S = \relative c' { \fff c1 })),
+      q( A = \relative { \ff c''4 g' f e }),
+      q( B = \relative { \ff c''4 g' f e g d }),
+      q( C = \relative { \ff a'4 g f e g d' c e d }),
+      q( D = \relative { \ff c''4 g' f e g d c a f e g d^\fermata }),	# pause inserted to make the hour strike sound less abrupt
+      q( S = \relative { \fff c1 })),
 ) unless caller;
 
 use vars qw( %chime );
@@ -1074,7 +1074,7 @@ sub determine_events ($$$$$$$$$) {
     }
     if ($t_next_quarter_chime - $prechime_length >= $t0) {
       push @it, {
-	't' => $t_next_quarter_chime - $prechime_length,
+	't' => $t_next_quarter_chime - $prechime_length - 1, # give it 1 more second in case it takes that long to launch mpv
 	'id' => "q$next_quarter",
 	'type' => 'quarter',
 	'comment' => "hour $next_hour quarter $next_quarter prechime",
