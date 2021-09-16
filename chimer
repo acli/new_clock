@@ -1713,10 +1713,21 @@ sub play_sound_file_real ($;$$$) {
   }
 
   # Fork and play it in the background
-  my @cmd = ('mpv', '--audio-client-name', 'Chiming clock', '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
-  push @cmd, ('--start', $start) if defined $start;
-  push @cmd, ('--end', $end) if defined $end;
-  push @cmd, ("--ao=pulse::$sink") if $sink;
+  my $user_agent = 'Chiming clock';
+  my $close_stdin_p = 1;
+  my @cmd;
+  if (!defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
+    @cmd = ('paplay', '-n', $user_agent);
+    push @cmd, ('-v') if $debug > 1;
+    push @cmd, ('-d', $sink) if $sink;
+    push @cmd, ('--volume', 65536*$volume / 100) if $volume != 100;
+    $close_stdin_p = 0; # otherwise paplay craps out
+  } else {
+    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
+    push @cmd, ('--start', $start) if defined $start;
+    push @cmd, ('--end', $end) if defined $end;
+    push @cmd, ("--ao=pulse::$sink") if $sink;
+  }
   push @cmd, $input;
   log_command @cmd;# if $debug;
   my $h = fork;
@@ -1727,7 +1738,7 @@ sub play_sound_file_real ($;$$$) {
     my $dt = $config->{$sink}->{'delay'}->[0] + 0 if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
     log_debug sprintf "delay %s (interpreted as %f) for %s", $config->{$sink}->{'delay'}->[0], $dt, $sink;#XXXZZ
     Time::HiRes::sleep $dt if defined $dt && $dt > 0;
-    POSIX::close(0);
+    POSIX::close(0) if $close_stdin_p;
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
   }
