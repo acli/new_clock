@@ -741,7 +741,7 @@ sub define_event ($$$%) {
   my %it;
   for my $event (keys %event_defs) {
     my $tune = sprintf('%s%s%s', $shared_defs, (defined $shared_defs && $shared_defs =~ /[^\n]$/s? "\n": ''), $event_defs{$event});
-    if ($event eq 'h') {			# expand to h1..h12 keeping the same melody for all
+    if ($event eq 'h' && $tune =~ /\%[Il]/) {			# expand to h1..h12
       for (my $i = 1; $i <= 12; $i += 1) {
 	my $edited_tune = $tune;
 	$edited_tune =~ s/\%[Il]/$i/sg;
@@ -799,7 +799,7 @@ use vars qw( %chime );
   define_watch('w4.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w5.5', 'ff', 'cymch', 'ff', 'mar'),
   &define_event(&MODE__SYSLINE, undef, q(
-	A = \relative c' { \set Staff.instrumentName = #"Terminal Bell" f''''8 r4. ~ r4 }
+	A = \relative { \set Staff.instrumentName = #"Terminal Bell" ees''''8 r4. ~ r4 }
       ),
       'q1' => '',
       'q2' => '\A',
@@ -1300,9 +1300,16 @@ sub determine_defined_id_for_event ($) {
     my $id2 = event_id($mode, $event);
     my $id3 = event_id(undef, $event);
     $it = defined $chime{$id1}? $id1: defined $chime{$id2}? $id2: defined $chime{$id3}? $id3: undef;
-  last if defined $it || $event !~ /\./;
-    $event =~ s/\.[^\.]+$//; # chop off subevent and try again
+  last if defined $it;
+    my $last_tried = $event;
+    if ($event =~ /\./s) {
+      $event =~ s/\.[^\.]+$//; # chop off subevent and try again
+    } elsif ($event =~ /\d+$/s) {
+      $event =~ s/\d+$//s;		# chop off number and try again
+    }
+  last unless $event ne $last_tried;	# nothing else to try
   }
+  log_debug sprintf "event %s has definition keyed to %s", $event, Debug::cvs($it) if $debug > 1;
   return $it;
 }
 
