@@ -1716,11 +1716,11 @@ sub play_sound_file_real ($;$$$) {
   my $user_agent = 'Chiming clock';
   my $close_stdin_p = 1;
   my @cmd;
-  if (!defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
+  if ($volume == 100 && !defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
     @cmd = ('paplay', '-n', $user_agent);
     push @cmd, ('-v') if $debug > 1;
     push @cmd, ('-d', $sink) if $sink;
-    push @cmd, ('--volume', 65536*$volume / 100) if $volume != 100;
+    #push @cmd, ('--volume', 65536*$volume / 100) if $volume != 100;
     $close_stdin_p = 0; # otherwise paplay craps out
   } else {
     @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
