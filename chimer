@@ -45,6 +45,122 @@ use strict;
 use integer;
 
 
+package Debug;
+use Scalar::Util qw(blessed dualvar isdual readonly refaddr reftype tainted weaken isweak isvstring looks_like_number set_prototype);
+
+sub cvs ($) {
+  my($s) = @_;
+  my $it;
+  if (!defined $s) {
+    $it = 'null';
+  } elsif (ref $s eq 'ARRAY') {
+    $it = sprintf('[%s]', join(' ', map { Debug::cvs($_) } @$s));
+  } elsif (ref $s eq 'HASH') {
+    for my $key (keys %$s) {
+      $it .= ' ' if defined $it;
+      $it .= sprintf('/%s %s', $key, Debug::cvs($s->{$key}));
+    }
+    $it = "<<$it>>";
+  } elsif (!ref $s) {
+    no integer;
+    $it = $s;
+    if (!looks_like_number($s)) {
+      $it =~ s/([\\\(\)])/\\\1/sg;
+      $it = "($it)";
+    }
+  } else { # object :-/
+    for my $key (keys %$s) {
+      $it .= ' ' if defined $it;
+      $it .= sprintf('/%s %s', $key, Debug::cvs($s->{$key}));
+    }
+    $it = sprintf "<<%s>> /%s bless", $it, ref $s;
+  }
+  return $it;
+}
+
+
+package Interpret_Melody_State;
+
+sub unit_beat {
+  my $self = shift;
+  $self->{'unit-beat'} = shift if @_;
+  return $self->{'unit-beat'};
+}
+
+sub relative_p {
+  my $self = shift;
+  $self->{'relative-p'} = shift if @_;
+  return $self->{'relative-p'};
+}
+
+sub drummode_p {
+  my $self = shift;
+  $self->{'drummode-p'} = shift if @_;
+  return $self->{'drummode-p'};
+}
+
+sub repeat_start {
+  my $self = shift;
+  $self->{'repeat-start'} = shift if @_;
+  return $self->{'repeat-start'};
+}
+
+sub repeat_count {
+  my $self = shift;
+  $self->{'repeat-count'} = shift if @_;
+  return $self->{'repeat-count'};
+}
+
+sub repeat_stacklevel {
+  my $self = shift;
+  $self->{'repeat-stacklevel'} = shift if @_;
+  return $self->{'repeat-stacklevel'};
+}
+
+sub stacklevel {
+  my $self = shift;
+  return scalar @{$self->{'stack'}};
+}
+
+sub new {
+  my $class = shift;
+  my $self = {};
+  bless $self, $class;
+  $self->unit_beat(1);
+  $self->relative_p(0);
+  $self->drummode_p(0);
+  $self->{'stack'} = [];
+  return $self;
+}
+
+sub gsave {
+  my $self = shift;
+  my $unit_beat = $self->unit_beat();
+  my $relative_p = $self->relative_p();
+  my $drummode_p = $self->drummode_p();
+  my $repeat_stacklevel = $self->repeat_stacklevel();
+  my $repeat_start = $self->repeat_start();
+  my $repeat_count = $self->repeat_count();
+  push @{$self->{'stack'}}, [$unit_beat, $relative_p, $drummode_p, $repeat_stacklevel, $repeat_start, $repeat_count];
+}
+
+sub grestore {
+  my $self = shift;
+  if (@{$self->{'stack'}}) {
+    my                      ($unit_beat, $relative_p, $drummode_p, $repeat_stacklevel, $repeat_start, $repeat_count)
+	= @{ pop @{$self->{'stack'}} };
+
+    $self->unit_beat		($unit_beat);
+    $self->relative_p		($relative_p);
+    $self->drummode_p		($drummode_p);
+    $self->repeat_stacklevel	($repeat_stacklevel);
+    $self->repeat_start		($repeat_start);
+    $self->repeat_count		($repeat_count);
+  } else {
+    die "grestore called but stack is empty";
+  }
+}
+
 package Chimer;
 
 use POSIX;
@@ -82,6 +198,7 @@ use Data::Dumper;
 
 use vars qw( $config );
 use vars qw( $debug );
+use vars qw( $no_cache_p );
 use vars qw( $verbose_p );
 use vars qw( $quit_p );
 use vars qw( $enable_nonproportional_watches );
@@ -245,9 +362,16 @@ sub log_command (@) { log_debug 'running: '. join(' ', map { s/([\\"])/\\\1/sg i
 Each chime melody is internally represented as an array of
 B<[>I<midi note name>, I<time in seconds>, I<percentage volume>, I<instrument>B<]> entries
 (I<instrument> can be undef),
-but written as calls to I<interpret_quarters> which takes 6 parameters:
-the length of a beat in seconds, first quarter, second quarter, third quarter, fourth quarter,
-definitions for the quarters.
+but written as calls to I<define_event> which takes 3 parameters –
+the identifier for the mode,
+the identifier for the melody,
+a string containing any definitions (in the form S<I<var> = I<some definition>>) –
+plus a list of key-value pairs.
+Valid keys are B<q1> for first-quarter chimes,
+B<q2> for second-quarter chimes,
+B<q3> for third-quarter chimes,
+B<q0> for fourth-quarter chimes,
+and B<h> for the hour strike.
 
 As many definitions as needed can be included, but each definition I<must> be of the form of either of
 
@@ -257,9 +381,11 @@ I<var> = B<\relative> I<pitch> B<{> I<melody> B<}>
 
 I<var> = B<\drums> B<{> I<melody> B<}>
 
+I<var> B<{> I<tempo or some other initialization> B<}>
+
 =back
 
-I<melody> is written in LilyPond notation
+The values are written in LilyPond notation
 (in either relative pitch or drum mode, optionally including note lengths and basic expressive marks),
 described in
 
@@ -273,7 +399,12 @@ Retrieved August 20, 2021, from http://lilypond.org/doc/v2.22/Documentation/nota
 
 =back
 
-I<interpret_quarters> calls I<interpret_melody> to convert this notation into the internal representation described above,
+For the hour strike, you should normally use B<%I> for represent the hour
+so that you can strike the bell the correct number of times
+(you should of course omit B<%I> for I<sysline> mode
+or for ancient ting-tang quarters that always strike the hour strike once).
+
+I<event_def> calls I<interpret_melody> to convert this notation into the internal representation described above,
 but this conversion is just a simple pattern match and therefore can produce incorrect results.
 If results are incorrect but the notation typesets correctly in LilyPond, the bug is in I<interpret_melody>.
 
@@ -403,6 +534,7 @@ use vars qw( %expressive_mark_to_midi_velocity );
   'ffff'	=> 119,	# this should be 127 according to Vandenneucker (2012)
   'fffff'	=> 127,
 );
+use vars qw( %interpretation );
 
 sub interpret_absolute_pitch ($) { # interpret c' as c4
   my($s) = @_;
@@ -421,8 +553,8 @@ sub interpret_divisor ($) {
   return !defined $s? $s: $s =~ /\x{5c}longa/? 0.25: $s =~ /\x{5c}breve/? 0.5: $s =~ /^\d+$/? $s + 0: $s; # XXX
 }
 
-sub interpret_melody ($$) {
-  my($s0, $unit_beat) = @_;
+sub interpret_melody ($) {
+  my($s0) = @_;
   my $it;
   no integer;
 
@@ -434,34 +566,75 @@ sub interpret_melody ($$) {
   my $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
   my $end_re = q((?=[\s\x{7d}\x{5e}()\[\]]|$));				# space or braceright or caret or eof
 
-  my($relative_p, $last_pitch, $drummode_p, $percussive_instrument);
+  my $state = new Interpret_Melody_State;
+  my($last_pitch, $percussive_instrument);
   my $main_instrument = 'Carillon';
   my($tie_p);
   my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
+  my($def_key, $def_value, $def_level, %def);
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
-    my $gsave =    sub { push @stack,  [$unit_beat, $relative_p, $drummode_p] };
-    my $grestore = sub { if (@stack) { ($unit_beat, $relative_p, $drummode_p) = @{ pop @stack }
-			      } else { log_error "grestore called but stack is empty" } };
-    $s =~ s/^\s*//s;
+    $s =~ s/^\s*//s unless defined $def_key;
+    if ($s =~ /^\\([A-Za-z]+)\b/s && defined $def{$1}) {	# expand variables
+      my($key) = $1;						# we MUST store this in a variable for the substitution to work
+      $s =~ s/^\\$key/$def{$key}/s;
+    }
     my $lhs;
-    if ($s =~ s/^\x{7b}\s*//s) {		# braceleft
-      &$gsave;
+    if ($s =~ s/^\%[^\n]*\n*//s) {		# percent - comment to always discard
+      ;
+    } elsif (!defined $def_key && $s =~ s/^([A-Za-z]+)\s*=\s*//s) {
+      ($def_key, $def_value, $def_level) = ($1);
+    } elsif (defined $def_key) {
+      if ($s =~ s/^(\s+)//s) {
+	$def_value .= ' ';
+      } elsif ($s =~ s/^("[^""]*")//s) {
+	$def_value .= $1;
+      } elsif ($s =~ s/^(\x{7b})//s) {		# braceleft
+	$def_value .= $1;
+	$def_level += 1;
+      } elsif ($s =~ s/^(\x{7d})//s) {		# braceright
+	$def_value .= $1;
+	$def_level -= 1;
+	if ($def_level == 0) {
+	  $def_value = $1 if $def_value =~ /^{\s*(.*?)\s*}$/s;
+	  $def{$def_key} = $def_value;
+	  ($def_key, $def_value, $def_level) = ();
+	}
+      } elsif ($s =~ s/^(\S)//s) {
+	$def_value .= $1;
+      }
+
+    } elsif ($s =~ s/^\x{7b}\s*//s) {		# braceleft
+      $state->gsave();
 
     } elsif ($s =~ s/^\\(?:drums|drummode)\s*\x{7b}//s) {
-      &$gsave;
-      $drummode_p = 1;
+      $state->gsave();
+      $state->drummode_p(1);
 
     } elsif ($s =~ s/^\\relative\s*\x{7b}//s) {
-      &$gsave;
-      $relative_p = 1;
+      $state->gsave();
+      $state->relative_p(1);
+      $last_pitch = undef;
 
     } elsif ($s =~ s/^\\relative\s+($pitch_re)\s*\x{7b}//s) {
-      &$gsave;
-      $relative_p = 1;
+      $state->gsave();
+      $state->relative_p(1);
       $last_pitch = interpret_absolute_pitch $1;
 
+    } elsif ($s =~ s/^\\repeat\s+(?:volta|unfold|percent)\s+(\d+)\s*\x{7b}//s) {
+      my $n = $1 + 0;
+      $state->gsave();
+      $state->repeat_stacklevel($state->stacklevel());
+      $state->repeat_count($n);
+      $state->repeat_start(defined $it? @$it: 0);
+
     } elsif ($s =~ s/^\x{7d}\s*//s) {		# braceright
-      &$grestore;
+      if (defined $state->repeat_stacklevel() && $state->repeat_stacklevel() == $state->stacklevel()) {
+	my @A = @$it;
+	my $i = $state->repeat_start();
+	my $n = $state->repeat_count();
+	$it = [@A[0 .. $i - 1], (@A[$i .. $#A]) x $n];
+      }
+      $state->grestore();
     } elsif ($s =~ s/^[\[\]]\s*//s) {		# ignore bracketleft/bracketright = beam on/beam off
       ;
     } elsif ($s =~ s/^\(\s*//s) {		# ignore parenleft = phrasing slur start
@@ -479,14 +652,13 @@ sub interpret_melody ($$) {
 	$it->[+scalar @$it - 1]->[1] *= 2;	# FIXME
       }
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
-      $unit_beat = ($1*60)/(4*$2);
+      $state->unit_beat(($1*60)/(4*$2));
     } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
       ;
     } elsif ($s =~ s/^\\breathe\s+//s) {	# ignore breath marks for now
       ;
     } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
-      $unit_beat *= $2;
-      $unit_beat /= $1;
+      $state->unit_beat($state->unit_beat() * $2 / $1);
     } elsif ($s =~ s/^$duration_re$end_re//s) {
       ($divisor, $dots) = (interpret_divisor $1, length $2);
       log_debug "Duration \"$divisor$dots\" encountered before any rest, pitch, or percussion instrument" unless defined $note;
@@ -501,7 +673,7 @@ sub interpret_melody ($$) {
       my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
 	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
 
-      ($last_pitch, $lower, $raise) = (interpret_absolute_pitch $pitch_as_written, undef, undef) if $relative_p && !defined $last_pitch;
+      ($last_pitch, $lower, $raise) = (interpret_absolute_pitch $pitch_as_written, undef, undef) if $state->relative_p() && !defined $last_pitch;
       my $last_base_pitch = ($last_pitch + 12)%12;
       ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       my $tentative;
@@ -534,7 +706,7 @@ sub interpret_melody ($$) {
       log_debug "Internal error: \"else\" case reached in interpret_melody, s=($s)";
     }
     if (defined $lhs) {
-      my $rhs = $unit_beat * 4 / $divisor;
+      my $rhs = $state->unit_beat() * 4 / $divisor;
       for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
 	$rhs += $adj;
       }
@@ -556,25 +728,37 @@ sub interpret_melody ($$) {
     }
   }
   log_debug sprintf "%s interpreted as %s", $s0,
-      join(' ', map { $_->[0] . ($_->[1] == $unit_beat? '': sprintf('(%s)', $_->[1]/$unit_beat)) } @$it) if $debug;
+      join(' ', map { $_->[0] . ($_->[1] == $state->unit_beat()? '': sprintf('(%s)', $_->[1]/$state->unit_beat())) } @$it) if $debug;
   return $it;
 }
-sub interpret_quarters ($$$$$$@) {
-  my($beat_length, $q1_spec, $q2_spec, $q3_spec, $q4_spec, $strike_spec, @elements) = @_;
-  my $it;
-  my %elements = map { /^\s*(\w+)\s*=\s*(.*)$/s? ($1 => interpret_melody $2, $beat_length): () } @elements;
-  for my $spec ($q4_spec, $q1_spec, $q2_spec, $q3_spec, $strike_spec) {
-    my @node;
-    for my $ref (split(/\s*/, $spec)) {
-      die "interpret_quarters: $spec: Unknown reference $ref\n" unless defined $elements{$ref};
-      push @node, @{$elements{$ref}};
+
+sub event_id ($$;$) {
+  my($mode, $event, $melody) = @_;
+  return join('-', map { s/[^\.\w]+/_/sg if defined $_; defined $_? $_: () } ($mode, $melody, $event));
+}
+sub define_event ($$$%) {
+  my($mode, $melody, $shared_defs, %event_defs) = @_;
+  my %it;
+  for my $event (keys %event_defs) {
+    my $tune = sprintf('%s%s%s', $shared_defs, (defined $shared_defs && $shared_defs =~ /[^\n]$/s? "\n": ''), $event_defs{$event});
+    if ($event eq 'h') {			# expand to h1..h12 keeping the same melody for all
+      for (my $i = 1; $i <= 12; $i += 1) {
+	my $edited_tune = $tune;
+	$edited_tune =~ s/\%[Il]/$i/sg;
+	$it{&event_id($mode, "h$i", $melody)} = $edited_tune;
+      }
+    } else {
+      $it{&event_id($mode, $event, $melody)} = $tune;
     }
-    push @$it, [@node];
   }
-  return $it;
+  for my $tune (values %it) {
+    $interpretation{$tune} = interpret_melody $tune unless defined $interpretation{$tune};
+  }
+  return %it;
 }
-sub interpret_watch ($$$$$) {
-  my($watch, $volume1, $instrument1, $volume2, $instrument2) = @_;
+sub define_watch ($$$$$) {
+  my($event, $volume1, $instrument1, $volume2, $instrument2) = @_;
+  my $watch = $1 + 0 if $event =~ /^w(\d+)/;
   my $score;
   my $beat_length = 1;
   my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
@@ -593,100 +777,191 @@ sub interpret_watch ($$$$$) {
     }
   }
   #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
-  return interpret_melody sprintf('\drums { %s }', $score), $beat_length;
+  return define_event(undef, undef, undef, ($event => sprintf('\drums { %s }', $score)));
 }
 
-use vars qw( %melody );
-%melody = (
-  &MELODY__ABBEY => interpret_quarters(0.25, 'A', 'AB', 'ABC', 'ABCD', 'S',	# source: Starmer (1907, p. 13)
-      q( A = \relative { c''1 b d c }),
-      q( B = \relative { c''1 b d e }),
-      q( C = \relative { e''1 c d c }),
-      q( D = \relative { a'1(c) d c^\fermata }),
-      q( S = \relative { r1 g'1 })),				# rest inserted
-  &MELODY__CAMBRIDGE => interpret_quarters(1, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 7)
-      q( A = \relative c' { \ff e'4 d c | g2. }),
-      q( B = \relative c' { \ff c'4 e d | g,2. | c4 d e | c2. }),
-      q( C = \relative c' { \ff e'4 c d | g,2. | g4 d' e | c2. | e4 d c | g2. }),
-      q( D = \relative c' { \ff c'4 e d | g,2. | c4 d e | c2. | e4 c d | g,2. | g4 d' e | c2.^\fermata }),
-      q( S = \relative c' { \fff c1 })),
-  &MELODY__CAMBRIDGE_RCC => interpret_quarters(0.25, 'A', 'AB', 'ABC', 'ABCD', 'S',	# source: Starmer (1907, p. 13)
-      q( A = \relative { \ff d'1 g(a) b(g) a(g) }),
-      q( B = \relative { \ff a'1 b a g e d }),
-      q( C = \relative { \ff d'1 g a b g a g }),
-      q( D = \relative { \ff c''1 a b g a g^\fermata }),
-      q( S = \relative { \fff r1 d' })),			# guessed
-  &MELODY__CANTERBURY => interpret_quarters(1, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 14)
-      # The score given by Starmer is a Gregorian chant, so note lengths are meaningless. We need to interpret it or the music will sound dead
-      q( A = \relative c' { \ff g'8. a c4. }),
-      q( B = \relative c' { \ff g'8. a c4. r4 d8. c b c2 }),
-      q( C = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. }),
-      q( D = \relative c' { \ff g'8. a c4. r4 d8. c b c2 r4 c8. b g4. r8 a8. c d c2 r4 }),	# rest inserted
-      q( S = \relative c' { \fff cis1 })),
-  &MELODY__GUILDFORD => interpret_quarters(0.75, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 10)
-      q( A = \relative c' { \ff c'2 e,4 a | g1 }),
-      q( B = \relative c' { \ff e4 g c b | d, f a g | e1 }),
-      q( C = \relative c' { \ff c'4 g a e | f d g e | a f g b | c1 }),
-      q( D = \relative c' { \ff c4 g' e c' | b4. a8 g4 e | f a d, g | e2. f4 | g4 c b a | g e c c' | b g a e | g1 }),
-      q( S = \relative c' { \fff c1 })),
-  &MELODY__MAGDALEN => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 10)
-      q( A = \relative c' { \ff b'4 c }),
-      q( B = \relative c' { \ff b'4 c c, g' }),
-      q( C = \relative c' { \ff g'4 a f e a d, }),
-      q( D = \relative c' { \ff g'4 a f e a d, b' c | r2. }),		# rest inserted
-      q( S = \relative c' { \fff c1 })),
-  &MELODY__TINGTANG => interpret_quarters(0.625, 'A', 'ABA', 'ABABA', 'ABABABABB', 'S',	# source: Starmer (1907, p. 4, option 3a)
-      q( A = \relative c' { \ff c'4 a }),
-      q( B = \relative c' { r4 }),
-      q( S = \relative c' { \fff f1 })),
-  &MELODY__NORWICH => interpret_quarters(0.20, 'A', 'B', 'C', 'D', 'S',			# source: Starmer (1907, p. 11)
-      q( A = \relative c' { \ff a'1 g f e d }),
-      q( B = \relative c' { \ff d1 e a g f  | g d f e d }),
-      q( C = \relative c' { \ff d1 e f a d, | f a g e f | d e g f d }),
-      q( D = \relative c' { \ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }),
-      q( S = \relative c' { \fff r1. d1 })),				# rest inserted to make it sound less rushed
-  &MELODY__WESTMINSTER => interpret_quarters(1, 'A', 'BC', 'DEA', 'BCDE F', 'S',
-      q( A = \relative e' { \fff gis4 fis e b2  }),
-      q( B = \relative e' { \fff e4 gis fis b,2 }),
-      q( C = \relative e' { \fff e4 fis gis e2  }),
-      q( D = \relative e' { \fff gis4 e fis b,2 }),
-      q( E = \relative e' { \fff b4 fis' gis e2 }),
-      q( S = \relative e' { \fff e,2 }),
-      q( F = \relative e' { r1 })),
-  &MELODY__WHITTINGTON => interpret_quarters(0.625, 'E', 'AB', 'CDE', 'ABCD F', 'S',
-      q( A = \relative e' { \ff e'4 fis, dis' gis, cis a b e, }),
-      q( B = \relative e' { \ff e'4 cis a fis dis' b gis e }),
-      q( C = \relative e' { \ff e'4 dis a gis cis b fis e }),
-      q( D = \relative e' { \ff fis4 a cis e dis b gis e }),
-      q( E = \relative e' { \ff e'4 dis cis b a gis fis e }),
-      q( S = \relative e' { \fff e,2 }),
-      q( F = \relative e' { r4 })),
-  &MELODY__WHITTINGTON12 => interpret_quarters(0.625, 'A', 'B', 'C', 'D', 'S',		# source: Starmer (1907, p. 5)
-      q( A = \relative { \ff c''4 g' f e }),
-      q( B = \relative { \ff c''4 g' f e g d }),
-      q( C = \relative { \ff a'4 g f e g d' c e d }),
-      q( D = \relative { \ff c''4 g' f e g d c a f e g d^\fermata }),	# pause inserted to make the hour strike sound less abrupt
-      q( S = \relative { \fff c1 })),
-) unless caller;
 
 use vars qw( %chime );
 %chime = (
-  &MODE__SYSLINE => interpret_melody(q( \relative c' { \set Staff.instrumentName = #"Terminal Bell" \mf f''''8 r4. }), 1),
-  'w1.1' => interpret_watch(1, 'ff', 'cyms', 'ff', 'tamb'),
-  'w2.1' => interpret_watch(2, 'ff', 'cyms', 'ff', 'tamb'),
-  'w3.1' => interpret_watch(3, 'ff', 'cyms', 'ff', 'tamb'),
-  'w4.1' => interpret_watch(4, 'ff', 'cyms', 'ff', 'tamb'),
-  'w5.1' => interpret_watch(5, 'ff', 'cyms', 'ff', 'tamb'),
-  'w1'   => interpret_watch(1, 'ff', 'cymch', 'ff', 'cl'),
-  'w2'   => interpret_watch(2, 'ff', 'cymch', 'ff', 'cl'),
-  'w3'   => interpret_watch(3, 'ff', 'cymch', 'ff', 'cl'),
-  'w4'   => interpret_watch(4, 'ff', 'cymch', 'ff', 'cl'),
-  'w5'   => interpret_watch(5, 'ff', 'cymch', 'ff', 'cl'),
-  'w1.5' => interpret_watch(1, 'ff', 'cymch', 'ff', 'mar'),
-  'w2.5' => interpret_watch(2, 'ff', 'cymch', 'ff', 'mar'),
-  'w3.5' => interpret_watch(3, 'ff', 'cymch', 'ff', 'mar'),
-  'w4.5' => interpret_watch(4, 'ff', 'cymch', 'ff', 'mar'),
-  'w5.5' => interpret_watch(5, 'ff', 'cymch', 'ff', 'mar'),
+  define_watch('w1.1', 'ff', 'cyms', 'ff', 'tamb'),
+  define_watch('w2.1', 'ff', 'cyms', 'ff', 'tamb'),
+  define_watch('w3.1', 'ff', 'cyms', 'ff', 'tamb'),
+  define_watch('w4.1', 'ff', 'cyms', 'ff', 'tamb'),
+  define_watch('w5.1', 'ff', 'cyms', 'ff', 'tamb'),
+  define_watch('w1',   'ff', 'cymch', 'ff', 'cl'),
+  define_watch('w2',   'ff', 'cymch', 'ff', 'cl'),
+  define_watch('w3',   'ff', 'cymch', 'ff', 'cl'),
+  define_watch('w4',   'ff', 'cymch', 'ff', 'cl'),
+  define_watch('w5',   'ff', 'cymch', 'ff', 'cl'),
+  define_watch('w1.5', 'ff', 'cymch', 'ff', 'mar'),
+  define_watch('w2.5', 'ff', 'cymch', 'ff', 'mar'),
+  define_watch('w3.5', 'ff', 'cymch', 'ff', 'mar'),
+  define_watch('w4.5', 'ff', 'cymch', 'ff', 'mar'),
+  define_watch('w5.5', 'ff', 'cymch', 'ff', 'mar'),
+  &define_event(&MODE__SYSLINE, undef, q(
+	A = \relative c' { \set Staff.instrumentName = #"Terminal Bell" f''''8 r4. ~ r4 }
+      ),
+      'q1' => '',
+      'q2' => '\A',
+      'q3' => '',
+      'q0' => '\A',
+      'h' => '\A',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__ABBEY, q(					% source: Starmer (1907, p. 13)
+	x = { \tempo 1 = 68 }
+	A = \relative { c''1 b d c }
+	B = \relative { c''1 b d e }
+	C = \relative { e''1 c d c }
+	D = \relative { a'1(c) d c^\fermata }
+	S = \relative { r1 g'1 }				% rest inserted
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B',
+      'q3' => '\x \ff \A \B \C',
+      'q0' => '\x \ff \A \B \C \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__CAMBRIDGE , q(				% source: Starmer (1907, p. 7)
+	x = { \tempo 4 = 64 }
+	A = \relative c' { e'4 d c | g2. }
+	B = \relative c' { c'4 e d | g,2. | c4 d e | c2. }
+	C = \relative c' { e'4 c d | g,2. | g4 d' e | c2. | e4 d c | g2. }
+	D = \relative c' { c'4 e d | g,2. | c4 d e | c2. | e4 c d | g,2. | g4 d' e | c2.^\fermata }
+	S = \relative c' { c1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \B',
+      'q3' => '\x \ff \C',
+      'q0' => '\x \ff \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__CAMBRIDGE_RCC, q(				% source: Starmer (1907, p. 13)
+	x = { \tempo 1 = 60 }
+	A = \relative { d'1 g(a) b(g) a(g) }
+	B = \relative { a'1 b a g e d }
+	C = \relative { d'1 g a b g a g }
+	D = \relative { c''1 a b g a g^\fermata }
+	S = \relative { r1 d' }					% guessed
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B',
+      'q3' => '\x \ff \A \B \C',
+      'q0' => '\x \ff \A \B \C \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__CANTERBURY, q(					% source: Starmer (1907, p. 14)
+	% The score given by Starmer is a Gregorian chant, so note lengths are meaningless. We need to interpret it or the music will sound dead
+	A = \relative c' { g'8. a c4. }
+	B = \relative c' { g'8. a c4. r4 d8. c b c2 }
+	C = \relative c' { g'8. a c4. r4 d8. c b c2 r4 c8. b g4. }
+	D = \relative c' { g'8. a c4. r4 d8. c b c2 r4 c8. b g4. r8 a8. c d c2 r4 }	% rest inserted
+	S = \relative c' { cis1 }
+      ),
+      'q1' => '\ff \A',
+      'q2' => '\ff \B',
+      'q3' => '\ff \C',
+      'q0' => '\ff \D',
+      'h' => '\fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__GUILDFORD, q(					% source: Starmer (1907, p. 10)
+	x = { \tempo 4 = 80 }
+	A = \relative c' { c'2 e,4 a | g1 }
+	B = \relative c' { e4 g c b | d, f a g | e1 }
+	C = \relative c' { c'4 g a e | f d g e | a f g b | c1 }
+	D = \relative c' { c4 g' e c' | b4. a8 g4 e | f a d, g | e2. f4 | g4 c b a | g e c c' | b g a e | g1 }
+	S = \relative c' { c1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \B',
+      'q3' => '\x \ff \C',
+      'q0' => '\x \ff \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__MAGDALEN, q(					% source: Starmer (1907, p. 10)
+	x = { \tempo 4 = 96 }
+	A = \relative c' { b'4 c }
+	B = \relative c' { b'4 c c, g' }
+	C = \relative c' { g'4 a f e a d, }
+	D = \relative c' { g'4 a f e a d, b' c | r2. }		% rest inserted
+	S = \relative c' { c1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \B',
+      'q3' => '\x \ff \C',
+      'q0' => '\x \ff \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__TINGTANG, q(					% source: Starmer (1907, p. 4, option 3a)
+	x = { \tempo 4 = 96 }
+	A = \relative c' { c'4 a }
+	B = \relative c' { r4 }
+	S = \relative c' { f1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B \A',
+      'q3' => '\x \ff \A \B \A \B \A',
+      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__NORWICH, q(					% source: Starmer (1907, p. 11)
+	x = { \tempo 1 = 75 }
+	A = \relative c' { \ff a'1 g f e d }
+	B = \relative c' { \ff d1 e a g f  | g d f e d }
+	C = \relative c' { \ff d1 e f a d, | f a g e f | d e g f d }
+	D = \relative c' { \ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
+	S = \relative c' { \fff r1. d1 }			% rest inserted to make it sound less rushed
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \B',
+      'q3' => '\x \ff \C',
+      'q0' => '\x \ff \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__WESTMINSTER, q(
+	A = \relative e' { gis4 fis e b2  }
+	B = \relative e' { e4 gis fis b,2 }
+	C = \relative e' { e4 fis gis e2  }
+	D = \relative e' { gis4 e fis b,2 }
+	E = \relative e' { b4 fis' gis e2 }
+	S = \relative e' { e,2 }
+	F = \relative e' { r1 }
+      ),
+      'q1' => '\fff \A',
+      'q2' => '\fff \B \C',
+      'q3' => '\fff \D \E \A',
+      'q0' => '\fff \B \C \D \E \F',
+      'h' => '\fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__WHITTINGTON, q(				% "Whittington Chimes", 2021
+	x = { \tempo 4 = 96 }
+	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
+	B = \relative e' { e'4 cis a fis dis' b gis e }
+	C = \relative e' { e'4 dis a gis cis b fis e }
+	D = \relative e' { fis4 a cis e dis b gis e }
+	E = \relative e' { e'4 dis cis b a gis fis e }
+	S = \relative e' { e,2 }
+	F = \relative e' { r4 }
+      ),
+      'q1' => '\x \ff \E',
+      'q2' => '\x \ff \A \B',
+      'q3' => '\x \ff \C \D \E',
+      'q0' => '\x \ff \A \B \C \D \F',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  &define_event(&MODE__CARILLON, &MELODY__WHITTINGTON12, q(				% source: Starmer (1907, p. 5)
+	x = { \tempo 4 = 96 }
+	A = \relative { c''4 g' f e }
+	B = \relative { c''4 g' f e g d }
+	C = \relative { a'4 g f e g d' c e d }
+	D = \relative { c''4 g' f e g d c a f e g d^\fermata }	% pause inserted to make the hour strike sound less abrupt
+	S = \relative { c'1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \B',
+      'q3' => '\x \ff \C',
+      'q0' => '\x \ff \D',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
 ) unless caller;
 
 
@@ -1017,22 +1292,34 @@ sub determine_chinese_time ($) {
   return $it;
 }
 
-sub determine_prechime_length ($$) {
-  my($quarter, $default) = @_;
-  my $it = $default;
-  my $tune;
-  if ($mode eq MODE__CARILLON && defined $melody{$melody}) {
-    $tune = $melody{$melody}->[$quarter%4];
-  } elsif (defined $chime{$mode}) {
-    $tune = $chime{$mode};
+sub determine_defined_id_for_event ($) {
+  my($event) = @_;
+  my $it;
+  for (;;) {
+    my $id1 = event_id($mode, $event, $melody);
+    my $id2 = event_id($mode, $event);
+    my $id3 = event_id(undef, $event);
+    $it = defined $chime{$id1}? $id1: defined $chime{$id2}? $id2: defined $chime{$id3}? $id3: undef;
+  last if defined $it || $event !~ /\./;
+    $event =~ s/\.[^\.]+$//; # chop off subevent and try again
   }
+  return $it;
+}
+
+sub determine_event_duration ($$) {
+  my($event, $default) = @_;
+  my $id = determine_defined_id_for_event $event;
+  my $it = $default;
+  my $tune = $chime{$id};
   if (defined $tune) {
     $it = 0;
-    for my $note (@$tune) {
+    for my $note (@{$interpretation{$tune}}) {
       no integer;
+      log_debug sprintf '%s %s', $note->[0], $note->[1] if $debug > 1;
       $it += $note->[1];
     }
   }
+  log_debug "event duration for event $event ($id) is $it" if $debug;
   return $it;
 }
 
@@ -1064,17 +1351,17 @@ sub determine_events ($$$$$$$$$) {
 	'type' => 'hour',
 	'comment' => "hour $next_hour chime",
       };
-      $prechime_length = determine_prechime_length(0, 25);
+      $prechime_length = determine_event_duration('q0', 25);
     } elsif ($next_quarter == 1) {
-      $prechime_length = determine_prechime_length(1, 5);
+      $prechime_length = determine_event_duration('q1', 5);
     } elsif ($next_quarter == 2) {
-      $prechime_length = determine_prechime_length(2, 10);
+      $prechime_length = determine_event_duration('q2', 10);
     } elsif ($next_quarter == 3) {
-      $prechime_length = determine_prechime_length(3, 15);
+      $prechime_length = determine_event_duration('q3', 15);
     }
     if ($t_next_quarter_chime - $prechime_length >= $t0) {
       push @it, {
-	't' => $t_next_quarter_chime - $prechime_length - 1, # give it 1 more second in case it takes that long to launch mpv
+	't' => $t_next_quarter_chime - $prechime_length,
 	'id' => "q$next_quarter",
 	'type' => 'quarter',
 	'comment' => "hour $next_hour quarter $next_quarter prechime",
@@ -1251,17 +1538,13 @@ sub set_sink_volumes ($$$$$) {
 
 sub get_cache_pathname_for_event ($) {
   my($id) = @_;
-  my $it = 'data/'; # FIXME
+  my $it;
+  my $datadir = 'data'; # FIXME
   if ($id ne 'test') {
-    $it .= 'cache-';
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-    $id =~ s/^(w\d)\.[1-4]$/\1/s unless defined $chime{$id}; # we don't really distinguish between most of the subwatches
-    $id =~ s/^(h)\d+$/\1/sg if $mode eq MODE__SYSLINE; # we don't really distinguish between hours for sysline
-    $it .= "$mode-" unless $id =~ /^w/;
-    $it .= "\L$melody-" if $id =~ /^[qh]/ && $mode eq MODE__CARILLON;
+    $it = sprintf '%s/cache-%s.oga', $datadir, determine_defined_id_for_event $id;
   }
-  $it .= "$id.oga";
   return $it;
 }
 
@@ -1542,7 +1825,7 @@ sub strike_tune (@) {
     Time::HiRes::sleep $dt if $method ne METHOD__SYNTH && $dt > 0;
     $elapsed += $note_length;
   }
-  if ($method eq METHOD__SYNTH) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
+  if ($method eq METHOD__SYNTH && @midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
     @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
     $t0 = current_time; # reset start time
     for (my $i = 0;; $i += 1) {
@@ -1557,7 +1840,8 @@ sub strike_tune (@) {
 
 sub announce_quarter_hour_by_carillon ($) {
   my($quarter) = @_;
-  strike_tune @{$melody{$melody}->[$quarter%4]};
+  my $id = determine_defined_id_for_event(sprintf('q%d', $quarter%4));
+  strike_tune @{$interpretation{$chime{$id}}};
 }
 
 sub announce_quarter_hour_by_cuckoo ($) {
@@ -1573,7 +1857,8 @@ sub announce_quarter_hour_by_cuckoo ($) {
 
 sub announce_quarter_hour_by_sysline_beeps ($) {
   my($quarter) = @_;
-  strike_tune @{$chime{'sysline'}} if ($quarter & 1) == 0;
+  my $id = determine_defined_id_for_event(sprintf('q%d', $quarter%4));
+  strike_tune @{$interpretation{$chime{$id}}};
 }
 
 sub announce_quarter_hour ($) {
@@ -1589,9 +1874,8 @@ sub announce_quarter_hour ($) {
 
 sub announce_hour_by_carillon ($) {
   my($hour) = @_;
-  my $strike = $melody{$melody}->[4]; # FIXME
-  my @tune = (@$strike) x $hour;
-  strike_tune @tune;
+  my $id = determine_defined_id_for_event(sprintf('h%d', $hour));
+  strike_tune @{$interpretation{$chime{$id}}};
 }
 
 sub announce_hour_by_cuckoo ($) {
@@ -1607,7 +1891,8 @@ sub announce_hour_by_cuckoo ($) {
 
 sub announce_hour_by_sysline_beeps ($) {
   my($hour) = @_;
-  strike_tune @{$chime{'sysline'}}; # it's always just one beep
+  my $id = determine_defined_id_for_event(sprintf('h%d', $hour));
+  strike_tune @{$interpretation{$chime{$id}}};
 }
 
 sub announce_hour ($) {
@@ -1644,7 +1929,8 @@ sub announce_night_watch_normal ($$) {
 sub announce_night_watch ($$) {
   my($watch, $subwatch) = @_;
   if ($method eq METHOD__SYNTH) {
-    strike_tune @{defined $chime{"w$watch.$subwatch"}? $chime{"w$watch.$subwatch"}: $chime{"w$watch"}};
+    my $id = determine_defined_id_for_event(sprintf('w%d.%d', $watch, $subwatch));
+    strike_tune @{$interpretation{$chime{$id}}};
   } else {
     announce_night_watch_normal $watch, $subwatch;
   }
@@ -1653,8 +1939,8 @@ sub announce_night_watch ($$) {
 sub do_event ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
-  log_debug sprintf "Cache file %s %s", $output, (-f $output? 'exists': 'does not exist') if $debug;
-  if ($method eq METHOD__SYNTH && -f $output) {
+  log_debug sprintf "Cache file %s %s", $output, (-f $output? ($no_cache_p? 'exists but ignored': 'exists'): 'does not exist') if $debug;
+  if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
     play_sound_file $output, 100;
   } elsif ($id =~ /^q(\d+)$/) {		# quarter hour chime
     announce_quarter_hour $1;
@@ -1713,6 +1999,9 @@ EOF
 Options for debugging:
 
       --debug                 Produce debugging output
+      --dump-defs             Dump source chime definitions, then exit
+      --dump-notes            Dump compiled chime definitions, then exit
+      --no-cache              Ignore any pregenerated audio
       --test                  Continue with test parameters
       --test-event ID[,ID...] Fire event identified by ID, then exit
       --test-scale            Play the major scale from c4 to c5, if possible
@@ -1744,7 +2033,7 @@ sub parse_command_line_arguments () {
   $melody = lc $config->{'/'}->{'melody'}->[0] if defined $config->{'/'}->{'melody'};
   $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
       if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
-  die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
+  #FIXME die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
 
   # Guess location if not specified in config file
   $coords = guess_coordinates unless defined $coords;
@@ -1756,8 +2045,12 @@ sub parse_command_line_arguments () {
   GetOptions(
     'D|debug' => sub { $debug += 1; },
     'd|sink=s' => sub { @sinks = $_[1]; },
+    'dump-defs' => sub { print Dumper \%chime; exit disconnect_synth },
+    'dump-notes' => sub { for my $key (sort keys %chime) { printf "%s => %s", $key, Dumper $interpretation{$chime{$key}} };
+	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
+    'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
     'test' => sub { set_test_params },
@@ -1766,7 +2059,7 @@ sub parse_command_line_arguments () {
     'test-scale' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH;
 	strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]);
 	exit disconnect_synth },
-    'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; strike_tune @{interpret_melody($_[1], 1)};
+    'test-tune=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; strike_tune @{interpret_melody $_[1]};
 	exit disconnect_synth },
     'v|verbose' => \$verbose_p,
     'W|what-if=s' => \$what_if,
@@ -1805,7 +2098,11 @@ sub do_setup () {
 	$boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
       if $verbose_p || $debug;
 
-  generate_sound_clips if $method eq METHOD__SYNTH;
+  if ($method eq METHOD__SYNTH && $no_cache_p) {
+    connect_synth 'test';
+  } elsif ($method eq METHOD__SYNTH) {
+    generate_sound_clips;
+  }
 }
 
 sub do_main_loop () {
