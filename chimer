@@ -48,6 +48,22 @@ use integer;
 package Debug;
 use Scalar::Util qw(blessed dualvar isdual readonly refaddr reftype tainted weaken isweak isvstring looks_like_number set_prototype);
 
+sub lazy_sorter ($$) {
+  my($a, $b) = @_;
+  my $it;
+  if ($a =~ /^(.*?)(\d+(?:\.\d+)?)$/s) {
+    no integer;
+    my($a1, $a2) = ($1, $2);
+    if ($b =~ /^(.*?)(\d+(?:\.\d+)?)$/s) {
+      my($b1, $b2) = ($1, $2);
+      $it = $a1 cmp $b1;
+      $it = $a2 <=> $b2 unless $it;
+    }
+  }
+  $it = $a cmp $b unless defined $it && $it;
+  return $it;
+}
+
 sub cvs ($) {
   my($s) = @_;
   my $it;
@@ -94,7 +110,7 @@ sub cvs ($) {
   }
   sub format_hash ($) {
     my($s) = @_;
-    for my $key (sort keys %$s) {
+    for my $key (sort { lazy_sorter($a, $b) } keys %$s) {
       $it .= ' ' if defined $it;
       $it .= sprintf('%s %s', format_as_name $key, Debug::cvs($s->{$key}));
     }
@@ -2112,7 +2128,9 @@ sub parse_command_line_arguments () {
     'D|debug' => sub { $debug += 1; },
     'd|sink=s' => sub { @sinks = $_[1]; },
     'dump-defs' => sub { printf "%s\n", Debug::cvs \%chime; exit disconnect_synth },
-    'dump-notes' => sub { for my $key (sort keys %chime) { printf "%s => %s\n", $key, Debug::cvs $interpretation{$chime{$key}} };
+    'dump-notes' => sub { for my $key (sort { Debug::lazy_sorter($a, $b) } keys %chime) {
+	    printf "%s => %s\n", $key, Debug::cvs $interpretation{$chime{$key}}
+	  };
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
