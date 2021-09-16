@@ -1323,6 +1323,18 @@ sub determine_event_duration ($$) {
   return $it;
 }
 
+sub determine_next_uncached_event (@) {
+  my @event = @_;
+  my $it;
+  for my $event (@event) {
+    my $event_id = $event->{'id'};
+    my $det = get_cache_pathname_for_event($event_id);
+    $it = $event_id unless -f $det;
+  last if defined $it;
+  }
+  return $it;
+}
+
 sub determine_events ($$$$$$$$$) {
   my($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size) = @_;
   my @it;
@@ -2157,6 +2169,15 @@ sub do_main_loop () {
     my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
     my $dt = $t_next - $t1;
     $dt = 0 if $dt < 0;
+
+    # If we have time to generate some sound clips, do it
+    if ($dt0 > 300 && $method eq METHOD__SYNTH && !$no_cache_p) {
+      my $event = determine_next_uncached_event @event;
+      if (defined $event) {
+	generate_sound_clip_for_event $event;
+	$countdown = 0; # force a re-countdown
+      }
+    }
 
     # Debug message
     log_comment sprintf "%10.2f=%02d+%2.2f=%2.2f=%2.2f (Δt=%2.2f) > %s",
