@@ -51,6 +51,23 @@ use Scalar::Util qw(blessed dualvar isdual readonly refaddr reftype tainted weak
 sub cvs ($) {
   my($s) = @_;
   my $it;
+  sub compute_size ($) {
+    my($s) = @_;
+    my $it;
+    if (!defined $s || !ref $s) {
+      $it = 1;
+    } elsif (ref $s eq 'ARRAY') {
+      for my $val (@$s) {
+	$it += compute_size($val);
+      }
+    } else { # hash or object
+      $it += 2 unless ref $s eq 'HASH';
+      for my $val (values %$s) {
+	$it += 1 + compute_size($val);
+      }
+    }
+    return $it;
+  }
   sub format_scalar ($) {
     my($it) = @_;
     no integer;
@@ -64,6 +81,17 @@ sub cvs ($) {
     my($s) = @_;
     return $s =~ /^[-\.\w]+$/? "/$s": format_scalar $s;
   }
+  sub format_array_inner ($) {
+    my($s) = @_;
+    my $it;
+    if (compute_size($s) <= 12) {	# cf. https://picolisp.com/wiki/?prettyPrint
+      $it = join(' ', map { cvs($_) } @$s);
+    } else {
+      my @s = @$s;
+      $it = cvs($s[0]) . "\n   " . format_array_inner([@s[1..$#s]]);
+    }
+    return $it;
+  }
   sub format_hash ($) {
     my($s) = @_;
     for my $key (sort keys %$s) {
@@ -75,7 +103,7 @@ sub cvs ($) {
   if (!defined $s) {
     $it = 'null';
   } elsif (ref $s eq 'ARRAY') {
-    $it = sprintf('[%s]', join(' ', map { Debug::cvs($_) } @$s));
+    $it = sprintf('[%s]', format_array_inner($s));
   } elsif (ref $s eq 'HASH') {
     $it = format_hash $s;
   } elsif (!ref $s) {
