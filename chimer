@@ -95,7 +95,7 @@ sub cvs ($) {
   }
   sub format_as_name ($) {
     my($s) = @_;
-    return $s =~ /^[-\.\w]+$/? "/$s": format_scalar $s;
+    return $s =~ /^[-\.\w]+$/? "/$s": sprintf('%s cvs', format_scalar $s);
   }
   sub format_array_inner ($) {
     my($s) = @_;
