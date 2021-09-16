@@ -51,29 +51,37 @@ use Scalar::Util qw(blessed dualvar isdual readonly refaddr reftype tainted weak
 sub cvs ($) {
   my($s) = @_;
   my $it;
+  sub format_scalar ($) {
+    my($it) = @_;
+    no integer;
+    if (!looks_like_number($it)) {
+      $it =~ s/([\\\(\)])/\\\1/sg;
+      $it = "($it)";
+    }
+    return $it;
+  }
+  sub format_as_name ($) {
+    my($s) = @_;
+    return $s =~ /^[-\.\w]+$/? "/$s": format_scalar $s;
+  }
+  sub format_hash ($) {
+    my($s) = @_;
+    for my $key (sort keys %$s) {
+      $it .= ' ' if defined $it;
+      $it .= sprintf('%s %s', format_as_name $key, Debug::cvs($s->{$key}));
+    }
+    return "<<$it>>";
+  }
   if (!defined $s) {
     $it = 'null';
   } elsif (ref $s eq 'ARRAY') {
     $it = sprintf('[%s]', join(' ', map { Debug::cvs($_) } @$s));
   } elsif (ref $s eq 'HASH') {
-    for my $key (keys %$s) {
-      $it .= ' ' if defined $it;
-      $it .= sprintf('/%s %s', $key, Debug::cvs($s->{$key}));
-    }
-    $it = "<<$it>>";
+    $it = format_hash $s;
   } elsif (!ref $s) {
-    no integer;
-    $it = $s;
-    if (!looks_like_number($s)) {
-      $it =~ s/([\\\(\)])/\\\1/sg;
-      $it = "($it)";
-    }
+    $it = format_scalar $s;
   } else { # object :-/
-    for my $key (keys %$s) {
-      $it .= ' ' if defined $it;
-      $it .= sprintf('/%s %s', $key, Debug::cvs($s->{$key}));
-    }
-    $it = sprintf "<<%s>> /%s bless", $it, ref $s;
+    $it = sprintf '%s %s bless', format_hash $s, format_as_name ref $s;
   }
   return $it;
 }
@@ -2075,8 +2083,8 @@ sub parse_command_line_arguments () {
   GetOptions(
     'D|debug' => sub { $debug += 1; },
     'd|sink=s' => sub { @sinks = $_[1]; },
-    'dump-defs' => sub { print Dumper \%chime; exit disconnect_synth },
-    'dump-notes' => sub { for my $key (sort keys %chime) { printf "%s => %s", $key, Dumper $interpretation{$chime{$key}} };
+    'dump-defs' => sub { printf "%s\n", Debug::cvs \%chime; exit disconnect_synth },
+    'dump-notes' => sub { for my $key (sort keys %chime) { printf "%s => %s\n", $key, Debug::cvs $interpretation{$chime{$key}} };
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
