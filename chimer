@@ -946,7 +946,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG, 'Early ting-tang (ding-dong) quarters (source: Starmer, 1907, p. 4, option 3a)', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG, 'Ting-tang (ding-dong) quarters, traditional (source: Starmer, 1907, p. 4, option 3a)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 a }
 	B = \relative c' { r4 }
@@ -987,7 +987,7 @@ use vars qw( %chime );
       'q0' => '\fff \B \C \D \E \F',
       'h' => '\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells (source: Wikipedia)', q(
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells, traditional (source: Wikipedia)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
 	B = \relative e' { e'4 cis a fis dis' b gis e }
