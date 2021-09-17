@@ -12,7 +12,7 @@ currently hard-coded to be $HOME/.chimerrc
 
 Aims
 ----
-It’s intended to replace my two Javascript chiming clocks,
+This was hacked together to replace my two Javascript chiming clocks,
 with the aims of avoiding using Firefox for clock chimes
 and reducing sound distortion issues caused by RTP broadcasts.
 
@@ -24,6 +24,20 @@ which can potentially be a problem.
 The current tested configuration is `method = synth` and `melody = whittington`.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
+
+Running
+-------
+The script currently only runs on a PulseAudio-based Linux (or similar) system.
+You might have mpv and paplay (part of PulseAudio) installed (see Dependencies below).
+
+If you’re not running directly from a git clone,
+you only need the script itself.
+
+The best way to get sound working is to use Fluidsynth
+with a copy of Timbres Of Heaven installed.
+You also must have a `data` directory created to hold cached audio files.
+Please see the [sample config file](doc/chimerrc.example).
+
 
 Dependencies
 ------------

@@ -301,7 +301,7 @@ sub MELODY__NORWICH       () { 'norwich' }
 sub MELODY__TINGTANG      () { 'tingtang' }
 sub MELODY__WESTMINSTER   () { 'westminster' }
 sub MELODY__WHITTINGTON   () { 'whittington' }
-sub MELODY__WHITTINGTON12 () { 'whittington12' }
+sub MELODY__WHITTINGTON11 () { 'whittington11' }
 
 use vars qw( $mode $method $melody );
 $mode   = MODE__CARILLON;
@@ -1000,7 +1000,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \A \B \C \D \F',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON12, q(				% source: Starmer (1907, p. 5)
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON11, q(				% source: Starmer (1907, p. 5)
 	x = { \tempo 4 = 96 }
 	A = \relative { c''4 g' f e }
 	B = \relative { c''4 g' f e g d }
@@ -1530,6 +1530,7 @@ sub set_test_params () {
   $mode = $config->{'test'}->{'mode'}->[0] if defined $config->{'test'}->{'mode'};
   $method = $config->{'test'}->{'method'}->[0] if defined $config->{'test'}->{'method'};
   $melody = lc $config->{'test'}->{'melody'}->[0] if defined $config->{'test'}->{'melody'};
+  $datadir = $config->{'test'}->{'datadir'} if defined $config->{'test'}->{'datadir'};
   log_debug sprintf "test params set at %.2f: mode=%s, method=%s, melody=%s", $boottime, $mode, $method, $melody if $verbose_p || $debug;
 }
 
@@ -1610,7 +1611,6 @@ sub set_sink_volumes ($$$$$) {
 sub get_cache_pathname_for_event ($) {
   my($id) = @_;
   my $it;
-  my $datadir = 'data'; # FIXME
   if ($id ne 'test') {
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
@@ -2117,6 +2117,7 @@ sub parse_command_line_arguments () {
   $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
       if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
   #FIXME die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
+  $datadir = $config->{'/'}->{'datadir'}->[0] if defined $config->{'/'}->{'datadir'};
 
   # Guess location if not specified in config file
   $coords = guess_coordinates unless defined $coords;
