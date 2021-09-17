@@ -784,13 +784,16 @@ sub interpret_melody ($) {
   return $it;
 }
 
+use vars qw( %melody_description );
+
 sub event_id ($$;$) {
   my($mode, $event, $melody) = @_;
   return join('-', map { s/[^\.\w]+/_/sg if defined $_; defined $_? $_: () } ($mode, $melody, $event));
 }
-sub define_event ($$$%) {
-  my($mode, $melody, $shared_defs, %event_defs) = @_;
+sub define_event ($$$$%) {
+  my($mode, $melody, $description, $shared_defs, %event_defs) = @_;
   my %it;
+  $melody_description{$melody} = $description if defined $melody;
   for my $event (keys %event_defs) {
     my $tune = sprintf('%s%s%s', $shared_defs, (defined $shared_defs && $shared_defs =~ /[^\n]$/s? "\n": ''), $event_defs{$event});
     if ($event eq 'h' && $tune =~ /\%[Il]/) {			# expand to h1..h12
@@ -829,7 +832,7 @@ sub define_watch ($$$$$) {
     }
   }
   #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
-  return define_event(undef, undef, undef, ($event => sprintf('\drums { %s }', $score)));
+  return define_event(undef, undef, undef, undef, ($event => sprintf('\drums { %s }', $score)));
 }
 
 
@@ -850,7 +853,7 @@ use vars qw( %chime );
   define_watch('w3.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w4.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w5.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_event(MODE__SYSLINE, undef, q(
+  define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', q(
 	A = \relative { \set Staff.instrumentName = #"Terminal Bell" ees''''8 r4. ~ r4 }
       ),
       'q1' => '',
@@ -859,7 +862,7 @@ use vars qw( %chime );
       'q0' => '\A',
       'h' => '\A',
     ),
-  define_event(MODE__CARILLON, MELODY__ABBEY, q(					% source: Starmer (1907, p. 13)
+  define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, 1880 (source: Starmer, 1907, p. 13)', q(
 	x = { \tempo 1 = 68 }
 	A = \relative { c''1 b d c }
 	B = \relative { c''1 b d e }
@@ -873,7 +876,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \A \B \C \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__CAMBRIDGE , q(					% source: Starmer (1907, p. 7)
+  define_event(MODE__CARILLON, MELODY__CAMBRIDGE, 'Cambridge Quarters, 1793–1794 (source: Starmer, 1907, p. 7)', q(
 	x = { \tempo 4 = 64 }
 	A = \relative c' { e'4 d c | g2. }
 	B = \relative c' { c'4 e d | g,2. | c4 d e | c2. }
@@ -887,7 +890,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__CAMBRIDGE_RCC, q(				% source: Starmer (1907, p. 13)
+  define_event(MODE__CARILLON, MELODY__CAMBRIDGE_RCC, 'Chimes at R. C. Church, Cambridge, 1896 (source: Starmer, 1907, p. 13)', q(
 	x = { \tempo 1 = 60 }
 	A = \relative { d'1 g(a) b(g) a(g) }
 	B = \relative { a'1 b a g e d }
@@ -901,7 +904,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \A \B \C \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__CANTERBURY, q(					% source: Starmer (1907, p. 14)
+  define_event(MODE__CARILLON, MELODY__CANTERBURY, 'Canterbury Cathedral chimes, 1897 (source: Starmer, 1907, p. 14)', q(
 	% The score given by Starmer is a Gregorian chant, so note lengths are meaningless. We need to interpret it or the music will sound dead
 	A = \relative c' { g'8. a c4. }
 	B = \relative c' { g'8. a c4. r4 d8. c b c2 }
@@ -915,7 +918,7 @@ use vars qw( %chime );
       'q0' => '\ff \D',
       'h' => '\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__GUILDFORD, q(					% source: Starmer (1907, p. 10)
+  define_event(MODE__CARILLON, MELODY__GUILDFORD, 'Guildford chimes, 1843 (source: Starmer, 1907, p. 10)', q(
 	x = { \tempo 4 = 80 }
 	A = \relative c' { c'2 e,4 a | g1 }
 	B = \relative c' { e4 g c b | d, f a g | e1 }
@@ -929,7 +932,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__MAGDALEN, q(					% source: Starmer (1907, p. 10)
+  define_event(MODE__CARILLON, MELODY__MAGDALEN, 'Magdalen chimes, 1713 (source: Starmer, 1907, p. 10)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { b'4 c }
 	B = \relative c' { b'4 c c, g' }
@@ -943,7 +946,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG, q(					% source: Starmer (1907, p. 4, option 3a)
+  define_event(MODE__CARILLON, MELODY__TINGTANG, 'Early ting-tang (ding-dong) quarters (source: Starmer, 1907, p. 4, option 3a)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 a }
 	B = \relative c' { r4 }
@@ -955,7 +958,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \A \B \A \B \A \B \A \B',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__NORWICH, q(					% source: Starmer (1907, p. 11)
+  define_event(MODE__CARILLON, MELODY__NORWICH, 'Norwich Cathedral chimes, 1876 (source: Starmer, 1907, p. 11)', q(
 	x = { \tempo 1 = 75 }
 	A = \relative c' { \ff a'1 g f e d }
 	B = \relative c' { \ff d1 e a g f  | g d f e d }
@@ -969,7 +972,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WESTMINSTER, q(
+  define_event(MODE__CARILLON, MELODY__WESTMINSTER, 'Westminster Quarters, 1793–1794 (source: Wikipedia)', q(
 	A = \relative e' { gis4 fis e b2  }
 	B = \relative e' { e4 gis fis b,2 }
 	C = \relative e' { e4 fis gis e2  }
@@ -984,7 +987,7 @@ use vars qw( %chime );
       'q0' => '\fff \B \C \D \E \F',
       'h' => '\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON, q(					% "Whittington Chimes", 2021
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells (source: Wikipedia)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
 	B = \relative e' { e'4 cis a fis dis' b gis e }
@@ -1000,7 +1003,7 @@ use vars qw( %chime );
       'q0' => '\x \ff \A \B \C \D \F',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON11, q(				% source: Starmer (1907, p. 5)
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells, 1905 (source: Starmer, 1907, p. 5)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative { c''4 g' f e }
 	B = \relative { c''4 g' f e g d }
@@ -2136,7 +2139,8 @@ sub parse_command_line_arguments () {
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
-    'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; print join('', map { "$_\n" } sort keys %a);
+    'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime;
+	print join('', map { defined $melody_description{$_}? sprintf("%-24s%s\n", $_, $melody_description{$_}): "$_\n" } sort keys %a);
 	exit disconnect_synth },
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
