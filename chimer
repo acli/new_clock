@@ -773,8 +773,9 @@ sub interpret_melody ($) {
 	  $it->[+scalar @$it - 1][1] += $rhs;
 	}
       }
-      my $instrument = ($lhs eq $percussive_instrument || $lhs eq 'r')? undef: $main_instrument; # FIXME
-      push @$it, [$lhs, $rhs, $volume, $instrument] unless $tie_p;
+      my $rest_p = $lhs eq 'r';
+      my $instrument = ($lhs eq $percussive_instrument || $rest_p)? undef: $main_instrument; # FIXME
+      push @$it, [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
       $note = $lhs;
       $tie_p = 0;
     }
