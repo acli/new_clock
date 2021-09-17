@@ -587,6 +587,7 @@ use vars qw( %expressive_mark_to_midi_velocity );
   'fffff'	=> 127,
 );
 use vars qw( %interpretation );
+use vars qw( %melody_description );
 
 sub interpret_absolute_pitch ($) { # interpret c' as c4
   my($s) = @_;
@@ -784,8 +785,6 @@ sub interpret_melody ($) {
       join(' ', map { $_->[0] . ($_->[1] == $state->unit_beat()? '': sprintf('(%s)', $_->[1]/$state->unit_beat())) } @$it) if $debug;
   return $it;
 }
-
-use vars qw( %melody_description );
 
 sub event_id ($$;$) {
   my($mode, $event, $melody) = @_;
