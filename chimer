@@ -853,8 +853,8 @@ use vars qw( %chime );
   define_watch('w3.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w4.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w5.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', q(
-	A = \relative { \set Staff.instrumentName = #"Terminal Bell" ees''''8 r4. ~ r4 }
+  define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1), 4.2bsd', q(
+	A = \relative { \set Staff.instrumentName = #"Sine Wave" ees''''8 r4. ~ r4 }
       ),
       'q1' => '',
       'q2' => '\A',
@@ -862,7 +862,7 @@ use vars qw( %chime );
       'q0' => '\A',
       'h' => '\A',
     ),
-  define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, 1880 (source: Starmer, 1907, p. 13)', q(
+  define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, N.B., 1880 (source: Starmer, 1907, p. 13)', q(
 	x = { \tempo 1 = 68 }
 	A = \relative { c''1 b d c }
 	B = \relative { c''1 b d e }
@@ -1719,7 +1719,7 @@ sub connect_synth ($) {
     $instrument_name_to_channel_number{'Gong'} = 0;
     $instrument_name_to_channel_number{'Carillon'} = 1;
     $instrument_name_to_channel_number{'Woodblock'} = 2;
-    $instrument_name_to_channel_number{'Terminal Bell'} = 4;
+    $instrument_name_to_channel_number{'Sine Wave'} = 4;
 
     # Set reverb, based on advice from
     # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
@@ -1891,7 +1891,7 @@ sub strike_tune (@) {
       } elsif (defined $note_to_midi_number{$note}) {
 	my $channel = (defined $instrument_name_to_channel_number{$instrument}? $instrument_name_to_channel_number{$instrument}: 1);
 	my $note_number = $note_to_midi_number{$note};
-	my $laisser_vibrer_p = 1 unless $instrument eq 'Terminal Bell'; # FIXME
+	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
 	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
 	push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       }
