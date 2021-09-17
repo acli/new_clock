@@ -2067,6 +2067,7 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
   -d, --sink SINK             Use the specified SINK for audio
       --nonproportional-watches (NOT IMPLEMENTED)
                               Use watches that are aligned to duodecimal hours
+  -l, --list                  Display available carillon melodies and exit
   -Q, --qing                  Same as --nonproportional-watches --qing-quarters
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
@@ -2134,6 +2135,8 @@ sub parse_command_line_arguments () {
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
+    'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; print join('', map { "$_\n" } sort keys %a);
+	exit disconnect_synth },
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
