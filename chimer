@@ -298,7 +298,12 @@ sub MELODY__CANTERBURY    () { 'canterbury' }
 sub MELODY__GUILDFORD     () { 'guildford' }
 sub MELODY__MAGDALEN      () { 'magdalen' }
 sub MELODY__NORWICH       () { 'norwich' }
-sub MELODY__TINGTANG      () { 'tingtang' }
+sub MELODY__TINGTANG2A    () { 'tingtang2a' }
+sub MELODY__TINGTANG2B    () { 'tingtang2b' }
+sub MELODY__TINGTANG3A    () { 'tingtang3a' }
+sub MELODY__TINGTANG3B    () { 'tingtang3b' }
+sub MELODY__TINGTANG4     () { 'tingtang4' }
+sub MELODY__TINGTANG5     () { 'tingtang5' }
 sub MELODY__WESTMINSTER   () { 'westminster' }
 sub MELODY__WHITTINGTON   () { 'whittington' }
 sub MELODY__WHITTINGTON11 () { 'whittington11' }
@@ -946,11 +951,77 @@ use vars qw( %chime );
       'q0' => '\x \ff \D',
       'h' => '\x \fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG, 'Ting-tang (ding-dong) quarters, traditional (source: Starmer, 1907, p. 4, option 3a)', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG2A,
+      'Ting-tang (ding-dong) quarters on major second, traditional (source: Starmer, 1907, p. 4)', q(
+	x = { \tempo 4 = 96 }
+	A = \relative c' { c'4 b }
+	B = \relative c' { r4 }
+	S = \relative c' { f1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B \A',
+      'q3' => '\x \ff \A \B \A \B \A',
+      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, MELODY__TINGTANG2B,
+      'Ting-tang (ding-dong) quarters on minor second, traditional (source: Starmer, 1907, p. 4)', q(
+	x = { \tempo 4 = 96 }
+	A = \relative c' { c'4 bes }
+	B = \relative c' { r4 }
+	S = \relative c' { f1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B \A',
+      'q3' => '\x \ff \A \B \A \B \A',
+      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, MELODY__TINGTANG3A,
+      'Ting-tang (ding-dong) quarters on major third, traditional (source: Starmer, 1907, p. 4)', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 a }
 	B = \relative c' { r4 }
 	S = \relative c' { f1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B \A',
+      'q3' => '\x \ff \A \B \A \B \A',
+      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, MELODY__TINGTANG3B,
+      'Ting-tang (ding-dong) quarters on minor third, traditional (source: Starmer, 1907, p. 4)', q(
+	x = { \tempo 4 = 96 }
+	A = \relative c' { c'4 aes }
+	B = \relative c' { r4 }
+	S = \relative c' { f1 }
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B \A',
+      'q3' => '\x \ff \A \B \A \B \A',
+      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, MELODY__TINGTANG4,
+      'Ting-tang (ding-dong) quarters on perfect fourth, traditional (source: Starmer, 1907, p. 4)', q(
+	x = { \tempo 4 = 96 }
+	A = \relative c' { c'4 g }
+	B = \relative c' { r4 }
+	S = \relative c' { f1 } % or e1 or c1
+      ),
+      'q1' => '\x \ff \A',
+      'q2' => '\x \ff \A \B \A',
+      'q3' => '\x \ff \A \B \A \B \A',
+      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
+      'h' => '\x \fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, MELODY__TINGTANG5,
+      'Ting-tang (ding-dong) quarters on perfect fifth, traditional (source: Starmer, 1907, p. 4)', q(
+	x = { \tempo 4 = 96 }
+	A = \relative c' { c'4 f, }
+	B = \relative c' { r4 }
+	S = \relative c' { c1 }
       ),
       'q1' => '\x \ff \A',
       'q2' => '\x \ff \A \B \A',
