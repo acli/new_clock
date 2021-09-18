@@ -201,6 +201,9 @@ Retrieved September 10, 2021, from https://www.clockguy.com/SiteRelated/SiteRefe
 Starmer, <span title="William Wooding">W. W.</span> (1907, November 19). Chimes. <cite>Proceedings of the Musical Association, 34</cite>, 1–24.
 Retrieved from https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf
 
+Starmer, W. W. (1910, April 19). Continental chimes and chime tunes. <cite>Proceedings of the Musical Association, 36</cite>(1), 93–107.
+Retrieved from https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F36.1.93.pdf
+
 Westminster Quarters. (2021). <cite>Wikipedia</cite>.
 Retrieved August 18, 2021, from https://en.wikipedia.org/w/index.php?title=Westminster_Quarters&oldid=1038660380
 

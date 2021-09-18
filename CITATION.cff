@@ -192,6 +192,21 @@ references:
   url: https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf
 
 - authors:
+  - family-names: Starmer
+    given-names: W. W.
+  year: 1910
+  month: 4
+  day: 19
+  title: Continental chimes and chime tunes
+  type: article
+  journal: Proceedings of the Musical Association
+  volume: 36
+  issue: 1
+  start: 93
+  end: 107
+  url: https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F36.1.93.pdf
+
+- authors:
   - name: strangehorizon
     url: https://soundcloud.com/sonic_kitchen
   year: 2021
