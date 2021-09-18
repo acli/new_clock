@@ -1144,7 +1144,7 @@ use vars qw( %chime );
       'q0' => '\x <>-\ff \A r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
       # "continental" additions
-      'halb' => q(\x \repeat volta %I { \relative { c'''1 } }),
+      'halb' => q(\x \repeat volta %I { \relative { c''1 } }),
       'e1' => q(\malinesglobal \malinesi),
       'e3' => q(\malinesglobal \malinesii),
       'e5' => q(\malinesglobal \malinesiii),
