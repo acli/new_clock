@@ -1534,11 +1534,13 @@ sub determine_event_duration ($$) {
   if (defined $tune) {
     $it = 0;
     for my $voice (@{$interpretation{$tune}}) {
+      my $voice_duration = 0;
       for my $note (@$voice) {
 	no integer;
 	log_debug sprintf '%s %s', $note->[0], $note->[1] if $debug > 1;
-	$it += $note->[1];
+	$voice_duration += $note->[1];
       }
+      $it = $voice_duration if $voice_duration > $it;
     }
   } elsif ($method eq METHOD__SYNTH) {
     $it = 0;
@@ -2298,7 +2300,9 @@ sub generate_proofsheet () {
   }
   for my $id (@events_found) {
     my $tune = $chime{$id};
+    print "\\markup{\\vspace #1 }\n";
     print "\\markup{$id}\n";
+    print "\\noPageBreak\n";
     print "$tune\n\n";
     print "\\markup{Note: melody was defined but not converted}\n" unless $interpretation{$tune};
   }
