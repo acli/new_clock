@@ -633,6 +633,7 @@ sub interpret_melody ($) {
   my($tie_p);
   my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
   my($def_key, $def_value, $def_level, %def);
+  my $voice;
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
     $s =~ s/^\s*//s unless defined $def_key;
     if ($s =~ /^\\([A-Za-z]+)\b/s && defined $def{$1}) {	# expand variables
@@ -676,6 +677,13 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^>>\s*//s) {		# FIXME
       $state->grestore();
 
+    } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
+      ;
+
+    } elsif ($s =~ s/^\\new\s+(?:Staff|Voice)\s+//s || $s =~ s/^\\\\\s*//s) {
+      push @$it, $voice if $voice;
+      $voice = undef;
+
     } elsif ($s =~ s/^\\score\s+\x{7b}\s*//s) {
       $state->gsave();
 
@@ -698,14 +706,14 @@ sub interpret_melody ($) {
       $state->gsave();
       $state->repeat_stacklevel($state->stacklevel());
       $state->repeat_count($n);
-      $state->repeat_start(defined $it? @$it: 0);
+      $state->repeat_start(defined $voice? @$voice: 0);
 
     } elsif ($s =~ s/^\x{7d}\s*//s) {		# braceright
       if (defined $state->repeat_stacklevel() && $state->repeat_stacklevel() == $state->stacklevel()) {
-	my @A = @$it;
+	my @A = @$voice;
 	my $i = $state->repeat_start();
 	my $n = $state->repeat_count();
-	$it = [@A[0 .. $i - 1], (@A[$i .. $#A]) x $n];
+	$voice = [@A[0 .. $i - 1], (@A[$i .. $#A]) x $n];
       }
       $state->grestore();
     } elsif ($s =~ s/^[\[\]]\s*//s) {		# ignore bracketleft/bracketright = beam on/beam off
@@ -722,7 +730,7 @@ sub interpret_melody ($) {
       if (!defined $note) {
 	log_error "Fermata ignored because there is no note to tie to";
       } else {
-	$it->[+scalar @$it - 1]->[1] *= 2;	# FIXME
+	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
       }
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
       $state->unit_beat(($1*60)/(4*$2));
@@ -793,16 +801,17 @@ sub interpret_melody ($) {
 	  $tie_p = 0;
 	  log_error "Tie ignored because $note and $lhs are different";
 	} else {
-	  $it->[+scalar @$it - 1][1] += $rhs;
+	  $voice->[+scalar @$voice - 1][1] += $rhs;
 	}
       }
       my $rest_p = $lhs eq 'r';
       my $instrument = ($lhs eq $percussive_instrument || $rest_p)? undef: $main_instrument; # FIXME
-      push @$it, [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
+      push @$voice, [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
       $note = $lhs;
       $tie_p = 0;
     }
   }
+  push @$it, $voice if $voice;
   log_debug sprintf "%s interpreted as %s", $s0,
       join(' ', map { $_->[0] . ($_->[1] == $state->unit_beat()? '': sprintf('(%s)', $_->[1]/$state->unit_beat())) } @$it) if $debug;
   return $it;
@@ -824,7 +833,7 @@ sub define_event ($$$$$$$%) {
   $shared_defs =~ s/\s+$//sg;					# trim
   $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
-    my $tune = sprintf('%s\score { << { %s } >> }', $shared_defs, $event_defs{$event});
+    my $tune = sprintf('%s\score { { %s } }', $shared_defs, $event_defs{$event});
     $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
     $event = "q0" if $event eq 'q4';				# in case we got q4
     if ($event =~ /^(?:h|halb)$/ && $tune =~ /\%[Il]/) {	# expand to h1..h12
@@ -1131,10 +1140,21 @@ use vars qw( %chime );
 	  a2 c4. c8 | f,2 r2 | bes4.~bes8 d4. d8 | g,2 r2 |
 	}
 	% anonymous, 1745
-	excerptfromroyalanthem = \relative g' {
+	excerptfromroyalanthem = {
+	<<
 	  \time 3/4
+	  \key g \major
+	  \relative g' {
 	  g4 g a | fis4. g8 a4 | b b c | b4. a8 g4 |
 	  a g fis | g2. | 
+	  }
+	  \new Staff
+	  \relative { \clef "bass" % source: https://en.wikipedia.org/wiki/God_Save_the_Queen#/media/File:Gstk.png
+	  \key g \major
+	    g4 g, g' | d4. e8 fis4 | g g a | fis4. fis8 g4 |
+	    c, d d | g,2. |
+	  }
+	>>
 	}
 	S = \relative { c'1 }
 	% Malines half quarters from Starmer (1910, p. 97)
@@ -1144,7 +1164,7 @@ use vars qw( %chime );
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
       'q1' => '\x <>-\ff \excerptfromstart',
-      'q2' => '\x <>-\ff \excerptfromroyalanthem',
+      'q2' => '\x <>-\f \excerptfromroyalanthem',
       'q3' => '\x <>-\ff \excerptfromend',
       'q0' => '\x <>-\ff \A r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
@@ -1513,10 +1533,12 @@ sub determine_event_duration ($$) {
   my $tune = $chime{$id};
   if (defined $tune) {
     $it = 0;
-    for my $note (@{$interpretation{$tune}}) {
-      no integer;
-      log_debug sprintf '%s %s', $note->[0], $note->[1] if $debug > 1;
-      $it += $note->[1];
+    for my $voice (@{$interpretation{$tune}}) {
+      for my $note (@$voice) {
+	no integer;
+	log_debug sprintf '%s %s', $note->[0], $note->[1] if $debug > 1;
+	$it += $note->[1];
+      }
     }
   } elsif ($method eq METHOD__SYNTH) {
     $it = 0;
@@ -2041,45 +2063,47 @@ sub transpose_note ($;$) {
 
 sub strike_tune (@) {
   my @tune = @_;
-  log_debug sprintf "Striking %s", join(' ', map { $_->[0] } @tune) if $debug || $verbose_p;
+  log_debug sprintf "Striking %s", join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @tune) if $debug || $verbose_p;
   no integer;
   my $semitones = 8;
-  my $t0 = current_time;
-  my $elapsed = 0;
   my @midi_commands;
-  for my $spec (@tune) {
-    my($note, $time, $velocity, $instrument) = @$spec;
-    $velocity = 127 unless defined $velocity; # NOTE backward compatibility
-    my $t_i = current_time;
-    my $note_length = $time * $beat_length;
-    if ($method eq METHOD__SYNTH) {
-      if (defined $percussion_note_to_midi_number{$note}) {
-	push @midi_commands, [$elapsed, sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity];
-      } elsif (defined $note_to_midi_number{$note}) {
-	my $channel = (defined $instrument_name_to_channel_number{$instrument}? $instrument_name_to_channel_number{$instrument}: 1);
-	my $note_number = $note_to_midi_number{$note};
-	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
-	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
-	push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
+  for my $voice (@tune) {
+    my $elapsed = 0;
+    my $t0 = current_time;
+    for my $spec (@$voice) {
+      my($note, $time, $velocity, $instrument) = @$spec;
+      $velocity = 127 unless defined $velocity; # NOTE backward compatibility
+      my $t_i = current_time;
+      my $note_length = $time * $beat_length;
+      if ($method eq METHOD__SYNTH) {
+	if (defined $percussion_note_to_midi_number{$note}) {
+	  push @midi_commands, [$elapsed, sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity];
+	} elsif (defined $note_to_midi_number{$note}) {
+	  my $channel = (defined $instrument_name_to_channel_number{$instrument}? $instrument_name_to_channel_number{$instrument}: 1);
+	  my $note_number = $note_to_midi_number{$note};
+	  my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
+	  push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
+	  push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
+	}
+      } else {
+	# The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
+	# for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
+	# If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
+	# (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
+	# The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
+	#strike_gong transpose_note $note, $semitones;
+	strike_bell transpose_note $note, $semitones;
       }
-    } else {
-      # The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
-      # for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
-      # If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
-      # (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
-      # The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
-      #strike_gong transpose_note $note, $semitones;
-      strike_bell transpose_note $note, $semitones;
+      # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
+      # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
+      my $dt = $t0 + $elapsed + $note_length - current_time;
+      Time::HiRes::sleep $dt if $method ne METHOD__SYNTH && $dt > 0;
+      $elapsed += $note_length;
     }
-    # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
-    # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
-    my $dt = $t0 + $elapsed + $note_length - current_time;
-    Time::HiRes::sleep $dt if $method ne METHOD__SYNTH && $dt > 0;
-    $elapsed += $note_length;
   }
   if ($method eq METHOD__SYNTH && @midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
     @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
-    $t0 = current_time; # reset start time
+    my $t0 = current_time; # reset start time
     for (my $i = 0;; $i += 1) {
       my($t, $midi_command) = @{$midi_commands[$i]};
       send_midi_command $midi_command;
@@ -2229,14 +2253,31 @@ sub safe_to_restart_p () {
   return 0 == system { $cmd[0] } @cmd;
 }
 
+sub enumerate_event_types () {
+  my %it;
+  for my $id (keys %chime) {
+    $it{$1} = 1 if $id =~ /-([^-]+)$/s; # FIXME
+  }
+  return sort { Debug::lazy_sorter($a, $b) } keys %it;
+}
+
+sub enumerate_defined_events () {
+  my @it;
+  for my $event (enumerate_event_types) {
+    my $id = determine_defined_id_for_event($event);
+    push @it, $event if defined $id;
+  }
+  return @it;
+}
+
 sub generate_proofsheet () {
-  my @events_to_check = qw(q1 q2 q3 q0 h12 h e1 e3 e5 e7 halb12);
+  my @events_to_check = enumerate_defined_events;
   my @events_found;
   my($title, $source, $composer, $year);
   for my $event (@events_to_check) {
     my $id = determine_defined_id_for_event($event);
     if (defined $id) {
-      push @events_found, $id if $interpretation{$chime{$id}}; # ignore empty melodies
+      push @events_found, $id;
       if (!defined $title && $id =~ /^carillon-(.*?)-$event$/ && defined $melody_description{$1}) { # FIXME
 	$title = $melody_description{$1}->{'description'};
 	$source = $melody_description{$1}->{'source'};
@@ -2259,7 +2300,9 @@ sub generate_proofsheet () {
     my $tune = $chime{$id};
     print "\\markup{$id}\n";
     print "$tune\n\n";
+    print "\\markup{Note: melody was defined but not converted}\n" unless $interpretation{$tune};
   }
+  print "\\layout { \\context { \\RemoveEmptyStaffContext } }\n";
 }
 
 sub usage (;$) {
