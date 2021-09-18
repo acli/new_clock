@@ -1630,7 +1630,7 @@ sub determine_events ($$$$$$$$$) {
       # Check if we should delay this because it would run into the middle of a quarter hour chime
       my $t_self_i = $t_next_subwatch;
       my $t_self_f = $t_next_subwatch + determine_event_duration("w$next_watch.$next_subwatch", 30);
-      log_debug "w$next_watch.$next_subwatch starts $t_self_i ends $t_self_f";#XXXZZZ
+      log_debug "w$next_watch.$next_subwatch starts $t_self_i ends $t_self_f" if $debug > 1;
       my $delay = 0;
       my $gap = 5;
       for my $event (@it) {
@@ -1644,7 +1644,7 @@ sub determine_events ($$$$$$$$$) {
 	    $delay += ($t_other_f + $gap) - $t_self_i;
 	    $t_self_i += $delay;
 	    $t_self_f += $delay;
-	    log_debug "w$next_watch.$next_subwatch delay $delay because $id_other starts $t_other_i ends $t_other_f";#XXXZZZ
+	    log_debug "w$next_watch.$next_subwatch delay $delay because $id_other starts $t_other_i ends $t_other_f" if $debug > 1;
 	  }
 	}
       }
