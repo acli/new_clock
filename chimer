@@ -285,6 +285,9 @@ $datadir = "$basedir/data";
 # number of times we try sleeping for 1 second until we sleep until the target event
 sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
 
+# number of seconds to sleep before we disconnect the synth - from observation this must be at least 6
+sub SECONDS_BEFORE_DISCONNECT () { 7 }
+
 sub MODE__SYSLINE   () { 'sysline' }
 sub MODE__CUCKOO    () { 'cuckoo' }
 sub MODE__CARILLON  () { 'carillon' }
@@ -1125,6 +1128,7 @@ use vars qw( %chime );
 	excerptfromend = \relative a' {
 	  a2 c4. c8 | f,2 r2 | bes4.~bes8 d4. d8 | g,2 r2 |
 	}
+	% anonymous, 1745
 	excerptfromroyalanthem = \relative g' {
 	  \time 3/4
 	  g4 g a | fis4. g8 a4 | b b c | b4. a8 g4 |
@@ -1132,23 +1136,22 @@ use vars qw( %chime );
 	}
 	S = \relative { c'1 }
 	% Malines half quarters from Starmer (1910, p. 97)
-	malinesglobal = { \tempo 4 = 60 }
 	malinesi   = \relative { r16 f'''[e d] c[b a g] f[c a f] c[a f8] }
 	malinesii  = \relative { r8 a16[c] f[a c f] g[a b c] d[e f8] }
 	malinesiii = \relative { \time 4/16 f''16[d a' f] | \time 16/16 d'[a f d] b'[g e cis] d[a f a] \clef "bass" d,8[d,] }
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
       'q1' => '\x <>-\ff \excerptfromstart',
-      'q2' => '\tempo 4 = 72 <>-\ff \excerptfromroyalanthem',
+      'q2' => '\x <>-\ff \excerptfromroyalanthem',
       'q3' => '\x <>-\ff \excerptfromend',
       'q0' => '\x <>-\ff \A r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
       # "continental" additions
       'halb' => q(\x \repeat volta %I { \relative { c''1 } }),
-      'e1' => q(\malinesglobal \malinesi),
-      'e3' => q(\malinesglobal \malinesii),
-      'e5' => q(\malinesglobal \malinesiii),
-      'e7' => q(\malinesglobal \malinesiv),
+      'e1' => q(\x \malinesi),
+      'e3' => q(\x \malinesii),
+      'e5' => q(\x \malinesiii),
+      'e7' => q(\x \malinesiv),
     ),
 ) unless caller;
 
@@ -1513,6 +1516,8 @@ sub determine_event_duration ($$) {
       log_debug sprintf '%s %s', $note->[0], $note->[1] if $debug > 1;
       $it += $note->[1];
     }
+  } elsif ($method eq METHOD__SYNTH) {
+    $it = 0;
   }
   log_debug "event duration for event $event ($id) is $it" if $debug;
   return $it;
@@ -1906,7 +1911,7 @@ sub connect_synth ($) {
 }
 
 sub disconnect_synth () {
-  sleep 6 if defined $synth && defined $synth->{'.last-note'};		# FIXME wait a bit for things to stabilize if we sent anything
+  sleep SECONDS_BEFORE_DISCONNECT if defined $synth && defined $synth->{'.last-note'};	# wait a bit for things to stabilize if we sent anything
   $synth = undef;
 }
 
@@ -2270,6 +2275,7 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
   -v, --verbose               Explain what is being done
+  -z, --create-cache          Create missing cache files first
       --help                  Display this help and exit
 EOF
   print $h <<EOF unless $debug;
@@ -2355,6 +2361,7 @@ sub parse_command_line_arguments () {
 	exit disconnect_synth },
     'v|verbose' => \$verbose_p,
     'W|what-if=s' => \$what_if,
+    'z|create-cache' => sub { generate_sound_clips if $method eq METHOD__SYNTH },
     'help' => \&usage,
   ) || usage(1);
 
@@ -2392,8 +2399,6 @@ sub do_setup () {
 
   if ($method eq METHOD__SYNTH && $no_cache_p) {
     connect_synth 'test';
-  } elsif ($method eq METHOD__SYNTH) {
-    generate_sound_clips;
   }
 }
 
@@ -2403,6 +2408,8 @@ sub do_main_loop () {
     my $c = determine_chinese_time $t0;
     ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
     (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
+
+    my $max_sleep_time;
 
     # Detect terminated child processes
     for my $pid (keys %children) {
@@ -2442,8 +2449,11 @@ sub do_main_loop () {
     # If we have time to generate some sound clips, do it
     if ($dt0 > 90 && $method eq METHOD__SYNTH && !$no_cache_p) {
       my $event = determine_next_uncached_event @event;
-      if (defined $event && $dt0 > determine_event_duration($event, 60) + 30) {
-	generate_sound_clip_for_event $event;
+      if (defined $event) {
+	$max_sleep_time = determine_event_duration($event, 60) + SECONDS_BEFORE_DISCONNECT + 15;
+	if ($dt0 > $max_sleep_time) {
+	  generate_sound_clip_for_event $event;
+	}
 	$countdown = 0; # force a re-countdown
       }
     }
@@ -2454,6 +2464,7 @@ sub do_main_loop () {
 	join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
 
     my $t2 = current_time;
+    $dt = $max_sleep_time if defined $max_sleep_time && $dt > $max_sleep_time;
     Time::HiRes::sleep $dt;
 
     # Check if any event should be fired
