@@ -12,6 +12,8 @@ doc: $(pdf_targets)
 clean:
 	rm -f data/carillon-*.flac
 
+proof: proof.pdf
+
 test: all
 	perl -cw chimer
 	tests/test_chimer
@@ -26,6 +28,9 @@ data/%: raw/%
 
 %.pdf: %.ly
 	lilypond -o $(patsubst %.pdf,%,$@) $<
+
+proof.ly: chimer
+	chimer --test --proofsheet > $@
 
 CITATION.cff: config/CITATION.cff.in doc/*.md README.md utils/merge-citation-cff chimer
 	utils/merge-citation-cff $(filter-out utils/%,$^) > $@

@@ -622,7 +622,7 @@ sub interpret_melody ($) {
   my $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));			# NOTE: 3 captures: base pitch, commas, apostrophes
   my $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
   my $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
-  my $end_re = q((?=[\s\x{7d}\x{5e}()\[\]]|$));				# space or braceright or caret or eof
+  my $end_re = q((?=[\s\x{7d}\x{5e}~()\[\]]|$));			# space or braceright or caret or tilde or ()[] or eof
 
   my $state = new Interpret_Melody_State;
   my($last_pitch, $percussive_instrument);
@@ -662,6 +662,18 @@ sub interpret_melody ($) {
       }
 
     } elsif ($s =~ s/^\x{7b}\s*//s) {		# braceleft
+      $state->gsave();
+
+    } elsif ($s =~ s/^<>-\s*//s) {		# ignore empty containers for expressive marks
+      ;
+
+    } elsif ($s =~ s/^<<\s*//s) {		# FIXME
+      $state->gsave();
+
+    } elsif ($s =~ s/^>>\s*//s) {		# FIXME
+      $state->grestore();
+
+    } elsif ($s =~ s/^\\score\s+\x{7b}\s*//s) {
       $state->gsave();
 
     } elsif ($s =~ s/^\\(?:drums|drummode)\s*\x{7b}//s) {
@@ -795,12 +807,19 @@ sub event_id ($$;$) {
   my($mode, $event, $melody) = @_;
   return join('-', map { s/[^\.\w]+/_/sg if defined $_; defined $_? $_: () } ($mode, $melody, $event));
 }
-sub define_event ($$$$$%) {
-  my($mode, $melody, $description, $source, $shared_defs, %event_defs) = @_;
+sub define_event ($$$$$$$%) {
+  my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
   my %it;
-  $melody_description{$melody} = [$description, $source] if defined $melody && defined $description;
+  if (defined $melody && defined $description) {
+    $melody_description{$melody} = {'description' => $description, 'source' => $source};
+    $melody_description{$melody}->{'composer'} = $composer if defined $composer;
+    $melody_description{$melody}->{'year'} = $year if defined $year;
+  }
+  $shared_defs =~ s/(?:^|(?<=\n))\s+//sg;			# kill indents
+  $shared_defs =~ s/\s+$//sg;					# trim
+  $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
-    my $tune = sprintf('%s%s%s', $shared_defs, (defined $shared_defs && $shared_defs =~ /[^\n]$/s? "\n": ''), $event_defs{$event});
+    my $tune = sprintf('%s\score { << { %s } >> }', $shared_defs, $event_defs{$event});
     if ($event eq 'h' && $tune =~ /\%[Il]/) {			# expand to h1..h12
       for (my $i = 1; $i <= 12; $i += 1) {
 	my $edited_tune = $tune;
@@ -837,7 +856,7 @@ sub define_watch ($$$$$) {
     }
   }
   #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
-  return define_event(undef, undef, undef, undef, undef, ($event => sprintf('\drums { %s }', $score)));
+  return define_event(undef, undef, undef, undef, undef, undef, undef, ($event => sprintf('\drums { %s }', $score)));
 }
 
 
@@ -858,7 +877,7 @@ use vars qw( %chime );
   define_watch('w3.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w4.5', 'ff', 'cymch', 'ff', 'mar'),
   define_watch('w5.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', '4.2bsd', q(
+  define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', undef, undef, '4.2bsd', q(
 	A = \relative { \set Staff.instrumentName = #"Sine Wave" ees''''8 r4. ~ r4 }
       ),
       'q1' => '',
@@ -867,7 +886,7 @@ use vars qw( %chime );
       'q0' => '\A',
       'h' => '\A',
     ),
-  define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, N.B., 1880', 'Starmer, 1907, p. 13', q(
+  define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
 	A = \relative { c''1 b d c }
 	B = \relative { c''1 b d e }
@@ -875,13 +894,13 @@ use vars qw( %chime );
 	D = \relative { a'1(c) d c^\fermata }
 	S = \relative { r1 g'1 }				% rest inserted
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B',
-      'q3' => '\x \ff \A \B \C',
-      'q0' => '\x \ff \A \B \C \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B',
+      'q3' => '\x <>-\ff \A \B \C',
+      'q0' => '\x <>-\ff \A \B \C \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__CAMBRIDGE, 'Cambridge Quarters, 1793–1794', 'Starmer, 1907, p. 7', q(
+  define_event(MODE__CARILLON, MELODY__CAMBRIDGE, 'Cambridge Quarters', 'Jowett et al.', '1793–1794', 'Starmer, 1907, p. 7', q(
 	x = { \tempo 4 = 64 }
 	A = \relative c' { e'4 d c | g2. }
 	B = \relative c' { c'4 e d | g,2. | c4 d e | c2. }
@@ -889,13 +908,13 @@ use vars qw( %chime );
 	D = \relative c' { c'4 e d | g,2. | c4 d e | c2. | e4 c d | g,2. | g4 d' e | c2.^\fermata }
 	S = \relative c' { c1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \B',
-      'q3' => '\x \ff \C',
-      'q0' => '\x \ff \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__CAMBRIDGE_RCC, 'Chimes at R. C. Church, Cambridge, 1896', 'Starmer, 1907, p. 13', q(
+  define_event(MODE__CARILLON, MELODY__CAMBRIDGE_RCC, 'Chimes at R. C. Church, Cambridge', 'arr. Canon Scott', '1896', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 60 }
 	A = \relative { d'1 g(a) b(g) a(g) }
 	B = \relative { a'1 b a g e d }
@@ -903,13 +922,13 @@ use vars qw( %chime );
 	D = \relative { c''1 a b g a g^\fermata }
 	S = \relative { r1 d' }					% guessed
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B',
-      'q3' => '\x \ff \A \B \C',
-      'q0' => '\x \ff \A \B \C \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B',
+      'q3' => '\x <>-\ff \A \B \C',
+      'q0' => '\x <>-\ff \A \B \C \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__CANTERBURY, 'Canterbury Cathedral chimes, 1897', 'Starmer, 1907, p. 14', q(
+  define_event(MODE__CARILLON, MELODY__CANTERBURY, 'Canterbury Cathedral chimes', 'arr. F. J. O. Helmore', '1897', 'Starmer, 1907, p. 14', q(
 	% The score given by Starmer is a Gregorian chant, so note lengths are meaningless. We need to interpret it or the music will sound dead
 	A = \relative c' { g'8. a c4. }
 	B = \relative c' { g'8. a c4. r4 d8. c b c2 }
@@ -917,13 +936,13 @@ use vars qw( %chime );
 	D = \relative c' { g'8. a c4. r4 d8. c b c2 r4 c8. b g4. r8 a8. c d c2 r4 }	% rest inserted
 	S = \relative c' { cis1 }
       ),
-      'q1' => '\ff \A',
-      'q2' => '\ff \B',
-      'q3' => '\ff \C',
-      'q0' => '\ff \D',
-      'h' => '\fff \repeat volta %I { \S }',
+      'q1' => '<>-\ff \A',
+      'q2' => '<>-\ff \B',
+      'q3' => '<>-\ff \C',
+      'q0' => '<>-\ff \D',
+      'h' => '<>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__GUILDFORD, 'Guildford chimes, 1843', 'Starmer, 1907, p. 10', q(
+  define_event(MODE__CARILLON, MELODY__GUILDFORD, 'Guildford chimes', 'George Wilkins', '1843', 'Starmer, 1907, p. 10', q(
 	x = { \tempo 4 = 80 }
 	A = \relative c' { c'2 e,4 a | g1 }
 	B = \relative c' { e4 g c b | d, f a g | e1 }
@@ -931,13 +950,13 @@ use vars qw( %chime );
 	D = \relative c' { c4 g' e c' | b4. a8 g4 e | f a d, g | e2. f4 | g4 c b a | g e c c' | b g a e | g1 }
 	S = \relative c' { c1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \B',
-      'q3' => '\x \ff \C',
-      'q0' => '\x \ff \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__MAGDALEN, 'Magdalen chimes, 1713', 'Starmer, 1907, p. 10', q(
+  define_event(MODE__CARILLON, MELODY__MAGDALEN, 'Magdalen chimes', undef, '1713', 'Starmer, 1907, p. 10', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { b'4 c }
 	B = \relative c' { b'4 c c, g' }
@@ -945,99 +964,99 @@ use vars qw( %chime );
 	D = \relative c' { g'4 a f e a d, b' c | r2. }		% rest inserted
 	S = \relative c' { c1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \B',
-      'q3' => '\x \ff \C',
-      'q0' => '\x \ff \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG2A, 'Ting-tang (ding-dong) quarters on major second, traditional', 'Starmer, 1907, p. 4', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG2A, 'Ting-tang (ding-dong) quarters on major second', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 b }
 	B = \relative c' { r4 }
 	S = \relative c' { f1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B \A',
-      'q3' => '\x \ff \A \B \A \B \A',
-      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B \A',
+      'q3' => '\x <>-\ff \A \B \A \B \A',
+      'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG2B, 'Ting-tang (ding-dong) quarters on minor second, traditional', 'Starmer, 1907, p. 4', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG2B, 'Ting-tang (ding-dong) quarters on minor second', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 bes }
 	B = \relative c' { r4 }
 	S = \relative c' { f1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B \A',
-      'q3' => '\x \ff \A \B \A \B \A',
-      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B \A',
+      'q3' => '\x <>-\ff \A \B \A \B \A',
+      'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG3A, 'Ting-tang (ding-dong) quarters on major third, traditional', 'Starmer, 1907, p. 4', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG3A, 'Ting-tang (ding-dong) quarters on major third', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 a }
 	B = \relative c' { r4 }
 	S = \relative c' { f1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B \A',
-      'q3' => '\x \ff \A \B \A \B \A',
-      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B \A',
+      'q3' => '\x <>-\ff \A \B \A \B \A',
+      'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG3B, 'Ting-tang (ding-dong) quarters on minor third, traditional', 'Starmer, 1907, p. 4', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG3B, 'Ting-tang (ding-dong) quarters on minor third', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 aes }
 	B = \relative c' { r4 }
 	S = \relative c' { f1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B \A',
-      'q3' => '\x \ff \A \B \A \B \A',
-      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B \A',
+      'q3' => '\x <>-\ff \A \B \A \B \A',
+      'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG4, 'Ting-tang (ding-dong) quarters on perfect fourth, traditional', 'Starmer, 1907, p. 4', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG4, 'Ting-tang (ding-dong) quarters on perfect fourth', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 g }
 	B = \relative c' { r4 }
 	S = \relative c' { f1 } % or e1 or c1
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B \A',
-      'q3' => '\x \ff \A \B \A \B \A',
-      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B \A',
+      'q3' => '\x <>-\ff \A \B \A \B \A',
+      'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__TINGTANG5, 'Ting-tang (ding-dong) quarters on perfect fifth, traditional', 'Starmer, 1907, p. 4', q(
+  define_event(MODE__CARILLON, MELODY__TINGTANG5, 'Ting-tang (ding-dong) quarters on perfect fifth', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 f, }
 	B = \relative c' { r4 }
 	S = \relative c' { c1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \A \B \A',
-      'q3' => '\x \ff \A \B \A \B \A',
-      'q0' => '\x \ff \A \B \A \B \A \B \A \B',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \B \A',
+      'q3' => '\x <>-\ff \A \B \A \B \A',
+      'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__NORWICH, 'Norwich Cathedral chimes, 1876', 'Starmer, 1907, p. 11', q(
+  define_event(MODE__CARILLON, MELODY__NORWICH, 'Norwich Cathedral chimes', 'E. S. Medley', '1876', 'Starmer, 1907, p. 11', q(
 	x = { \tempo 1 = 75 }
-	A = \relative c' { \ff a'1 g f e d }
-	B = \relative c' { \ff d1 e a g f  | g d f e d }
-	C = \relative c' { \ff d1 e f a d, | f a g e f | d e g f d }
-	D = \relative c' { \ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
-	S = \relative c' { \fff r1. d1 }			% rest inserted to make it sound less rushed
+	A = \relative c' { <>-\ff a'1 g f e d }
+	B = \relative c' { <>-\ff d1 e a g f  | g d f e d }
+	C = \relative c' { <>-\ff d1 e f a d, | f a g e f | d e g f d }
+	D = \relative c' { <>-\ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
+	S = \relative c' { <>-\fff r1. d1 }			% rest inserted to make it sound less rushed
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \B',
-      'q3' => '\x \ff \C',
-      'q0' => '\x \ff \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WESTMINSTER, 'Westminster Quarters, 1793–1794', 'Wikipedia', q(
+  define_event(MODE__CARILLON, MELODY__WESTMINSTER, 'Westminster Quarters', 'Jowett et al.', '1793–1794', 'Wikipedia', q(
 	A = \relative e' { gis4 fis e b2  }
 	B = \relative e' { e4 gis fis b,2 }
 	C = \relative e' { e4 fis gis e2  }
@@ -1046,13 +1065,13 @@ use vars qw( %chime );
 	S = \relative e' { e,2 }
 	F = \relative e' { r1 }
       ),
-      'q1' => '\fff \A',
-      'q2' => '\fff \B \C',
-      'q3' => '\fff \D \E \A',
-      'q0' => '\fff \B \C \D \E \F',
-      'h' => '\fff \repeat volta %I { \S }',
+      'q1' => '<>-\fff \A',
+      'q2' => '<>-\fff \B \C',
+      'q3' => '<>-\fff \D \E \A',
+      'q0' => '<>-\fff \B \C \D \E \F',
+      'h' => '<>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells, traditional', 'Wikipedia', q(
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
 	x = { \tempo 4 = 96 }
 	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
 	B = \relative e' { e'4 cis a fis dis' b gis e }
@@ -1062,13 +1081,13 @@ use vars qw( %chime );
 	S = \relative e' { e,2 }
 	F = \relative e' { r4 }
       ),
-      'q1' => '\x \ff \E',
-      'q2' => '\x \ff \A \B',
-      'q3' => '\x \ff \C \D \E',
-      'q0' => '\x \ff \A \B \C \D \F',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \E',
+      'q2' => '\x <>-\ff \A \B',
+      'q3' => '\x <>-\ff \C \D \E',
+      'q0' => '\x <>-\ff \A \B \C \D \F',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells, 1905', 'Starmer, 1907, p. 5', q(
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
 	x = { \tempo 4 = 96 }
 	A = \relative { c''4 g' f e }
 	B = \relative { c''4 g' f e g d }
@@ -1076,11 +1095,40 @@ use vars qw( %chime );
 	D = \relative { c''4 g' f e g d c a f e g d^\fermata }	% pause inserted to make the hour strike sound less abrupt
 	S = \relative { c'1 }
       ),
-      'q1' => '\x \ff \A',
-      'q2' => '\x \ff \B',
-      'q3' => '\x \ff \C',
-      'q0' => '\x \ff \D',
-      'h' => '\x \fff \repeat volta %I { \S }',
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, 'canada', 'O Canada (test)', 'Calixa Lavallée', '1880', 'https://laws-lois.justice.gc.ca/fra/lois/N-2/20180207/P1TT3xt3.html', q(
+	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
+	A = \relative c'' {
+	  \time 4/4
+	  % Ô Can-a - da   ter -re  de nos  a-
+	  a2 c4. c8 | f,2. g4 | a4 bes4 c4  d4 |
+	  % ïeux   ton fr. est ceint de
+	  g,2. r4 | a2 b4. b8 | c2. d4 |
+	  %fleuronsglorieux car ton   bras sait porter l'é-
+	  e4 e4 d4 d4 | c2. g8.[a16] | bes4. a8 g4 a8.[bes16] |
+	  %pé___ - e    i - l    sait por-ter la croix Ton his -
+	  c4. bes8 a4 bes8.[c16] | d4 c4 bes4 a4 | g2. g8.[a16] |
+	  %toireest 1 é - po      -pé____ - e  des  + bri-llants  ex - ploits
+	  bes4. a8 g4 a8.[bes16] | c4. bes8 a4 a4 | g4 c4 c8[b8] a8[b8] | c2 r2 |
+	  %Et ta va- leur      de        fois trem-pée
+	  a2 c4. c8 | f,2 r2 | bes4.~bes8 d4. d8 | g,2 r2 |
+	  %pro-té -ge-    ra nos foy-ers  et nos droits
+	  c2 cis4. cis8 | d4 bes4 a4 g4 | f2 g2 | a2. r4 |
+	  %proté-ge-  ra nos foy-ers  et nos  droits
+	  c2 f4. f8 | d4 bes4 a4 g4 | c2 e,2 | f2. r4 |
+	}
+	S = \relative { c'1 }
+      ),
+      'q1' => '',
+      'q2' => '',
+      'q3' => '',
+      'q0' => '\x <>-\ff \A r1',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
 ) unless caller;
 
@@ -2125,6 +2173,39 @@ sub safe_to_restart_p () {
   return 0 == system { $cmd[0] } @cmd;
 }
 
+sub generate_proofsheet () {
+  my @events_to_check = qw(q1 q2 q3 q0 h12 h);
+  my @events_found;
+  my($title, $source, $composer, $year);
+  for my $event (@events_to_check) {
+    my $id = determine_defined_id_for_event($event);
+    if (defined $id) {
+      push @events_found, $id if $interpretation{$chime{$id}}; # ignore empty melodies
+      if (!defined $title && $id =~ /^carillon-(.*?)-$event$/ && defined $melody_description{$1}) { # FIXME
+	$title = $melody_description{$1}->{'description'};
+	$source = $melody_description{$1}->{'source'};
+	$composer = $melody_description{$1}->{'composer'};
+	$year = $melody_description{$1}->{'year'};
+      }
+    }
+  }
+  my($proportional, $monospaced) = ('Lato', 'Fira Mono');
+  print "\\version \"2.18.2\"\n";
+  print "\\paper { #(define fonts (make-pango-font-tree \"$proportional\" \"$proportional\" \"$monospaced\" 1)) }\n";
+  if (defined $title) {
+    print "\\header {\n";
+    print "title = \\markup {Proof sheet for $title}\n";
+    print "subtitle = \\markup {(Source: $source)}\n" if defined $source;
+    print "composer = \\markup {$composer}\n" if defined $composer;
+    print "}\n\\markup { \\vspace #2 }\n\n";
+  }
+  for my $id (@events_found) {
+    my $tune = $chime{$id};
+    print "\\markup{$id}\n";
+    print "$tune\n\n";
+  }
+}
+
 sub usage (;$) {
   my($st) = @_;
   my $h = $st? *STDERR: *STDOUT;
@@ -2153,6 +2234,7 @@ Options for debugging:
       --dump-defs             Dump source chime definitions, then exit
       --dump-notes            Dump compiled chime definitions, then exit
       --no-cache              Ignore any pregenerated audio
+      --proofsheet            Generate proofsheet on standard output, then exit
       --test                  Continue with test parameters
       --test-event ID[,ID...] Fire event identified by ID, then exit
       --test-scale            Play the major scale from c4 to c5, if possible
@@ -2204,14 +2286,16 @@ sub parse_command_line_arguments () {
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
-    'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime;
+    'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; # FIXME
 	print join('', map { defined $melody_description{$_}?
-	      sprintf("%-24s%s%s\n", $_, $melody_description{$_}->[0], ($verbose_p? sprintf(' (source: %s)', $melody_description{$_}->[1]): '')):
+	      sprintf("%-24s%s%s\n", $_, $melody_description{$_}->{'description'},
+		      ($verbose_p? sprintf(' (source: %s)', $melody_description{$_}->{'source'}): '')):
 	      "$_\n" } sort keys %a);
 	exit disconnect_synth },
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
+    'proofsheet' => sub { generate_proofsheet; exit disconnect_synth },
     'test' => sub { set_test_params },
     'test-event=s' => sub { set_test_params; connect_synth('test') if $method eq METHOD__SYNTH; for my $e (split(/,\s*/, $_[1])) { do_event $e };
 	exit disconnect_synth },
