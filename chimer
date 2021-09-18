@@ -1103,7 +1103,8 @@ use vars qw( %chime );
       'q0' => '\x <>-\ff \D',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, 'canada', 'O Canada (test)', 'Calixa Lavallée', '1880', 'https://laws-lois.justice.gc.ca/fra/lois/N-2/20180207/P1TT3xt3.html', q(
+  define_event(MODE__CARILLON, 'study1', 'Study 1', undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
+	% Calixa Lavallée, 1880 (source: https://laws-lois.justice.gc.ca/fra/lois/N-2/20180207/P1TT3xt3.html)
 	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
 	A = \relative c'' {
 	  \time 4/4
@@ -1124,7 +1125,7 @@ use vars qw( %chime );
 	excerptfromend = \relative a' {
 	  a2 c4. c8 | f,2 r2 | bes4.~bes8 d4. d8 | g,2 r2 |
 	}
-	royalanthem = \relative g' {
+	excerptfromroyalanthem = \relative g' {
 	  \time 3/4
 	  g4 g a | fis4. g8 a4 | b b c | b4. a8 g4 |
 	  a g fis | g2. | 
@@ -1138,16 +1139,16 @@ use vars qw( %chime );
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
       'q1' => '\x <>-\ff \excerptfromstart',
-      'q2' => '\tempo 4 = 72 <>-\ff \royalanthem',
+      'q2' => '\tempo 4 = 72 <>-\ff \excerptfromroyalanthem',
       'q3' => '\x <>-\ff \excerptfromend',
       'q0' => '\x <>-\ff \A r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
       # "continental" additions
-      'halb' => q(\x <>-\f \repeat volta %I { \relative { c''1 } }),
-      'e1' => q(\malinesglobal <>-\f \malinesi),
-      'e3' => q(\malinesglobal <>-\f \malinesii),
-      'e5' => q(\malinesglobal <>-\f \malinesiii),
-      'e7' => q(\malinesglobal <>-\f \malinesiv),
+      'halb' => q(\x \repeat volta %I { \relative { c'''1 } }),
+      'e1' => q(\malinesglobal \malinesi),
+      'e3' => q(\malinesglobal \malinesii),
+      'e5' => q(\malinesglobal \malinesiii),
+      'e7' => q(\malinesglobal \malinesiv),
     ),
 ) unless caller;
 
@@ -2439,9 +2440,9 @@ sub do_main_loop () {
     $dt = 0 if $dt < 0;
 
     # If we have time to generate some sound clips, do it
-    if ($dt0 > 300 && $method eq METHOD__SYNTH && !$no_cache_p) {
+    if ($dt0 > 90 && $method eq METHOD__SYNTH && !$no_cache_p) {
       my $event = determine_next_uncached_event @event;
-      if (defined $event) {
+      if (defined $event && $dt0 > determine_event_duration($event, 60) + 30) {
 	generate_sound_clip_for_event $event;
 	$countdown = 0; # force a re-countdown
       }
