@@ -2296,7 +2296,7 @@ sub generate_proofsheet () {
     print "title = \\markup {Proof sheet for $title}\n";
     print "subtitle = \\markup {(Source: $source)}\n" if defined $source;
     print "composer = \\markup {$composer}\n" if defined $composer;
-    print "}\n\\markup { \\vspace #2 }\n\n";
+    print "}\n\\markup { \\vspace #1 }\n\n";
   }
   for my $id (@events_found) {
     my $tune = $chime{$id};
