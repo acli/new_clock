@@ -825,6 +825,8 @@ sub define_event ($$$$$$$%) {
   $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
     my $tune = sprintf('%s\score { << { %s } >> }', $shared_defs, $event_defs{$event});
+    $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
+    $event = "q0" if $event eq 'q4';				# in case we got q4
     if ($event =~ /^(?:h|halb)$/ && $tune =~ /\%[Il]/) {	# expand to h1..h12
       for (my $i = 1; $i <= 12; $i += 1) {
 	my $edited_tune = $tune;
