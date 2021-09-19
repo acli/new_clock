@@ -684,6 +684,9 @@ sub interpret_melody ($) {
       push @$it, $voice if $voice;
       $voice = undef;
 
+    } elsif ($s =~ s/^\\voice(?:One|Two|Three|Four)\s+//s) {
+      ;
+
     } elsif ($s =~ s/^\\score\s+\x{7b}\s*//s) {
       $state->gsave();
 
@@ -1137,6 +1140,7 @@ use vars qw( %chime );
 	nationalanthem = \relative { \nationalanthemglobal
 	<<
 	  \relative {
+	    \voiceOne
 	    g'2 bes4. bes8 | ees,2. f4 | g aes bes c | f,2. r4 |
 	    % p.4
 	    g2 a4. a8 | bes2. c4 | d d c c | bes2. f8.[ g16] |
@@ -1147,8 +1151,21 @@ use vars qw( %chime );
 	    bes2 b4. b8 | c4 aes g f | ees2 f | g2. r4 |
 	    bes2 ees4. ees8 | c4 aes g f | bes2 d, | ees1 |
 	  }
+	  \new Voice \relative {
+	    \voiceTwo
+	    ees'2 d4. d8 | c2. d4 | ees4 ees ees ees | ees2( d4) r |
+	    % p.4
+	    ees2 f4. f8 | f2. g4 | f4 f a a | f2. d4 |
+	    d4. d8 d4 d | ees4. ees8 ees4 ees | ees ees ees ees | d2. d4 |
+	    d4. d8 d4 d | ees4. ees8 ees4 cis | d f f f | f2 r |
+	    % p.5
+	    ees2 f4. f8 | ees2 r | f2 f4. f8 | f2 r |
+	    ees2 des4. des8 | c4 c ees c | bes2 d | ees2. r4 |
+	    ees2 ees4. ees8 | ees4 f ees c | ees2 bes | bes1 |
+	  }
 	  \new Staff
 	  \relative { \clef "bass" \nationalanthemglobal
+	    \voiceFour
 	    ees2 bes4. bes8 | c2. bes4 | ees f g aes | bes2. r4 |
 	    % p.4
 	    ees,2 c4. c8 | d2. ees4 | f f f f | bes2. aes8.[ g16] |
@@ -1164,7 +1181,12 @@ use vars qw( %chime );
 	excerptfromstart = \relative a' {
 	<<
 	  \relative { \nationalanthemglobal
+	    \voiceOne
 	    g'2 bes4. bes8 | ees,2. f4 | g aes bes c | f,2. r4 |
+	  }
+	  \new Voice \relative { \nationalanthemglobal
+	    \voiceTwo
+	    ees'2 d4. d8 | c2. d4 | ees4 ees ees ees | ees2( d4) r |
 	  }
 	  \new Staff
 	  \relative { \clef "bass" \nationalanthemglobal
@@ -1175,7 +1197,12 @@ use vars qw( %chime );
 	excerptfromend = \relative a' {
 	<<
 	  \relative g' { \nationalanthemglobal
+	    \voiceOne
 	    g2 bes4. bes8 | ees,2 r | aes2 c4. c8 | f,2 r |
+	  }
+	  \new Voice \relative ees'' { \nationalanthemglobal
+	    \voiceTwo
+	    ees,2 d4. d8 | c2 r | f2 ees4. ees8 | d2 r |
 	  }
 	  \new Staff
 	  \relative ees' { \clef "bass" \nationalanthemglobal
@@ -1211,10 +1238,10 @@ use vars qw( %chime );
 	malinesiii = \relative { \time 4/16 f''16[d a' f] | \time 16/16 d'[a f d] b'[g e cis] d[a f a] \clef "bass" d,8[d,] }
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
-      'q1' => '\x <>-\f \excerptfromstart',
+      'q1' => '\x \excerptfromstart',
       'q2' => '\x <>-\f \excerptfromroyalanthem',
-      'q3' => '\x <>-\f \excerptfromend',
-      'q0' => '\x <>-\f \nationalanthem r1',
+      'q3' => '\x \excerptfromend',
+      'q0' => '\x \nationalanthem r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
       # "continental" additions
       'halb' => q(\x <>-\f \repeat volta %I { \relative { c''1 } }),
