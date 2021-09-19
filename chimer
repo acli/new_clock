@@ -1190,13 +1190,17 @@ use vars qw( %chime );
 	  \key g \major
 	  \relative g' {
 	  g4 g a | fis4. g8 a4 | b b c | b4. a8 g4 |
-	  a g fis | g2. | 
+	  a g fis | g2. |
+	  d'4 d d | d4. c8 b4 | c c c | c4. b8 a4 |
+	  b c8[b] a[g] | b4. c8 d4 | e8[c] b4 a | g2.
 	  }
 	  \new Staff
-	  \relative { \clef "bass" % source: https://en.wikipedia.org/wiki/God_Save_the_Queen#/media/File:Gstk.png
+	  \relative { \clef "bass" % source: https://en.wikipedia.org/wiki/File:Gstk.png
 	  \key g \major
 	    g4 g, g' | d4. e8 fis4 | g g a | fis4. fis8 g4 |
 	    c, d d | g,2. |
+	    b'4 b b | b4. a8 g4 | a a a | a4. g8 fis4 |
+	    g a8[g] fis[e] | d4. c8 b4 | c d4. d8 | g,2.
 	  }
 	>>
 	}
