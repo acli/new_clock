@@ -581,7 +581,7 @@ use vars qw( %percussion_note_to_midi_number );
 );
 use vars qw( %expressive_mark_to_midi_velocity );
 %expressive_mark_to_midi_velocity = (
-  'ppppp'	=> 4,
+  'ppppp'	=> 1,
   'pppp'	=> 8,	# this should be 8 according to Vandenneucker (2012)
   'ppp'		=> 20,	# this should be close to 20 according to Yamaha (n.d.), exactly 20 according to Vandenneucker (2012)
   'pp'		=> 31,
