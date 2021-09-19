@@ -66,9 +66,13 @@ Ties are understood, but slurs are ignored.
 
 Absolute mode is not supported,
 but the scripts’s understanding of relative mode is not guaranteed to be correct.
-If a score typesets correctly in Lilypond but *interpret_melody* converts it incorrectly
-(you can check this using the **--test-tune** command-line option),
+If a score typesets correctly in Lilypond
+(using `make proof`)
+but *interpret_melody* converts it incorrectly
+(using `chimer --test-tune`),
 the bug is in *interpret_melody*.
+Some very basic polyphony support is in place for “continental” chiming as described by Starmer (1910),
+but it’s safest to use the existing melodies in the code as a guide.
 
 Most percussive notes are understood and are mapped to the corresponding MIDI percussion instrument.
 
