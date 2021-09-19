@@ -1131,13 +1131,57 @@ use vars qw( %chime );
 	  c2 cis4. cis8 | d4 bes4 a4 g4 | f2 g2 | a2. r4 |
 	  c2 f4. f8 | d4 bes4 a4 g4 | c2 e,2 | f2. r4 |
 	}
+	% Source:  Weir, R. S., Lavallée, C. & Schaeffer, G. A. G. (1914). O Canada! The national song of the Dominion.
+	% Retrieved from https://archive.org/details/CSM_01142/
+	nationalanthemglobal = { \time 4/4 \key ees \major }
+	nationalanthem = \relative { \nationalanthemglobal
+	<<
+	  \relative {
+	    g'2 bes4. bes8 | ees,2. f4 | g aes bes c | f,2. r4 |
+	    % p.4
+	    g2 a4. a8 | bes2. c4 | d d c c | bes2. f8.[ g16] |
+	    aes4. g8 f4 g8.[ aes16] | bes4. aes8 g4 aes8.[ bes16] | c4 bes aes g | f2. f8.[ g16] |
+	    aes4. g8 f4 g8.[ aes16] | bes4. aes8 g4 g | f bes bes8[ a] g[ a] | bes2 r |
+	    % p.5
+	    g2 bes4. bes8 | ees,2 r | aes2 c4. c8 | f,2 r |
+	    bes2 b4. b8 | c4 aes g f | ees2 f | g2. r4 |
+	    bes2 ees4. ees8 | c4 aes g f | bes2 d, | ees1 |
+	  }
+	  \new Staff
+	  \relative { \clef "bass" \nationalanthemglobal
+	    ees2 bes4. bes8 | c2. bes4 | ees f g aes | bes2. r4 |
+	    % p.4
+	    ees,2 c4. c8 | d2. ees4 | f f f f | bes2. aes8.[ g16] |
+	    f4. g8 aes4 bes8.[ aes16] | g4. f8 ees4 f8.[ g16] | aes4 g aes a | bes2. bes,4 |
+	    bes4. bes8 bes4 bes | ees4. ees8 ees4 e | f f f f | bes2 r |
+	    % p.5
+	    ees,2 d4. d8 | c2 r | f2 ees4. ees8 | d2 r |
+	    ees2 ees4. ees8 | aes,4 f g aes | bes2 bes | ees2. r4 |
+	    g2 g,4. g8 | aes4 f g aes | bes2 bes | ees1 |
+	  }
+	>>
+	}
 	excerptfromstart = \relative a' {
-	  \time 4/4
-	  a2 c4. c8 | f,2. g4 | a4 bes4 c4  d4 |
-	  g,2. r4 | 
+	<<
+	  \relative { \nationalanthemglobal
+	    g'2 bes4. bes8 | ees,2. f4 | g aes bes c | f,2. r4 |
+	  }
+	  \new Staff
+	  \relative { \clef "bass" \nationalanthemglobal
+	    ees2 bes4. bes8 | c2. bes4 | ees f g aes | bes2. r4 |
+	  }
+	>>
 	}
 	excerptfromend = \relative a' {
-	  a2 c4. c8 | f,2 r2 | bes4.~bes8 d4. d8 | g,2 r2 |
+	<<
+	  \relative g' { \nationalanthemglobal
+	    g2 bes4. bes8 | ees,2 r | aes2 c4. c8 | f,2 r |
+	  }
+	  \new Staff
+	  \relative ees' { \clef "bass" \nationalanthemglobal
+	    ees,2 d4. d8 | c2 r | f2 ees4. ees8 | d2 r |
+	  }
+	>>
 	}
 	% anonymous, 1745
 	excerptfromroyalanthem = {
@@ -1163,13 +1207,13 @@ use vars qw( %chime );
 	malinesiii = \relative { \time 4/16 f''16[d a' f] | \time 16/16 d'[a f d] b'[g e cis] d[a f a] \clef "bass" d,8[d,] }
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
-      'q1' => '\x <>-\ff \excerptfromstart',
+      'q1' => '\x <>-\f \excerptfromstart',
       'q2' => '\x <>-\f \excerptfromroyalanthem',
-      'q3' => '\x <>-\ff \excerptfromend',
-      'q0' => '\x <>-\ff \A r1',
+      'q3' => '\x <>-\f \excerptfromend',
+      'q0' => '\x <>-\f \nationalanthem r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
       # "continental" additions
-      'halb' => q(\x \repeat volta %I { \relative { c''1 } }),
+      'halb' => q(\x <>-\f \repeat volta %I { \relative { c''1 } }),
       'e1' => q(\x \malinesi),
       'e3' => q(\x \malinesii),
       'e5' => q(\x \malinesiii),
