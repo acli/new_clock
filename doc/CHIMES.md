@@ -160,19 +160,27 @@ https://freesound.org/people/Seidhepriest/sounds/234364/
 
 Cuckoo options
 --------------
+https://freesound.org/people/Benboncan/sounds/72699/
+- pros: cc-by-3.0, very clear cuckoo sound
+- cons: need to cut and stitch file for >7 cuckoo calls
+
+https://freesound.org/people/plantmonkey/sounds/376703/
+- pros: very clear cuckoo sound, cc-by-3.0
+- cons: soft
+
 https://freesound.org/people/acclivity/sounds/19561/
 - pros: *very* clear cuckoo sound
 - cons: cc-by-nc-3.0
 
 https://freesound.org/people/inchadney/sounds/121203/
 - pros: clear cuckoo sound, cc-by-3.0
-- cons: maybe a little soft
+- cons: clearly perceptible background white noise
 - citation: Walter, T. [Thomas]. 2011. Birds: Cuckoo.wav [Audio file].
   Retrieved from https://freesound.org/people/inchadney/sounds/121203/
 
 https://freesound.org/people/reinsamba/sounds/35053/
-- pros: clear cuckoo sound, cc-by-3.0
-- cons: it's somewhat a little too uneven
+- pros: clear cuckoo sound, cc-by-3.0, background white noise at acceptable level (less than 121203)
+- cons: cuckoo sounds too disjointed (somewhat uneven too, but disjointed is a bigger problem, as in the bird stops then restarts, a few times)
 
 https://freesound.org/people/CaganCelik/sounds/435205/
 - pros: clear birdsong, public domain (cc0)
@@ -180,11 +188,37 @@ https://freesound.org/people/CaganCelik/sounds/435205/
 
 https://freesound.org/people/jgrzinich/sounds/364983/
 - pros: clear cuckoo sound
-- cons: cc-by-nc-3.0
+- cons: cc-by-nc-3.0, clearly perceptible background white noise
 
 https://freesound.org/people/RTB45/sounds/234921/
 - pros: cc-by-3.0
 - cons: noisy background (wind)
+
+https://freesound.org/people/SiliconeSound/sounds/475049/
+- pros: public domain (cc0)
+- cons: clearly perceptible background white noise
+
+https://freesound.org/people/soundbytez/sounds/111077/
+- pros: cc-by-3.0
+- cons: very loud when starting, doesn't sound like stereotypical cuckoo
+
+https://freesound.org/people/MeicalJones/sounds/474062/
+- pros: public domain (cc0)
+- cons: clearly perceptible background white noise
+
+https://freesound.org/people/Artemis_R_Swann/sounds/517480/
+- pros: public domain (cc0)
+- cons: soft
+
+https://freesound.org/people/Martineerok/sounds/242710/
+- pros: cc-by-3.0
+- cons: clearly perceptible background white noise, soft
+
+https://freesound.org/people/Pashee/sounds/193354/
+- cons: cc-by-nc-3.0, very loud background white noise (wind?)
+
+https://freesound.org/people/mike_stranks/sounds/397575/
+- cons: cc-by-nc-3.0, other birds much louder than the cuckoo
 
 
 References
