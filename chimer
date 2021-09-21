@@ -174,6 +174,12 @@ sub stacklevel {
   return scalar @{$self->{'stack'}};
 }
 
+sub transpose {
+  my $self = shift;
+  $self->{'transpose'} = shift if @_; # FIXME?
+  return $self->{'transpose'};
+}
+
 sub new {
   my $class = shift;
   my $self = {};
@@ -181,6 +187,7 @@ sub new {
   $self->unit_beat(1);
   $self->relative_p(0);
   $self->drummode_p(0);
+  $self->transpose(0);
   $self->{'stack'} = [];
   return $self;
 }
@@ -190,26 +197,29 @@ sub gsave {
   my $unit_beat = $self->unit_beat();
   my $relative_p = $self->relative_p();
   my $drummode_p = $self->drummode_p();
+  my $transpose = $self->transpose();
   my $repeat_stacklevel = $self->repeat_stacklevel();
   my $repeat_start = $self->repeat_start();
   my $repeat_count = $self->repeat_count();
-  push @{$self->{'stack'}}, [$unit_beat, $relative_p, $drummode_p, $repeat_stacklevel, $repeat_start, $repeat_count];
+  push @{$self->{'stack'}}, [$unit_beat, $relative_p, $drummode_p, $transpose, $repeat_stacklevel, $repeat_start, $repeat_count];
 }
 
 sub grestore {
   my $self = shift;
   if (@{$self->{'stack'}}) {
-    my                      ($unit_beat, $relative_p, $drummode_p, $repeat_stacklevel, $repeat_start, $repeat_count)
+    my                      ($unit_beat, $relative_p, $drummode_p, $transpose, $repeat_stacklevel, $repeat_start, $repeat_count)
 	= @{ pop @{$self->{'stack'}} };
 
     $self->unit_beat		($unit_beat);
     $self->relative_p		($relative_p);
     $self->drummode_p		($drummode_p);
+    $self->transpose		($transpose);
     $self->repeat_stacklevel	($repeat_stacklevel);
     $self->repeat_start		($repeat_start);
     $self->repeat_count		($repeat_count);
   } else {
-    die "grestore called but stack is empty";
+    my $comment = sprintf(' (context: %s)', Debug::cvs($1)) if @_ && $_[0] =~ /^(.[^\n]*)/s;
+    die "grestore called but stack is empty$comment";
   }
 }
 
@@ -650,10 +660,10 @@ sub interpret_melody ($) {
 	$def_value .= ' ';
       } elsif ($s =~ s/^("[^""]*")//s) {
 	$def_value .= $1;
-      } elsif ($s =~ s/^(\x{7b})//s) {		# braceleft
+      } elsif ($s =~ s/^((?:\x{7b}|<<))//s) {		# braceleft
 	$def_value .= $1;
 	$def_level += 1;
-      } elsif ($s =~ s/^(\x{7d})//s) {		# braceright
+      } elsif ($s =~ s/^((?:\x{7d}|>>))//s) {		# braceright
 	$def_value .= $1;
 	$def_level -= 1;
 	if ($def_level == 0) {
@@ -675,9 +685,15 @@ sub interpret_melody ($) {
       $state->gsave();
 
     } elsif ($s =~ s/^>>\s*//s) {		# FIXME
-      $state->grestore();
+      $state->grestore($s);
 
     } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
+      ;
+
+    } elsif ($s =~ s/^\\partial\s+$duration_re\s+//s) {			# ignore \partial
+      ;
+
+    } elsif ($s =~ s/^\\mark\s+(?:\\default|#\d+|"[^""]+")\s+//s) {	# ignore \mark
       ;
 
     } elsif ($s =~ s/^\\new\s+(?:Staff|Voice)\s+//s || $s =~ s/^\\\\\s*//s) {
@@ -694,6 +710,10 @@ sub interpret_melody ($) {
       $state->gsave();
       $state->drummode_p(1);
 
+    } elsif ($s =~ s/^\\absolute\s*\x{7b}//s) {
+      $state->gsave();
+      $state->relative_p(0);
+
     } elsif ($s =~ s/^\\relative\s*\x{7b}//s) {
       $state->gsave();
       $state->relative_p(1);
@@ -703,6 +723,12 @@ sub interpret_melody ($) {
       $state->gsave();
       $state->relative_p(1);
       $last_pitch = interpret_absolute_pitch $1;
+
+    } elsif ($s =~ s/^\\transpose\s+($pitch_re)\s+($pitch_re)\s*\x{7b}//s) {
+      my($from, $to) = (interpret_absolute_pitch $1, interpret_absolute_pitch $5);
+      $state->gsave();
+      $state->relative_p(0);
+      $state->transpose($to - $from);
 
     } elsif ($s =~ s/^\\repeat\s+(?:volta|unfold|percent)\s+(\d+)\s*\x{7b}//s) {
       my $n = $1 + 0;
@@ -718,7 +744,7 @@ sub interpret_melody ($) {
 	my $n = $state->repeat_count();
 	$voice = [@A[0 .. $i - 1], (@A[$i .. $#A]) x $n];
       }
-      $state->grestore();
+      $state->grestore($s);
     } elsif ($s =~ s/^[\[\]]\s*//s) {		# ignore bracketleft/bracketright = beam on/beam off
       ;
     } elsif ($s =~ s/^\(\s*//s) {		# ignore parenleft = phrasing slur start
@@ -759,20 +785,26 @@ sub interpret_melody ($) {
       my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
 	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
 
-      ($last_pitch, $lower, $raise) = (interpret_absolute_pitch $pitch_as_written, undef, undef) if $state->relative_p() && !defined $last_pitch;
-      my $last_base_pitch = ($last_pitch + 12)%12;
-      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
-      my $tentative;
-      for (my $i = 0; $i < 8; $i += 1) {
-	for my $dir (-1, 1) {
-	  my $candidate = $last_pitch + $dir*$i;
-	  $tentative = $candidate if $candidate%12 == $base_pitch;
-	last if defined $tentative;
+      my $pitch;
+      if ($state->relative_p()) {
+	($last_pitch, $lower, $raise) = (interpret_absolute_pitch $pitch_as_written, undef, undef) if !defined $last_pitch;
+	my $last_base_pitch = ($last_pitch + 12)%12;
+	for (my $i = 0; $i < 8; $i += 1) {
+	  for my $dir (-1, 1) {
+	    my $candidate = $last_pitch + $dir*$i;
+	    $pitch = $candidate if $candidate%12 == $base_pitch;
+	  last if defined $pitch;
+	  }
+	last if defined $pitch;
 	}
-      last if defined $tentative;
+	$pitch += 12*($raise - $lower);
+      } else {
+	$pitch = interpret_absolute_pitch $pitch_as_written;
       }
-      my $pitch = $tentative + 12*($raise - $lower);
+      $pitch += $state->transpose() if defined $pitch;
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       $lhs = $midi_number_to_note[$pitch];
+      die "interpret_melody error: note $pitch_as_written out of range\n" unless defined $lhs;
       $last_pitch = $pitch;
 
     } elsif ($s =~ s/^($percussion_instrument_re)(?:$duration_re)?$end_re//s) {
@@ -1245,6 +1277,119 @@ use vars qw( %chime );
       'h' => '\x <>-\fff \repeat volta %I { \S }',
       # "continental" additions
       'halb' => q(\x <>-\f \repeat volta %I { \relative { c''1 } }),
+      'e1' => q(\x \malinesi),
+      'e3' => q(\x \malinesii),
+      'e5' => q(\x \malinesiii),
+      'e7' => q(\x \malinesiv),
+    ),
+  define_event(MODE__CARILLON, 'study2', 'Study 2', undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
+	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
+	% Source:  Weir, R. S., Lavallée, C. & Schaeffer, G. A. G. (1914). O Canada! The national song of the Dominion.
+	% Retrieved from https://archive.org/details/CSM_01142/
+	nationalanthemglobal = { \time 4/4 \key ees \major }
+	nationalanthemMelodyPartA = \transpose c c' { g2 bes4. bes8 | ees2. f4 | g aes bes c' | f2. r4 | }
+	nationalanthemMelodyPartB = \transpose c c' { \mark "4p1" g2 a4. a8 | bes2. c'4 | d' d' c' c' | bes2. }
+	nationalanthemMelodyPartC = \transpose c c' { f8.[ g16] |
+	    \mark "4p2" aes4. g8 f4 g8.[ aes16] | bes4. aes8 g4 aes8.[ bes16] | c'4 bes aes g | f2. }
+	nationalanthemMelodyPartD = \transpose c c' { f8.[ g16] |
+	    \mark "4p3" aes4. g8 f4 g8.[ aes16] | bes4. aes8 g4 g | f bes bes8[ a] g[ a] | bes2 r | }
+	nationalanthemMelodyPartE = \transpose c c' { \mark "5p1" g2 bes4. bes8 | ees2 r | aes2 c'4. c'8 | f2 r | }
+	nationalanthemMelodyPartF = \transpose c c' { \mark "5p2" bes2 b4. b8 | c'4 aes g f | ees2 f | g2. r4 | }
+	nationalanthemMelodyPartG = \transpose c c' { \mark "5p3" bes2 ees'4. ees'8 | c'4 aes g f | bes2 d | ees1 | }
+	nationalanthemAltoPartA = \transpose c c' { ees2 d4. d8 | c2. d4 | ees4 ees ees ees | ees2( d4) r | }
+	nationalanthemAltoPartB = \transpose c c' { \mark "4p1" ees2 f4. f8 | f2. g4 | f4 f a a | f2. }
+	nationalanthemAltoPartC = \transpose c c' { d4 |
+	    \mark "4p2" d4. d8 d4 d | ees4. ees8 ees4 ees | ees ees ees ees | d2. }
+	nationalanthemAltoPartD = \transpose c c' { d4 |
+	    \mark "4p3" d4. d8 d4 d | ees4. ees8 ees4 cis | d f f f | f2 r | }
+	nationalanthemAltoPartE = \transpose c c' { \mark "5p1" ees2 f4. f8 | ees2 r | f2 f4. f8 | f2 r | }
+	nationalanthemAltoPartF = \transpose c c' { \mark "5p2" ees2 des4. des8 | c4 c ees c | bes,2 d | ees2. r4 | }
+	nationalanthemAltoPartG = \transpose c c' { \mark "5p3" ees2 ees4. ees8 | ees4 f ees c | ees2 bes, | bes,1 | }
+	nationalanthemBassPartA = { ees2 bes,4. bes,8 | c2. bes,4 | ees f g aes | bes2. r4 | }
+	nationalanthemBassPartB = { \mark "4p1" ees2 c4. c8 | d2. ees4 | f f f f | bes2. }
+	nationalanthemBassPartC = { aes8.[ g16] |
+	    \mark "4p2" f4. g8 aes4 bes8.[ aes16] | g4. f8 ees4 f8.[ g16] | aes4 g aes a | bes2. }
+	nationalanthemBassPartD = { bes,4 |
+	    \mark "4p3" bes,4. bes,8 bes,4 bes, | ees4. ees8 ees4 e | f f f f | bes2 r | }
+	nationalanthemBassPartE = { \mark "5p1" ees2 d4. d8 | c2 r | f2 ees4. ees8 | d2 r | }
+	nationalanthemBassPartF = { \mark "5p2" ees2 ees4. ees8 | aes,4 f, g, aes, | bes,2 bes, | ees2. r4 | }
+	nationalanthemBassPartG = { \mark "5p3" g2 g,4. g,8 | aes,4 f, g, aes, | bes,2 bes, | ees1 | }
+	nationalanthem = <<
+	  { \voiceOne
+	    \nationalanthemglobal
+	    \nationalanthemMelodyPartA \nationalanthemMelodyPartB \nationalanthemMelodyPartC \nationalanthemMelodyPartD
+	    \nationalanthemMelodyPartE \nationalanthemMelodyPartF \nationalanthemMelodyPartG
+	  }
+	  \new Voice { \voiceTwo
+	    \nationalanthemglobal
+	    \nationalanthemAltoPartA \nationalanthemAltoPartB \nationalanthemAltoPartC \nationalanthemAltoPartD
+	    \nationalanthemAltoPartE \nationalanthemAltoPartF \nationalanthemAltoPartG
+	  }
+	  \new Staff { \voiceFour \clef "bass"
+	    \nationalanthemglobal
+	    \nationalanthemBassPartA \nationalanthemBassPartB \nationalanthemBassPartC \nationalanthemBassPartD
+	    \nationalanthemBassPartE \nationalanthemBassPartF \nationalanthemBassPartG
+	  }
+	>>
+	excerptfromstart = <<
+	  { \voiceOne
+	    \nationalanthemglobal
+	    \nationalanthemMelodyPartA
+	  }
+	  \new Voice { \voiceTwo
+	    \nationalanthemglobal
+	    \nationalanthemAltoPartA
+	  }
+	  \new Staff { \voiceFour \clef "bass"
+	    \nationalanthemglobal
+	    \nationalanthemBassPartA
+	  }
+	>>
+	excerptfrommiddle = <<
+	  { \voiceOne
+	    \nationalanthemglobal
+	    \nationalanthemMelodyPartB \nationalanthemMelodyPartC \nationalanthemMelodyPartD
+	    \nationalanthemMelodyPartE
+	  }
+	  \new Voice { \voiceTwo
+	    \nationalanthemglobal
+	    \nationalanthemAltoPartB \nationalanthemAltoPartC \nationalanthemAltoPartD
+	    \nationalanthemAltoPartE
+	  }
+	  \new Staff { \voiceFour \clef "bass"
+	    \nationalanthemglobal
+	    \nationalanthemBassPartB \nationalanthemBassPartC \nationalanthemBassPartD
+	    \nationalanthemBassPartE
+	  }
+	>>
+	excerptfromend = <<
+	  { \voiceOne
+	    \nationalanthemglobal
+	    \nationalanthemMelodyPartF
+	  }
+	  \new Voice { \voiceTwo
+	    \nationalanthemglobal
+	    \nationalanthemAltoPartF
+	  }
+	  \new Staff { \voiceFour \clef "bass"
+	    \nationalanthemglobal
+	    \nationalanthemBassPartF
+	  }
+	>>
+	S = \relative { c'1 }
+	% Malines half quarters from Starmer (1910, p. 97)
+	malinesi   = \relative { r16 f'''[e d] c[b a g] f[c a f] c[a f8] }
+	malinesii  = \relative { r8 a16[c] f[a c f] g[a b c] d[e f8] }
+	malinesiii = \relative { \time 4/16 f''16[d a' f] | \time 16/16 d'[a f d] b'[g e cis] d[a f a] \clef "bass" d,8[d,] }
+	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
+      ),
+      'q1' => '\x \excerptfromstart',
+      'q2' => '\x \excerptfrommiddle r1',
+      'q3' => '\x \excerptfromend',
+      'q0' => '\x \nationalanthem r1',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
+      # "continental" additions
+      'halb' => q(\x <>-\f \repeat volta %I { \transpose c c' { \S } }),
       'e1' => q(\x \malinesi),
       'e3' => q(\x \malinesii),
       'e5' => q(\x \malinesiii),
