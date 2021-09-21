@@ -1,0 +1,5 @@
+:
+set -x
+# w3.1 clashes with q0
+# 1632196730 (or thereabouts) should reproduce the clash
+ ./chimer -vD --test --what-if=1632196720 --method=synth --mode=carillon --melody=study2 #--no-cache

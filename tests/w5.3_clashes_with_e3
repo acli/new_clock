@@ -1,4 +1,4 @@
 :
 # w5.3 clashes with e3
 # 1631956920 (or thereabouts) should reproduce the clash but it doesn't - BUG
- ./chimer -vD --test --what-if=1631957790 #--no-cache
+ ./chimer -vD --test --what-if=1631957790 --method=synth --mode=carillon --melody=study1 #--no-cache

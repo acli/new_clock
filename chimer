@@ -630,12 +630,12 @@ sub interpret_melody ($) {
   no integer;
 
   # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
-  my $rest_re = sprintf('(?:r)');
-  my $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
-  my $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));			# NOTE: 3 captures: base pitch, commas, apostrophes
-  my $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
-  my $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
-  my $end_re = q((?=[\s\x{7d}\x{5e}~()\[\]]|$));			# space or braceright or caret or tilde or ()[] or eof
+  state $rest_re = sprintf('(?:r)');
+  state $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
+  state $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));				# NOTE: 3 captures: base pitch, commas, apostrophes
+  state $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
+  state $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
+  state $end_re = q((?=[\s\x{7d}\x{5e}~()\[\]]|$));				# space or braceright or caret or tilde or ()[] or eof
 
   my $state = new Interpret_Melody_State;
   my($last_pitch, $percussive_instrument);
@@ -854,7 +854,7 @@ sub interpret_melody ($) {
 
 sub event_id ($$;$) {
   my($mode, $event, $melody) = @_;
-  return join('-', map { s/[^\.\w]+/_/sg if defined $_; defined $_? $_: () } ($mode, $melody, $event));
+  return join('-', map { defined $_? s/[^\.\w]+/_/sgr: () } ($mode, $melody, $event));
 }
 sub define_event ($$$$$$$%) {
   my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
@@ -1349,17 +1349,14 @@ use vars qw( %chime );
 	  { \voiceOne
 	    \nationalanthemglobal
 	    \nationalanthemMelodyPartB \nationalanthemMelodyPartC \nationalanthemMelodyPartD
-	    \nationalanthemMelodyPartE
 	  }
 	  \new Voice { \voiceTwo
 	    \nationalanthemglobal
 	    \nationalanthemAltoPartB \nationalanthemAltoPartC \nationalanthemAltoPartD
-	    \nationalanthemAltoPartE
 	  }
 	  \new Staff { \voiceFour \clef "bass"
 	    \nationalanthemglobal
 	    \nationalanthemBassPartB \nationalanthemBassPartC \nationalanthemBassPartD
-	    \nationalanthemBassPartE
 	  }
 	>>
 	excerptfromend = <<
@@ -1723,6 +1720,23 @@ sub determine_chinese_time ($) {
   $it = [undef, undef, undef, undef, $chinese_hour, $quarter, $centiday, $deciday,
       $wday, eval { no integer; $relative_chinese_hour < 0.5 }, $slice];
   return $it;
+}
+
+sub enumerate_event_types () {
+  my %it;
+  for my $id (keys %chime) {
+    $it{$1} = 1 if $id =~ /-([^-]+)$/s; # FIXME
+  }
+  return sort { Debug::lazy_sorter($a, $b) } keys %it;
+}
+
+sub enumerate_defined_events () {
+  my @it;
+  for my $event (enumerate_event_types) {
+    my $id = determine_defined_id_for_event($event);
+    push @it, $event if defined $id;
+  }
+  return @it;
 }
 
 sub determine_defined_id_for_event ($) {
@@ -2174,13 +2188,7 @@ sub generate_sound_clip_for_event ($) {
 }
 
 sub generate_sound_clips () {
-  for my $event_id (
-    (map { my $n = $_; map { "w$n.$_" } 1..5 } 1..5),		# night watches
-    (map { "q$_" } 0..3),					# quarterly chimes
-    (map { "h$_" } 1..12),					# hourly chimes
-    (map { "e$_" } (1, 3, 5, 7)),				# continental half-quarterly chimes
-    (map { "halb$_" } 1..12),					# continental mid-hourly chimes
-  ) {
+  for my $event_id (enumerate_defined_events) {
     generate_sound_clip_for_event $event_id;
   }
 }
@@ -2188,11 +2196,11 @@ sub generate_sound_clips () {
 sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
   my $sink = get_sink;
-  my @exts = ('wav', 'mp3', 'ogg', 'oga', 'flac');
-  my $ext_re = sprintf('(?:%s)', join('|', @exts));
+  state $exts = ['wav', 'mp3', 'ogg', 'oga', 'flac'];
+  state $ext_re = sprintf('(?:%s)', join('|', @$exts));
 
   # Find a playable file
-  for my $ext (@exts) {
+  for my $ext (@$exts) {
   last if -f $input;
     $input = "$1.ext" if !-f $input && $input =~ /^(.*?)\.$ext_re$/ && -f "$1.ext";
   }
@@ -2475,23 +2483,6 @@ sub safe_to_restart_p () {
   return 0 == system { $cmd[0] } @cmd;
 }
 
-sub enumerate_event_types () {
-  my %it;
-  for my $id (keys %chime) {
-    $it{$1} = 1 if $id =~ /-([^-]+)$/s; # FIXME
-  }
-  return sort { Debug::lazy_sorter($a, $b) } keys %it;
-}
-
-sub enumerate_defined_events () {
-  my @it;
-  for my $event (enumerate_event_types) {
-    my $id = determine_defined_id_for_event($event);
-    push @it, $event if defined $id;
-  }
-  return @it;
-}
-
 sub generate_proofsheet () {
   my @events_to_check = enumerate_defined_events;
   my @events_found;
@@ -2557,6 +2548,9 @@ Options for debugging:
       --debug                 Produce debugging output
       --dump-defs             Dump source chime definitions, then exit
       --dump-notes            Dump compiled chime definitions, then exit
+      --melody=MELODY         Use the specified MELODY (overrides config file)
+      --method=METHOD         Use the specified METHOD (overrides config file)
+      --mode=MODE             Use the specified MODE (overrides config file)
       --no-cache              Ignore any pregenerated audio
       --proofsheet            Generate proofsheet on standard output, then exit
       --test                  Continue with test parameters
@@ -2616,6 +2610,9 @@ sub parse_command_line_arguments () {
 		      ($verbose_p? sprintf(' (source: %s)', $melody_description{$_}->{'source'}): '')):
 	      "$_\n" } sort keys %a);
 	exit disconnect_synth },
+    'melody=s' => \$melody,
+    'method=s' => \$method,
+    'mode=s' => \$mode,
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
