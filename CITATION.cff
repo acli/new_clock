@@ -37,6 +37,13 @@ references:
   type: software
   url: https://metacpan.org/pod/Astro::Sunrise
 
+- authors:
+  - family-names: Bantock
+    given-names: G.
+  year: 1907
+  title: "God Save The King: National anthem arranged for chorus and orchestra"
+  url: https://archive.org/details/godsavekingnatio00bant/
+
 - term: 打更 [Calling out the hour]
   year: 2021
   title: Wikipedia
@@ -232,6 +239,17 @@ references:
   type: sound-recording
   repository: https://freesound.org/people/inchadney/sounds/121203/
   license: CC-BY-3.0
+
+- authors:
+  - family-names: Weir
+    given-names: R. S.
+  - family-names: Lavallée
+    given-names: C.
+  - family-names: Schaeffer
+    given-names: G. A. G.
+  year: 1914
+  title: O Canada! The national song of the Dominion
+  url: https://archive.org/details/CSM_01142/
 
 - term: Westminster Quarters
   year: 2021

@@ -856,9 +856,10 @@ sub event_id ($$;$) {
   my($mode, $event, $melody) = @_;
   return join('-', map { defined $_? s/[^\.\w]+/_/sgr: () } ($mode, $melody, $event));
 }
-sub define_event ($$$$$$$%) {
+sub define_event_internal ($$$$$$$%) {
   my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
   my %it;
+  my $t0 = eval { no integer; Time::HiRes::time }; eval { local $debug = 1; log_debug "defining $melody"; };#XXXZZZ
   if (defined $melody && defined $description) {
     $melody_description{$melody} = {'description' => $description, 'source' => $source};
     $melody_description{$melody}->{'composer'} = $composer if defined $composer;
@@ -883,6 +884,24 @@ sub define_event ($$$$$$$%) {
   }
   for my $tune (values %it) {
     $interpretation{$tune} = interpret_melody $tune unless defined $interpretation{$tune};
+  }
+  eval { no integer; local $debug = 1; log_debug sprintf "%s defined in %.2f s", $melody, Time::HiRes::time - $t0 };#XXXZZZ
+  return %it;
+}
+sub define_event ($$$$$$$%) {
+  my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
+  my %it;
+  if (ref $melody eq 'HASH') {
+    for my $melody_i (keys %$melody) {
+      my $description_i = defined $description? $description: $melody->{$melody_i}->{'title'};
+      my $composer_i = defined $composer? $composer: $melody->{$melody_i}->{'composer'};
+      my $year_i = defined $year? $year: $melody->{$melody_i}->{'year'};
+      my $source_i = defined $source? $source: $melody->{$melody_i}->{'source'};
+      my %event_defs_i = %{$event_defs{$melody_i}};
+      %it = (%it, define_event_internal($mode, $melody_i, $description_i, $composer_i, $year_i, $source_i, $shared_defs, %event_defs_i));
+    }
+  } else {
+    %it = define_event_internal($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs);
   }
   return %it;
 }
@@ -1282,11 +1301,15 @@ use vars qw( %chime );
       'e5' => q(\x \malinesiii),
       'e7' => q(\x \malinesiv),
     ),
-  define_event(MODE__CARILLON, 'study2', 'Study 2', undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
+  define_event(MODE__CARILLON, {
+	'study2' => { 'title' => 'Study 2', },
+	'study3' => { 'title' => 'Study 2', },
+      }, undef, undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
 	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
-	% Source:  Weir, R. S., Lavallée, C. & Schaeffer, G. A. G. (1914). O Canada! The national song of the Dominion.
-	% Retrieved from https://archive.org/details/CSM_01142/
-	nationalanthemglobal = { \time 4/4 \key ees \major }
+	% Source:
+	% - Weir, R. S., Lavallée, C. & Schaeffer, G. A. G. (1914). O Canada! The national song of the Dominion.
+	%   Retrieved from https://archive.org/details/CSM_01142/
+	nationalanthemglobal = { \time 4/4 \key ees \major \x }
 	nationalanthemMelodyPartA = \transpose c c' { g2 bes4. bes8 | ees2. f4 | g aes bes c' | f2. r4 | }
 	nationalanthemMelodyPartB = \transpose c c' { \mark "4p1" g2 a4. a8 | bes2. c'4 | d' d' c' c' | bes2. }
 	nationalanthemMelodyPartC = \transpose c c' { f8.[ g16] |
@@ -1373,6 +1396,42 @@ use vars qw( %chime );
 	    \nationalanthemBassPartF
 	  }
 	>>
+	% Source (trying this one only because it seems better than the Wikipedia version but still only a single page):
+	% - Carey, H. (1744). Heil dir im Siegerkranz.  In <cite>Deutsche Weisen: Die beliebtesten Volks-
+	%   und geistlichen Lieder für Klavier (mit Text) bearbeitet von August Linder</cite>.
+	%   Retrieved from https://archive.org/details/godsavekingnatio00bant/
+	royalanthemglobal = { \time 3/4 \key g \major \tempo 4 = 72 }
+	%bes
+	royalanthemMelodyPartA = \transpose g g' { g4 g a | fis4. g8 a4 | b b c' | b4. a8 g4 |
+	    \mark "1p2" a g fis | g2 r4 | }
+	royalanthemMelodyPartB = \transpose g g' { d'4 d' d' | d'4. c'8 b4 | c' c' c' |
+	    \mark "1p3" c'4. b8 a4 | }
+	royalanthemMelodyPartC = \transpose g g' { b4 c'8[ b] a[ g] | b4. c'8 d'4 | e'8[ c'] b4 a | g2 r4 }
+	royalanthemAltoPartA = \transpose g g' { b,4 b, a, | a,4. a,8 a,4 | b, e e | d4. c8 b,4 |
+	    \mark "1p2" c b, c | b,2 r4 | }
+	royalanthemAltoPartB = \transpose g g' { d4 d d | d4. d8 d4 | d d d |
+	    \mark "1p3" d4. d8 d4 | }
+	royalanthemAltoPartC = \transpose g g' { d g fis | d4. fis8 g4 | e8[ a] d4 c | b,2 r4 | }
+	royalanthemBassPartA = \transpose g g { g4 e c | d4. e8 fis4 | g e c | d4. dis8 e4 |
+	    \mark "1p2" c d d | g d g, | }
+	royalanthemBassPartB = \transpose g g { g,4 b d | g4. g,8 g4 | d fis a |
+	    \mark "1p3" d'4. d8 d'4 | }
+	royalanthemBassPartC = \transpose g g { g8[ fis e d c b,] | g,4. a,8 b,4 | c d d, | g, d g, | }
+	royalanthem = <<
+	  { \voiceOne
+	    \royalanthemglobal
+	    \royalanthemMelodyPartA \royalanthemMelodyPartB \royalanthemMelodyPartC
+	  }
+	  \new Voice { \voiceTwo
+	    \royalanthemglobal
+	    \royalanthemAltoPartA \royalanthemAltoPartB \royalanthemAltoPartC
+	  }
+	  \new Staff { \voiceFour \clef "bass"
+	    \royalanthemglobal
+	    \royalanthemBassPartA \royalanthemBassPartB \royalanthemBassPartC
+	  }
+	>>
+	% hour strike on random note
 	S = \relative { c'1 }
 	% Malines half quarters from Starmer (1910, p. 97)
 	malinesi   = \relative { r16 f'''[e d] c[b a g] f[c a f] c[a f8] }
@@ -1380,17 +1439,32 @@ use vars qw( %chime );
 	malinesiii = \relative { \time 4/16 f''16[d a' f] | \time 16/16 d'[a f d] b'[g e cis] d[a f a] \clef "bass" d,8[d,] }
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
-      'q1' => '\x \excerptfromstart',
-      'q2' => '\x \excerptfrommiddle r2',
-      'q3' => '\x \excerptfromend',
-      'q0' => '\x \nationalanthem r1',
-      'h' => '\x <>-\fff \repeat volta %I { \S }',
-      # "continental" additions
-      'halb' => q(\x <>-\f \repeat volta %I { \transpose c c' { \S } }),
-      'e1' => q(\x \malinesi),
-      'e3' => q(\x \malinesii),
-      'e5' => q(\x \malinesiii),
-      'e7' => q(\x \malinesiv),
+      'study2' => {
+	'q1' => '\excerptfromstart',
+	'q2' => '\excerptfrommiddle r2',
+	'q3' => '\excerptfromend',
+	'q0' => '\nationalanthem r1',
+	'h' => '\x <>-\fff \repeat volta %I { \S }',
+	# "continental" additions
+	'halb' => q(\x <>-\f \repeat volta %I { \transpose c c' { \S } }),
+	'e1' => q(\x \malinesi),
+	'e3' => q(\x \malinesii),
+	'e5' => q(\x \malinesiii),
+	'e7' => q(\x \malinesiv),
+      },
+      'study3' => {
+	'q1' => '\excerptfromstart',
+	'q2' => '\royalanthem r2',
+	'q3' => '\excerptfromend',
+	'q0' => '\nationalanthem r1',
+	'h' => '\x <>-\fff \repeat volta %I { \S }',
+	# "continental" additions
+	'halb' => q(\x <>-\f \repeat volta %I { \transpose c c' { \S } }),
+	'e1' => q(\x \malinesi),
+	'e3' => q(\x \malinesii),
+	'e5' => q(\x \malinesiii),
+	'e7' => q(\x \malinesiv),
+      },
     ),
 ) unless caller;
 
