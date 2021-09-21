@@ -1384,7 +1384,7 @@ use vars qw( %chime );
 	malinesiv  = \relative { \time 4/16 r16 d''[f a]  | \time 16/16 d[a b g] a[f g e] f[d e cis] d8[\clef "bass" d,,] }
       ),
       'q1' => '\x \excerptfromstart',
-      'q2' => '\x \excerptfrommiddle r1',
+      'q2' => '\x \excerptfrommiddle r2',
       'q3' => '\x \excerptfromend',
       'q0' => '\x \nationalanthem r1',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
