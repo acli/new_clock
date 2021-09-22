@@ -1,2 +1,2 @@
 set -x
- ./chimer -vD --test --what-if=1631566720   --method=synth --mode=carillon --melody=study1 --no-cache
+ ./chimer -vD --test --what-if=1631566720   --method=synth --mode=carillon --no-cache

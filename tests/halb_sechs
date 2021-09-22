@@ -1,1 +1,1 @@
- ./chimer -vD --test --what-if=`expr 1631566750 + 1800` --method=synth --mode=carillon --melody=study1 --no-cache
+ ./chimer -vD --test --what-if=`expr 1631566750 + 1800` --method=synth --mode=carillon --no-cache

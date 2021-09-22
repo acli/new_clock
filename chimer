@@ -871,7 +871,7 @@ sub define_event_internal_real ($$$$$$$%) {
   $shared_defs =~ s/\s+$//sg;					# trim
   $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
-    my $tune = sprintf('%s\score { { %s } }', $shared_defs, $event_defs{$event});
+    my $tune = sprintf('%s\score { \\new Staff { %s } }', $shared_defs, $event_defs{$event});
     $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
     $event = "q0" if $event eq 'q4';				# in case we got q4
     if ($event =~ /^(?:h|halb)$/ && $tune =~ /\%[Il]/) {	# expand to h1..h12
@@ -2721,7 +2721,7 @@ sub parse_command_line_arguments () {
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
-    'proofsheet' => sub { do_setup; generate_proofsheet; exit disconnect_synth },
+    'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => sub { do_test_setup },
     'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) { do_event $e };
 	exit disconnect_synth },

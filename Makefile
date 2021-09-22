@@ -30,7 +30,7 @@ data/%: raw/%
 	lilypond -o $(patsubst %.pdf,%,$@) $<
 
 proof.ly: chimer
-	chimer --test --proofsheet > $@
+	chimer -vD --test --proofsheet > $@
 
 CITATION.cff: config/CITATION.cff.in doc/*.md README.md utils/merge-citation-cff chimer
 	utils/merge-citation-cff $(filter-out utils/%,$^) > $@
