@@ -697,6 +697,9 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\mark\s+(?:\\default|#\d+|"[^""]+")\s+//s) {	# ignore \mark
       ;
 
+    } elsif ($s =~ s/^\\omit\s+[A-Z][A-Za-z]+(?:\.[A-Z][A-Za-z]+)+\s+//s) {	# ignore \omit
+      ;
+
     } elsif ($s =~ s/^\\new\s+(?:Staff|Voice)\s+//s || $s =~ s/^\\\\\s*//s) {
       push @$it, $voice if $voice;
       $voice = undef;
@@ -871,7 +874,9 @@ sub define_event_internal_real ($$$$$$$%) {
   $shared_defs =~ s/\s+$//sg;					# trim
   $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
-    my $tune = sprintf('%s\score { \\new Staff { %s } }', $shared_defs, $event_defs{$event});
+    my $tune = $event_defs{$event};
+    $tune = sprintf('\\new Staff { %s }', $tune) unless $tune =~ /^\s*\\drums\s+/;
+    $tune = sprintf('%s\score { %s }', $shared_defs, $tune);
     $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
     $event = "q0" if $event eq 'q4';				# in case we got q4
     if ($event =~ /^(?:h|halb)$/ && $tune =~ /\%[Il]/) {	# expand to h1..h12
@@ -917,28 +922,36 @@ sub define_event ($$$$$$$%) {
   }
   return %it;
 }
-sub define_watch ($$$$$) {
-  my($event, $volume1, $instrument1, $volume2, $instrument2) = @_;
-  my $watch = $1 + 0 if $event =~ /^w(\d+)/;
+sub interpret_watch ($$$$$$) {
+  my($watch, $subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
   my $score;
   my $beat_length = 1;
   my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
   no integer;
+  my $previous_volume;
   for (my $i = 0; $i < $repeats; $i += 1) {
-    my $previous_length;
     $score .= ($watch == 1? ' r2': ' r4.') if defined $score;
+    my $previous_duration; # need to reset this after emitting r
     for my $length (map { $_ ne '.' } split(/\s+/, $pattern)) {
       $score .= ' ' if defined $score;
-      if ($length) {
-	$score .= (!defined $previous_length || !$previous_length)? sprintf('\%s %s4.', $volume1, $instrument1): $instrument1;
-      } else {
-	$score .= (!defined $previous_length ||  $previous_length)? sprintf('\%s %s8.', $volume2, $instrument2): $instrument2;
-      }
-      $previous_length = $length;
+      my($instrument, $volume, $duration) = $length? ($instrument1, $volume1, '4.'): ($instrument2, $volume2, '8.');
+      $score .= sprintf('<>-\%s ', $volume) if !defined $previous_volume || $previous_volume ne $volume;
+      $score .= (!defined $previous_duration || $previous_duration ne $duration)? sprintf('%s%s', $instrument, $duration): $instrument;
+      $previous_duration = $duration;
+      $previous_volume = $volume;
     }
   }
   #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
-  return define_event(undef, undef, undef, undef, undef, undef, undef, ($event => sprintf('\drums { %s }', $score)));
+  return sprintf('\drums { \omit Score.BarLine %s }', $score);
+}
+sub define_watches ($$$$$) {
+  my($subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
+  my %defs;
+  for (my $watch = 1; $watch <= 5; $watch += 1) {
+    my $event_id = defined $subwatch? "w$watch.$subwatch": "w$watch";
+    $defs{$event_id} = interpret_watch($watch, $subwatch, $volume1, $instrument1, $volume2, $instrument2);
+  }
+  return define_event(undef, undef, undef, undef, undef, undef, undef, %defs);
 }
 
 
@@ -946,21 +959,9 @@ use vars qw( %chime );
 sub define_chimes () {
   my $t0 = eval { no integer; Time::HiRes::time };
 %chime = (
-  define_watch('w1.1', 'ff', 'cyms', 'ff', 'tamb'),
-  define_watch('w2.1', 'ff', 'cyms', 'ff', 'tamb'),
-  define_watch('w3.1', 'ff', 'cyms', 'ff', 'tamb'),
-  define_watch('w4.1', 'ff', 'cyms', 'ff', 'tamb'),
-  define_watch('w5.1', 'ff', 'cyms', 'ff', 'tamb'),
-  define_watch('w1',   'ff', 'cymch', 'ff', 'cl'),
-  define_watch('w2',   'ff', 'cymch', 'ff', 'cl'),
-  define_watch('w3',   'ff', 'cymch', 'ff', 'cl'),
-  define_watch('w4',   'ff', 'cymch', 'ff', 'cl'),
-  define_watch('w5',   'ff', 'cymch', 'ff', 'cl'),
-  define_watch('w1.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_watch('w2.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_watch('w3.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_watch('w4.5', 'ff', 'cymch', 'ff', 'mar'),
-  define_watch('w5.5', 'ff', 'cymch', 'ff', 'mar'),
+  define_watches(1,     'ff', 'cyms',  'ff', 'tamb'),
+  define_watches(5,     'ff', 'cymch', 'ff', 'mar'),
+  define_watches(undef, 'ff', 'cymch', 'ff', 'cl'),
   define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', undef, undef, '4.2bsd', q(
 	A = \relative { \set Staff.instrumentName = #"Sine Wave" ees''''8 r4. ~ r4 }
       ),
@@ -1817,7 +1818,7 @@ sub determine_chinese_time ($) {
 sub enumerate_event_types () {
   my %it;
   for my $id (keys %chime) {
-    $it{$1} = 1 if $id =~ /-([^-]+)$/s; # FIXME
+    $it{$1} = 1 if $id =~ /-([^-]+)$/s || $id =~ /^(w\d+(?:\.\d+)?)$/s; # FIXME
   }
   return sort { Debug::lazy_sorter($a, $b) } keys %it;
 }
