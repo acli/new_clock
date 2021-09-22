@@ -937,10 +937,8 @@ sub interpret_watch ($$$$$$) {
   no integer;
   my $previous_volume;
   my $beats;
-  log_debug "duration_re=/$duration_re/";#XXXZZZ
   for (my $i = 0; $i < $repeats; $i += 1) {
     $beats = calculate_beat_length(interpret_divisor $1, length $2) if $i == 0 && $gap =~ /$duration_re$/;
-    log_debug "gap=$gap (1=$1, 2=$2) => beats=$beats";#XXXZZZ
     $score .= $gap if defined $score;
     my $previous_duration; # need to reset this after emitting r
     for my $length (map { $_ ne '.' } split(/\s+/, $pattern)) {
@@ -951,11 +949,16 @@ sub interpret_watch ($$$$$$) {
       $previous_duration = $duration;
       $previous_volume = $volume;
       $beats += calculate_beat_length(interpret_divisor $1, length $2) if $i == 0 && $duration =~ /$duration_re$/;
-    log_debug "duration=$duration (1=$1, 2=$2) => beats=$beats";#XXXZZZ
     }
   }
   #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
-  return sprintf('\drums { \tempo 4 = 60 \time %g/32 %s }', 8*$beats, $score);
+
+  my($numerator, $denominator) = (8*$beats, 32);
+  while ($numerator%2 == 0 && $denominator%2 == 0 && $denominator > 8) {
+    $numerator /= 2;
+    $denominator /= 2;
+  }
+  return sprintf('\drums { \tempo 4 = 60 \time %g/%g %s }', $numerator, $denominator, $score);
 }
 sub define_watches ($$$$$) {
   my($subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
