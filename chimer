@@ -861,7 +861,7 @@ sub define_event_internal_real ($$$$$$$%) {
   my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
   my %it;
   my($t0, $thing) = (eval { no integer; Time::HiRes::time }, (defined $melody? $melody: join(' ', ($mode, keys %event_defs))) =~ s/^\s+//sr);
-  log_debug "defining $thing" if $debug || $verbose_p;
+  log_comment "interpreting score for $thing" if $debug || $verbose_p;
   if (defined $melody && defined $description) {
     $melody_description{$melody} = {'description' => $description, 'source' => $source};
     $melody_description{$melody}->{'composer'} = $composer if defined $composer;
@@ -887,7 +887,7 @@ sub define_event_internal_real ($$$$$$$%) {
   for my $tune (values %it) {
     $interpretation{$tune} = interpret_melody $tune unless defined $interpretation{$tune};
   }
-  log_debug sprintf "%s defined in %.2f s", $thing, Time::HiRes::time - $t0 if $debug;
+  log_comment sprintf "%s defined in %.2f s", $thing, Time::HiRes::time - $t0 if $debug || $verbose_p;
   return %it;
 }
 sub define_event_internal ($$$$$$$%) {
@@ -944,6 +944,7 @@ sub define_watch ($$$$$) {
 
 use vars qw( %chime );
 sub define_chimes () {
+  my $t0 = eval { no integer; Time::HiRes::time };
 %chime = (
   define_watch('w1.1', 'ff', 'cyms', 'ff', 'tamb'),
   define_watch('w2.1', 'ff', 'cyms', 'ff', 'tamb'),
@@ -1370,15 +1371,15 @@ sub define_chimes () {
 	excerptfromstart = <<
 	  { \voiceOne
 	    \nationalanthemglobal
-	    \nationalanthemMelodyPartA
+	    \nationalanthemMelodyPartB
 	  }
 	  \new Voice { \voiceTwo
 	    \nationalanthemglobal
-	    \nationalanthemAltoPartA
+	    \nationalanthemAltoPartB
 	  }
 	  \new Staff { \voiceFour \clef "bass"
 	    \nationalanthemglobal
-	    \nationalanthemBassPartA
+	    \nationalanthemBassPartB
 	  }
 	>>
 	excerptfrommiddle = <<
@@ -1478,6 +1479,7 @@ sub define_chimes () {
       },
     ),
 );
+  log_info sprintf "%.2f s was spent interpreting scores for chime melodies", eval { no integer; Time::HiRes::time - $t0};
 }
 
 

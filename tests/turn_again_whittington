@@ -1,0 +1,3 @@
+:
+# Starmer (1907), p. 5
+ ./chimer -vD --melody '' --test-tune '\transpose c,, c { g,4 d c | b, d a, | g, d c | b,2 a,4 | e d c | b, d a, | g, d c | b,2 a,4 '
