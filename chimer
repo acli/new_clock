@@ -625,6 +625,17 @@ sub interpret_divisor ($) {
   return !defined $s? $s: $s =~ /\x{5c}longa/? 0.25: $s =~ /\x{5c}breve/? 0.5: $s =~ /^\d+$/? $s + 0: $s; # XXX
 }
 
+sub calculate_beat_length ($$) {
+  my($divisor, $dots) = @_;
+  no integer;
+  my $it = 4 / $divisor;
+  for (my $i = $dots, my $adj = $it/2; $i; $i -= 1, $adj /= 2) {
+    $it += $adj;
+  }
+  return $it;
+}
+
+my $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
 sub interpret_melody ($) {
   my($s0) = @_;
   my $it;
@@ -634,7 +645,6 @@ sub interpret_melody ($) {
   state $rest_re = sprintf('(?:r)');
   state $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
   state $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));				# NOTE: 3 captures: base pitch, commas, apostrophes
-  state $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
   state $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
   state $end_re = q((?=[\s\x{7d}\x{5e}~()\[\]]|$));				# space or braceright or caret or tilde or ()[] or eof
 
@@ -828,10 +838,7 @@ sub interpret_melody ($) {
       log_debug "Internal error: \"else\" case reached in interpret_melody, s=($s)";
     }
     if (defined $lhs) {
-      my $rhs = $state->unit_beat() * 4 / $divisor;
-      for (my $i = $dots, my $adj = $rhs/2; $i; $i -= 1, $adj /= 2) {
-	$rhs += $adj;
-      }
+      my $rhs = $state->unit_beat() * calculate_beat_length($divisor, $dots);
       if ($tie_p) {
 	if (!defined $note) {
 	  $tie_p = 0;
@@ -925,12 +932,16 @@ sub define_event ($$$$$$$%) {
 sub interpret_watch ($$$$$$) {
   my($watch, $subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
   my $score;
-  my $beat_length = 1;
   my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
+  my $gap = ($watch == 1? ' r2': ' r4.'); # FIXME
   no integer;
   my $previous_volume;
+  my $beats;
+  log_debug "duration_re=/$duration_re/";#XXXZZZ
   for (my $i = 0; $i < $repeats; $i += 1) {
-    $score .= ($watch == 1? ' r2': ' r4.') if defined $score;
+    $beats = calculate_beat_length(interpret_divisor $1, length $2) if $i == 0 && $gap =~ /$duration_re$/;
+    log_debug "gap=$gap (1=$1, 2=$2) => beats=$beats";#XXXZZZ
+    $score .= $gap if defined $score;
     my $previous_duration; # need to reset this after emitting r
     for my $length (map { $_ ne '.' } split(/\s+/, $pattern)) {
       $score .= ' ' if defined $score;
@@ -939,10 +950,12 @@ sub interpret_watch ($$$$$$) {
       $score .= (!defined $previous_duration || $previous_duration ne $duration)? sprintf('%s%s', $instrument, $duration): $instrument;
       $previous_duration = $duration;
       $previous_volume = $volume;
+      $beats += calculate_beat_length(interpret_divisor $1, length $2) if $i == 0 && $duration =~ /$duration_re$/;
+    log_debug "duration=$duration (1=$1, 2=$2) => beats=$beats";#XXXZZZ
     }
   }
   #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
-  return sprintf('\drums { \omit Score.BarLine %s }', $score);
+  return sprintf('\drums { \tempo 4 = 60 \time %g/32 %s }', 8*$beats, $score);
 }
 sub define_watches ($$$$$) {
   my($subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
