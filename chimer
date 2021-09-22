@@ -1316,7 +1316,7 @@ sub define_chimes () {
     ),
   define_event(MODE__CARILLON, {
 	'study2' => { 'title' => 'Study 2', },
-	'study3' => { 'title' => 'Study 2', },
+	'study3' => { 'title' => 'Study 3', },
       }, undef, undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
 	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
 	% Source:
