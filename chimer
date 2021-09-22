@@ -1316,9 +1316,13 @@ sub define_chimes () {
       'e7' => q(\x \malinesiv),
     ),
   define_event(MODE__CARILLON, {
-	'study2' => { 'title' => 'Study 2', },
-	'study3' => { 'title' => 'Study 3', },
-      }, undef, undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
+	'study2' => { 'title' => 'Study 2',
+		      'source' => 'Weir, Lavallée, and Schaeffer (1914); Starmers (1910, p. 97)',
+		    },
+	'study3' => { 'title' => 'Study 3',
+		      'source' => 'Weir, Lavallée, and Schaeffer (1914); Stevenson (n.d.); Starmers (1910, p. 97)',
+		    },
+      }, undef, undef, '2021', undef, q(
 	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
 	% Source:
 	% - Weir, R. S., Lavallée, C. & Schaeffer, G. A. G. (1914). O Canada! The national song of the Dominion.
