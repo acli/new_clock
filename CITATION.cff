@@ -64,13 +64,6 @@ references:
   date-accessed: 2021-08-20
   url: http://www.ccarh.org/courses/253/handout/gminstruments/
 
-- section: God Save The King
-  title: Collection of sheet music from the late 18th and 19th centuries
-  type: book
-  start: 34
-  end: 34
-  url: https://archive.org/details/hartley00535542
-
 - authors:
   - family-names: Gossner
     given-names: Samuel
@@ -212,6 +205,12 @@ references:
   start: 93
   end: 107
   url: https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F36.1.93.pdf
+
+- authors:
+  - family-names: Stevenson
+    given-names: J.
+  title: “God Save The King!” The National Anthem of England, with an additional stanza for our gracious Queen; arranged for one, two, or three voices (and chorus) with an accompanyment for the piano forte. In <cite>Collection of sheet music from the late 18th and 19th centuries</cite>, 29–34
+  url: https://archive.org/details/hartley00535542
 
 - authors:
   - name: strangehorizon
