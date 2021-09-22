@@ -37,13 +37,6 @@ references:
   type: software
   url: https://metacpan.org/pod/Astro::Sunrise
 
-- authors:
-  - family-names: Bantock
-    given-names: G.
-  year: 1907
-  title: "God Save The King: National anthem arranged for chorus and orchestra"
-  url: https://archive.org/details/godsavekingnatio00bant/
-
 - term: 打更 [Calling out the hour]
   year: 2021
   title: Wikipedia
@@ -70,6 +63,13 @@ references:
 - title: General MIDI instrument codes
   date-accessed: 2021-08-20
   url: http://www.ccarh.org/courses/253/handout/gminstruments/
+
+- section: God Save The King
+  title: Collection of sheet music from the late 18th and 19th centuries
+  type: book
+  start: 34
+  end: 34
+  url: https://archive.org/details/godsavekingnatio00bant/
 
 - authors:
   - family-names: Gossner
