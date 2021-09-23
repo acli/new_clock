@@ -2366,8 +2366,9 @@ sub play_sound_file_real ($;$$$) {
   # Fork and play it in the background
   my $user_agent = 'Chiming clock';
   my $close_stdin_p = 1;
+  my $use_paplay_p = 0;
   my @cmd;
-  if ($volume == 100 && !defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
+  if ($use_paplay_p && $volume == 100 && !defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
     @cmd = ('paplay', '-n', $user_agent);
     push @cmd, ('-v') if $debug > 1;
     push @cmd, ('-d', $sink) if $sink;
@@ -2475,7 +2476,7 @@ sub strike_tune (@) {
 	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
 	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
 	push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
-      } else {
+      } elsif ($note ne 'r') {
 	log_debug "strike_tune: $note: \"else\" case reached";
       }
       # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
