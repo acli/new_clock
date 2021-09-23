@@ -662,6 +662,8 @@ sub interpret_melody ($) {
       $s =~ s/^\\$key/$def{$key}/s;
     }
     my $lhs;
+    my $directive;
+    log_debug sprintf 's=%s', Debug::cvs($s) if $debug > 2;
     if ($s =~ s/^\%[^\n]*\n*//s) {		# percent - comment to always discard
       ;
     } elsif (!defined $def_key && $s =~ s/^([A-Za-z]+)\s*=\s*//s) {
@@ -698,6 +700,21 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^>>\s*//s) {		# FIXME
       $state->grestore($s);
 
+    } elsif ($s =~ s/^[\^_]\\markup\s+//s) {	# ignore markup
+      ;
+    } elsif ($s =~ s/^\\(?:halign\s+#\w+|markup|tiny)\s+//s) {	# ignore markup
+      ;
+
+    } elsif ($s =~ s/^"((?:\\"|[^"])*)"//s) {	# text - look for directives
+      my($s) = ($1);
+      if ($s =~ /^(play)\s+(\S+)\s+from\s+(\d+):(\d\d):(\d\d(?:\.\d+)?)\s+to\s+(\d+):(\d\d):(\d\d(?:\.\d+)?)\b/) {
+	no integer;
+	$directive = [$1, $2, 3600*$3 + 60*$4 + $5, 3600*$6 + 60*$7 + $8];
+      }
+
+    } elsif ($s =~ s/^\\(laisserVibrer)\s+//s) {			# ignore \laisserVibrer for now
+      $directive = $1;
+
     } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
       ;
 
@@ -707,10 +724,15 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\mark\s+(?:\\default|#\d+|"[^""]+")\s+//s) {	# ignore \mark
       ;
 
+    } elsif ($s =~ s/^\\textLengthOn\s+//s) {				# ignore \textLengthOn
+      ;
+
     } elsif ($s =~ s/^\\omit\s+[A-Z][A-Za-z]+(?:\.[A-Z][A-Za-z]+)+\s+//s) {	# ignore \omit
       ;
 
-    } elsif ($s =~ s/^\\new\s+(?:Staff|Voice)\s+//s || $s =~ s/^\\\\\s*//s) {
+    } elsif ($s =~ s/^\\new\s+(?:(?:(Drum))?Staff|Voice)\s+(?:\\with \{[^\{}]+})?//s || $s =~ s/^\\\\\s*//s) {
+      # FIXME - do we need to gsave?
+      $state->drummode_p(1) if $1;
       push @$it, $voice if $voice;
       $voice = undef;
 
@@ -723,6 +745,7 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\(?:drums|drummode)\s*\x{7b}//s) {
       $state->gsave();
       $state->drummode_p(1);
+      # FIXME - do we need to push voice?
 
     } elsif ($s =~ s/^\\absolute\s*\x{7b}//s) {
       $state->gsave();
@@ -769,12 +792,8 @@ sub interpret_melody ($) {
       ;
     } elsif ($s =~ s/^\~\s*//s) {		# tie
       $tie_p = 1;
-    } elsif ($s =~ s/^\x{5e}\s*\\fermata\b//s) {	# pause
-      if (!defined $note) {
-	log_error "Fermata ignored because there is no note to tie to";
-      } else {
-	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
-      }
+    } elsif ($s =~ s/^\x{5e}\s*\\(fermata)\b//s) {	# pause
+      $directive = $1;
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
       $state->unit_beat(($1*60)/(4*$2));
     } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
@@ -855,11 +874,25 @@ sub interpret_melody ($) {
       push @$voice, [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
       $note = $lhs;
       $tie_p = 0;
+    } elsif (defined $directive) {
+      my $verb = ref $directive? $directive->[0]: $directive;
+      if (!defined $note) {
+	log_error "Directive $verb ignored because there is no note before it";
+      } elsif ($verb eq 'fermata') {
+	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
+      } elsif ($verb eq 'laisserVibrer') {
+	;						# FIXME
+      } elsif ($verb eq 'play') {
+	log_debug $note;
+	$voice->[+scalar @$voice - 1]->[4]->{'directive'} = $directive;
+      } else {
+	log_error "interpret_melody: Unknown directive \"$verb\"";
+      }
     }
   }
   push @$it, $voice if $voice;
   log_debug sprintf "%s interpreted as %s", $s0,
-      join(' ', map { $_->[0] . ($_->[1] == $state->unit_beat()? '': sprintf('(%s)', $_->[1]/$state->unit_beat())) } @$it) if $debug > 1;
+      join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @$it) if $debug > 1;
   return $it;
 }
 
@@ -870,7 +903,9 @@ sub event_id ($$;$) {
 sub define_event_internal_real ($$$$$$$%) {
   my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
   my %it;
-  my($t0, $thing) = (eval { no integer; Time::HiRes::time }, (defined $melody? $melody: join(' ', ($mode, keys %event_defs))) =~ s/^\s+//sr);
+  my($t0, $thing) = (eval { no integer; Time::HiRes::time },
+		    (defined $melody? $melody: join(' ', ($mode, sort keys %event_defs))) =~ s/^\s+//sr);
+
   log_comment "interpreting score for $thing" if $debug || $verbose_p;
   if (defined $melody && defined $description) {
     $melody_description{$melody} = {'description' => $description, 'source' => $source};
@@ -882,7 +917,7 @@ sub define_event_internal_real ($$$$$$$%) {
   $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
     my $tune = $event_defs{$event};
-    $tune = sprintf('\\new Staff { %s }', $tune) unless $tune =~ /^\s*\\drums\s+/;
+    $tune = sprintf('\\new Staff { %s }', $tune) unless $tune =~ /^\s*\\(?:drums|new\s+(?:Drum)?Staff)\s+/;
     $tune = sprintf('%s\score { %s }', $shared_defs, $tune);
     $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
     $event = "q0" if $event eq 'q4';				# in case we got q4
@@ -903,12 +938,12 @@ sub define_event_internal_real ($$$$$$$%) {
   return %it;
 }
 sub define_event_internal ($$$$$$$%) {
-  my($mode, $specified_melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
+  my($specified_mode, $specified_melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
   my %it;
-  if ($mode eq MODE__CARILLON && $specified_melody ne $melody) {
-    log_debug sprintf "%s definition skipped", $specified_melody if $debug;
+  if (!defined $specified_mode || ($specified_mode eq $mode && ($mode ne MODE__CARILLON || $specified_melody eq $melody))) {
+    %it = define_event_internal_real($specified_mode, $specified_melody, $description, $composer, $year, $source, $shared_defs, %event_defs);
   } else {
-    %it = define_event_internal_real($mode, $specified_melody, $description, $composer, $year, $source, $shared_defs, %event_defs);
+    log_debug sprintf "%s %s definition skipped", $specified_mode, $specified_melody if $debug;
   }
   return %it;
 }
@@ -981,11 +1016,25 @@ sub define_chimes () {
   define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', undef, undef, '4.2bsd', q(
 	A = \relative { \set Staff.instrumentName = #"Sine Wave" ees''''8 r4. ~ r4 }
       ),
-      'q1' => '',
       'q2' => '\A',
-      'q3' => '',
       'q0' => '\A',
       'h' => '\A',
+    ),
+  define_event(MODE__CUCKOO, undef, 'Cuckoo clock', undef, '2021', undef, q(
+	x = { \tempo 1 = 35 }
+	S = \absolute { c'1 }
+	A = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:01.15" } }
+	B = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:03.75" } }
+	C = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:05.50" } }
+	D = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:07.15" } }
+	E = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:08.90" } }
+      ),
+      'halb'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \A \new Staff { \S } >>',
+      'h1'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \A \new Staff { \S } >>',
+      'h2'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \B \new Staff { \repeat unfold 2 { \S } } >>',
+      'h3'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \C \new Staff { \repeat unfold 3 { \S } } >>',
+      'h4'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \D \new Staff { \repeat unfold 4 { \S } } >>',
+      'h5'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \E \new Staff { \repeat unfold 5 { \S } } >>',
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
@@ -2325,7 +2374,7 @@ sub play_sound_file_real ($;$$$) {
     #push @cmd, ('--volume', 65536*$volume / 100) if $volume != 100;
     $close_stdin_p = 0; # otherwise paplay craps out
   } else {
-    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', $volume);
+    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', int($volume));
     push @cmd, ('--start', $start) if defined $start;
     push @cmd, ('--end', $end) if defined $end;
     push @cmd, ("--ao=pulse::$sink") if $sink;
@@ -2410,28 +2459,24 @@ sub strike_tune (@) {
     my $elapsed = 0;
     my $t0 = current_time;
     for my $spec (@$voice) {
-      my($note, $time, $velocity, $instrument) = @$spec;
+      my($note, $time, $velocity, $instrument, $flags) = @$spec;
       $velocity = 127 unless defined $velocity; # NOTE backward compatibility
       my $t_i = current_time;
       my $note_length = $time * $beat_length;
-      if ($method eq METHOD__SYNTH) {
-	if (defined $percussion_note_to_midi_number{$note}) {
-	  push @midi_commands, [$elapsed, sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity];
-	} elsif (defined $note_to_midi_number{$note}) {
-	  my $channel = (defined $instrument_name_to_channel_number{$instrument}? $instrument_name_to_channel_number{$instrument}: 1);
-	  my $note_number = $note_to_midi_number{$note};
-	  my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
-	  push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
-	  push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
-	}
+      if (defined $flags && defined $flags->{'directive'}) {
+	push @midi_commands, [$elapsed, $flags->{'directive'}, $velocity];
+      } elsif (defined $percussion_note_to_midi_number{$note}) {
+	push @midi_commands, [$elapsed, sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity];
+      } elsif (exists $percussion_note_to_midi_number{$note}) {	# valid percussion note but no MIDI equivalent
+	log_debug "percussion note $note has no MIDI equivalent";	# XXX
+      } elsif (defined $note_to_midi_number{$note}) {
+	my $channel = (defined $instrument_name_to_channel_number{$instrument})? $instrument_name_to_channel_number{$instrument}: 1;
+	my $note_number = $note_to_midi_number{$note};
+	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
+	push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       } else {
-	# The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
-	# for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
-	# If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
-	# (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
-	# The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
-	#strike_gong transpose_note $note, $semitones;
-	strike_bell transpose_note $note, $semitones;
+	log_debug "strike_tune: $note: \"else\" case reached";
       }
       # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
       # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
@@ -2440,114 +2485,47 @@ sub strike_tune (@) {
       $elapsed += $note_length;
     }
   }
-  if ($method eq METHOD__SYNTH && @midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
+  if (@midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
     @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
     my $t0 = current_time; # reset start time
     for (my $i = 0;; $i += 1) {
-      my($t, $midi_command) = @{$midi_commands[$i]};
-      send_midi_command $midi_command;
+      my($t, $midi_command, $non_midi_extra) = @{$midi_commands[$i]};
+      if (ref $midi_command) {
+	my($directive, @args) = @$midi_command;
+	if ($directive eq 'play') {
+	  my($volume, $filename, $start, $end) = ($non_midi_extra, @args);
+	  no integer;
+	  play_sound_file sprintf('%s/%s.wav', $datadir, $filename), 100*$volume/127, $start, $end;
+	} else {
+	  log_error "strike_tune: Unknown directive \"$directive\"";
+	}
+      } elsif ($method eq METHOD__SYNTH) {
+	send_midi_command $midi_command;
+      } elsif ($midi_command =~ /^noteon 3 (\d+) (\d+)/) {		# percussion
+	my($instrument, $volume) = ($1, $2);
+	if ($instrument == $percussion_note_to_midi_number{'cyms'}
+	  || $instrument == $percussion_note_to_midi_number{'cymch'}) {
+	  strike_gong;
+	} else {
+	  strike_stick;
+	}
+      } elsif ($midi_command =~ /^noteon (\d+) (\d+) (\d+)/) {		# pitched
+	my($channel, $pitch, $volume) = ($1, $2, $3);
+	my $note = $midi_number_to_note[$pitch];
+	# The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
+	# for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
+	# If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
+	# (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
+	# The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
+	#strike_gong transpose_note $note, $semitones;
+	strike_bell transpose_note $note, $semitones;
+      } else {
+	log_debug "strike_tune: samples mode reached \"else\" case (midi command was \"$midi_command\")";
+      }
     last if $i == $#midi_commands;
       my $dt = $midi_commands[$i + 1]->[0] - $t;
       Time::HiRes::sleep $dt if $dt > 0;
     }
-  }
-}
-
-sub announce_quarter_hour_by_carillon ($) {
-  my($quarter) = @_;
-  my $id = determine_defined_id_for_event(sprintf('q%d', $quarter%4));
-  strike_tune @{$interpretation{$chime{$id}}};
-}
-
-sub announce_quarter_hour_by_cuckoo ($) {
-  my($quarter) = @_;
-  if ($quarter == 2) {
-    log_debug "Cuckoo announcing quarter $quarter" if $debug || $verbose_p;
-    strike_gong 'c#4';
-    play_sound_file "$datadir/121203__inchadney__cuckoo.wav", 100, 1.25, 3.05;
-  } else {
-    log_debug "Cuckoo does not announce quarter $quarter" if $debug || $verbose_p;
-  }
-}
-
-sub announce_quarter_hour_by_sysline_beeps ($) {
-  my($quarter) = @_;
-  my $id = determine_defined_id_for_event(sprintf('q%d', $quarter%4));
-  strike_tune @{$interpretation{$chime{$id}}};
-}
-
-sub announce_quarter_hour ($) {
-  my($quarter) = @_;
-  if ($mode eq MODE__CUCKOO) {
-    announce_quarter_hour_by_cuckoo($quarter);
-  } elsif ($mode eq MODE__SYSLINE) {
-    announce_quarter_hour_by_sysline_beeps($quarter);
-  } else {
-    announce_quarter_hour_by_carillon($quarter);
-  }
-}
-
-sub announce_hour_by_carillon ($) {
-  my($hour) = @_;
-  my $id = determine_defined_id_for_event(sprintf('h%d', $hour));
-  strike_tune @{$interpretation{$chime{$id}}};
-}
-
-sub announce_hour_by_cuckoo ($) {
-  my($hour) = @_;
-  my $f = sub { my($x) = @_; no integer; 1.5 + 1.55*$x };
-  log_debug "Cuckoo announcing hour $hour\n" if $debug || $verbose_p;
-  play_sound_file "$datadir/121203__inchadney__cuckoo.wav", 100, 1.25, &$f($hour);
-  for (my $i = 0; $i < $hour; $i += 1) {
-    #strike_gong 'c#4';
-    Time::HiRes::sleep(1.5);
-  }
-}
-
-sub announce_hour_by_sysline_beeps ($) {
-  my($hour) = @_;
-  my $id = determine_defined_id_for_event(sprintf('h%d', $hour));
-  strike_tune @{$interpretation{$chime{$id}}};
-}
-
-sub announce_hour ($) {
-  my($hour) = @_;
-  if ($mode eq MODE__CUCKOO) {
-    announce_hour_by_cuckoo($hour);
-  } elsif ($mode eq MODE__SYSLINE) {
-    announce_hour_by_sysline_beeps($hour);
-  } else {
-    announce_hour_by_carillon($hour);
-  }
-}
-
-sub announce_night_watch_normal ($$) {
-  my($watch, $subwatch) = @_;
-  my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
-  no integer;
-  for (my $i = 0, my $sleep = 0; $i < $repeats; $i += 1) {
-    log_debug "Striking $pattern" if $debug || $verbose_p;
-    for my $length (split(/\s+/, $pattern)) {
-      Time::HiRes::sleep($sleep * $beat_length);
-      if ($length eq '.') {
-	strike_stick;
-	$sleep = SHORT_STRIKE;
-      } else {
-	strike_gong;
-	$sleep = LONG_STRIKE;
-      }
-    }
-    $sleep += GAP;
-  }
-}
-
-sub announce_night_watch ($$) {
-  my($watch, $subwatch) = @_;
-  if ($method eq METHOD__SYNTH) {
-    my $id = determine_defined_id_for_event(sprintf('w%d.%d', $watch, $subwatch));
-    strike_tune @{$interpretation{$chime{$id}}};
-  } else {
-    announce_night_watch_normal $watch, $subwatch;
   }
 }
 
@@ -2557,16 +2535,8 @@ sub do_event ($) {
   log_debug sprintf "Cache file %s %s", $output, (-f $output? ($no_cache_p? 'exists but ignored': 'exists'): 'does not exist') if $debug;
   if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
     play_sound_file $output, 100;
-  } elsif ($method eq METHOD__SYNTH) {
-    strike_tune @{$interpretation{$chime{+determine_defined_id_for_event $id}}};
-  } elsif ($id =~ /^q(\d+)$/) {		# quarter hour chime
-    announce_quarter_hour $1;
-  } elsif ($id =~ /^h(\d+)$/) {		# hourly chime
-    announce_hour $1;
-  } elsif ($id =~ /^w(\d+)\.(\d+)$/) {	# night watch
-    announce_night_watch $1, $2;
   } else {
-    log_warning "Unknown event $id ignored";
+    strike_tune @{$interpretation{$chime{+determine_defined_id_for_event $id}}};
   }
 }
 
@@ -2694,8 +2664,8 @@ sub do_setup () {
 }
 
 sub do_test_setup () {
-  do_setup;
   set_test_params;
+  do_setup;
   connect_synth('test') if $method eq METHOD__SYNTH;
 }
 
@@ -2758,7 +2728,7 @@ sub parse_command_line_arguments () {
     'W|what-if=s' => \$what_if,
     'z|create-cache' => sub { generate_sound_clips if $method eq METHOD__SYNTH },
     'help' => \&usage,
-  ) || usage(1);
+  ) || exit(1);
 
   if (defined $what_if) {
     no integer;
@@ -2882,6 +2852,15 @@ sub do_main_loop () {
 }
 
 if (!caller) {
+  $SIG{__DIE__} = sub { # XXX This does not actually work
+      my($sig) = @_;
+      for (my $i = 0; caller $i; $i += 1) {
+	printf STDERR "\n%s%d: %s", (' ' x $i), $i, join(' ', caller $i);
+      }
+      disconnect_synth;
+      die "\n$sig";
+    };
+
   parse_command_line_arguments;
   do_setup;
   do_main_loop unless $quit_p;
