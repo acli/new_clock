@@ -29,7 +29,7 @@ data/%: raw/%
 %.pdf: %.ly
 	lilypond -o $(patsubst %.pdf,%,$@) $<
 
-proof.ly: chimer
+proof.ly: chimer $(HOME)/.chimerrc
 	chimer -v --test --proofsheet > $@
 
 CITATION.cff: config/CITATION.cff.in doc/*.md README.md utils/merge-citation-cff chimer

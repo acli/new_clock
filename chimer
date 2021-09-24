@@ -606,6 +606,7 @@ use vars qw( %expressive_mark_to_midi_velocity );
   'fffff'	=> 127,
 );
 use vars qw( %interpretation );
+use vars qw( %typesettable_version );
 use vars qw( %melody_description );
 
 sub interpret_absolute_pitch ($) { # interpret c' as c4
@@ -639,6 +640,7 @@ my $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 ca
 sub interpret_melody ($) {
   my($s0) = @_;
   my $it;
+  my $typesettable_version;
   no integer;
 
   # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
@@ -656,7 +658,10 @@ sub interpret_melody ($) {
   my($def_key, $def_value, $def_level, %def);
   my $voice;
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
-    $s =~ s/^\s*//s unless defined $def_key;
+    unless (defined $def_key) {
+      $s =~ s/^\s*//s;
+      $typesettable_version .= $&;
+    }
     if ($s =~ /^\\([A-Za-z]+)\b/s && defined $def{$1}) {	# expand variables
       my($key) = $1;						# we MUST store this in a variable for the substitution to work
       $s =~ s/^\\$key/$def{$key}/s;
@@ -686,88 +691,132 @@ sub interpret_melody ($) {
 	}
       } elsif ($s =~ s/^(\S)//s) {
 	$def_value .= $1;
+      } else {
+	log_error "interpret_melody: defined \$def_key reached \"else\" case";
       }
 
     } elsif ($s =~ s/^\x{7b}\s*//s) {		# braceleft
+      $typesettable_version .= $&;
       $state->gsave();
 
     } elsif ($s =~ s/^<>-\s*//s) {		# ignore empty containers for expressive marks
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^<<\s*//s) {		# FIXME
+      $typesettable_version .= $&;
       $state->gsave();
 
     } elsif ($s =~ s/^>>\s*//s) {		# FIXME
+      $typesettable_version .= $&;
       $state->grestore($s);
 
     } elsif ($s =~ s/^[\^_]\\markup\s+//s) {	# ignore markup
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\\(?:halign\s+#\w+|markup|tiny)\s+//s) {	# ignore markup
-      ;
+      $typesettable_version .= $&;
 
-    } elsif ($s =~ s/^"((?:\\"|[^"])*)"//s) {	# text - look for directives
-      my($s) = ($1);
-      if ($s =~ /^(play)\s+(\S+)\s+from\s+(\d+):(\d\d):(\d\d(?:\.\d+)?)\s+to\s+(\d+):(\d\d):(\d\d(?:\.\d+)?)\b/) {
-	no integer;
-	$directive = [$1, $2, 3600*$3 + 60*$4 + $5, 3600*$6 + 60*$7 + $8];
+    } elsif ($s =~ s/^#\(\s*play-recording\s+"([^""]+)"\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s*\)\s+//s) {	# pseudo-lisp 
+      my($filename, $start, $end) = ($1, $2, $3);
+      # Generate pseudo-note directly instead of setting $directive ($directive needs an existing note to act on)
+      no integer;
+      my $duration = $end - $start;
+      my $unit = 4*$state->unit_beat();
+      my $unit_beats = $duration/$unit;
+      my $quantized_beats = int($unit_beats);
+      my @quantized_beats = (1) x $quantized_beats;
+      my $remainder = $unit_beats - $quantized_beats;
+      for (my $divisor = 2; $divisor < 16; $divisor *= 2) {
+	my $adjustment = 1/$divisor;
+	if (($remainder * $divisor) & 1) {
+	  push @quantized_beats, $divisor;
+	  $quantized_beats += $adjustment;
+	  $remainder -= $adjustment;
+	}
       }
+      my $fake_note = ['ua', $quantized_beats, $volume, undef, {
+	    'directive' => ['play', $filename, $start, $end],
+	    'durations' => [@quantized_beats],
+	  }];
+      push @$voice, $fake_note;
+
+      $typesettable_version .= sprintf('\set Staff.instrumentName = #"%s" \textLengthOn', $filename);
+      my $fmt = '_\markup{ \tiny "%0.2f" }';
+      my($markup, $tie) = (sprintf($fmt, $start), ' ');
+      for my $duration (@quantized_beats) {
+	$typesettable_version .= sprintf('%sda%d%s', $tie, $duration, $markup);
+	($tie, $markup) = ('~', undef);
+      }
+      $typesettable_version .= sprintf($fmt, $end);
+
+    } elsif ($s =~ s/^"((?:\\"|[^"])*)"//s) {				# text
+      $typesettable_version .= $&;
+      my($s) = ($1);
 
     } elsif ($s =~ s/^\\(laisserVibrer)\s+//s) {			# ignore \laisserVibrer for now
+      $typesettable_version .= $&;
       $directive = $1;
 
     } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\partial\s+$duration_re\s+//s) {			# ignore \partial
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\mark\s+(?:\\default|#\d+|"[^""]+")\s+//s) {	# ignore \mark
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\textLengthOn\s+//s) {				# ignore \textLengthOn
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\omit\s+[A-Z][A-Za-z]+(?:\.[A-Z][A-Za-z]+)+\s+//s) {	# ignore \omit
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\new\s+(?:(?:(Drum))?Staff|Voice)\s+(?:\\with \{[^\{}]+})?//s || $s =~ s/^\\\\\s*//s) {
+      $typesettable_version .= $&;
       # FIXME - do we need to gsave?
       $state->drummode_p(1) if $1;
       push @$it, $voice if $voice;
       $voice = undef;
 
     } elsif ($s =~ s/^\\voice(?:One|Two|Three|Four)\s+//s) {
-      ;
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\score\s+\x{7b}\s*//s) {
+      $typesettable_version .= $&;
       $state->gsave();
 
     } elsif ($s =~ s/^\\(?:drums|drummode)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
       $state->gsave();
       $state->drummode_p(1);
       # FIXME - do we need to push voice?
 
     } elsif ($s =~ s/^\\absolute\s*\x{7b}//s) {
+      $typesettable_version .= $&;
       $state->gsave();
       $state->relative_p(0);
 
     } elsif ($s =~ s/^\\relative\s*\x{7b}//s) {
+      $typesettable_version .= $&;
       $state->gsave();
       $state->relative_p(1);
       $last_pitch = undef;
 
     } elsif ($s =~ s/^\\relative\s+($pitch_re)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
       $state->gsave();
       $state->relative_p(1);
       $last_pitch = interpret_absolute_pitch $1;
 
     } elsif ($s =~ s/^\\transpose\s+($pitch_re)\s+($pitch_re)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
       my($from, $to) = (interpret_absolute_pitch $1, interpret_absolute_pitch $5);
       $state->gsave();
       $state->relative_p(0);
       $state->transpose($to - $from);
 
     } elsif ($s =~ s/^\\repeat\s+(?:volta|unfold|percent)\s+(\d+)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
       my $n = $1 + 0;
       $state->gsave();
       $state->repeat_stacklevel($state->stacklevel());
@@ -775,6 +824,7 @@ sub interpret_melody ($) {
       $state->repeat_start(defined $voice? @$voice: 0);
 
     } elsif ($s =~ s/^\x{7d}\s*//s) {		# braceright
+      $typesettable_version .= $&;
       if (defined $state->repeat_stacklevel() && $state->repeat_stacklevel() == $state->stacklevel()) {
 	my @A = @$voice;
 	my $i = $state->repeat_start();
@@ -783,38 +833,45 @@ sub interpret_melody ($) {
       }
       $state->grestore($s);
     } elsif ($s =~ s/^[\[\]]\s*//s) {		# ignore bracketleft/bracketright = beam on/beam off
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\(\s*//s) {		# ignore parenleft = phrasing slur start
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\)\s*//s) {		# ignore parenright = phrasing slur end
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\|\s*//s) {		# ignore bar checks
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\~\s*//s) {		# tie
+      $typesettable_version .= $&;
       $tie_p = 1;
     } elsif ($s =~ s/^\x{5e}\s*\\(fermata)\b//s) {	# pause
+      $typesettable_version .= $&;
       $directive = $1;
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
+      $typesettable_version .= $&;
       $state->unit_beat(($1*60)/(4*$2));
     } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\\clef\s+"[^""]+"\s*//s) {	# ignore clef change
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\\breathe\s+//s) {	# ignore breath marks for now
-      ;
+      $typesettable_version .= $&;
     } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
+      $typesettable_version .= $&;
       $state->unit_beat($state->unit_beat() * $2 / $1);
     } elsif ($s =~ s/^$duration_re$end_re//s) {
+      $typesettable_version .= $&;
       ($divisor, $dots) = (interpret_divisor $1, length $2);
       log_debug "Duration \"$divisor$dots\" encountered before any rest, pitch, or percussion instrument" unless defined $note;
       $lhs = $note;
 
     } elsif ($s =~ s/^$rest_re(?:$duration_re)?$end_re//s) {
+      $typesettable_version .= $&;
       my($new_divisor, $new_dots) = ($1, $2);
       ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       $lhs = 'r';
 
     } elsif ($s =~ s/^($pitch_re)(?:$duration_re)?$end_re//s) {
+      $typesettable_version .= $&;
       my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
 	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
 
@@ -841,19 +898,24 @@ sub interpret_melody ($) {
       $last_pitch = $pitch;
 
     } elsif ($s =~ s/^($percussion_instrument_re)(?:$duration_re)?$end_re//s) {
+      $typesettable_version .= $&;
       ($percussive_instrument, my $new_divisor, my $new_dots) = ($1, $2, $3);
       ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       $lhs = $percussive_instrument;
 
     } elsif ($s =~ s/^\\($expressive_mark_re)\b//s) {
+      $typesettable_version .= $&;
       $volume = $expressive_mark_to_midi_velocity{$1};
 
     } elsif ($s =~ s/^\\set\s+Staff\.instrumentName\s+=\s+#"([^""]+)"\s*//s) {
+      $typesettable_version .= $&;
       $main_instrument = $1;
 
     } elsif ($s =~ s/^(\S+)//s) {
+      $typesettable_version .= $&;
       log_debug "Unknown expression \"$1\" discarded";
     } else {
+      $typesettable_version .= $&;
       log_debug "Internal error: \"else\" case reached in interpret_melody, s=($s)";
     }
     if (defined $lhs) {
@@ -882,9 +944,6 @@ sub interpret_melody ($) {
 	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
       } elsif ($verb eq 'laisserVibrer') {
 	;						# FIXME
-      } elsif ($verb eq 'play') {
-	log_debug $note;
-	$voice->[+scalar @$voice - 1]->[4]->{'directive'} = $directive;
       } else {
 	log_error "interpret_melody: Unknown directive \"$verb\"";
       }
@@ -893,7 +952,7 @@ sub interpret_melody ($) {
   push @$it, $voice if $voice;
   log_debug sprintf "%s interpreted as %s", $s0,
       join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @$it) if $debug > 1;
-  return $it;
+  return wantarray? ($it, $typesettable_version): $it;
 }
 
 sub event_id ($$;$) {
@@ -932,7 +991,9 @@ sub define_event_internal_real ($$$$$$$%) {
     }
   }
   for my $tune (values %it) {
-    $interpretation{$tune} = interpret_melody $tune unless defined $interpretation{$tune};
+    my($interpretation, $typesettable_version) = interpret_melody $tune;
+    $interpretation{$tune} = $interpretation unless defined $interpretation{$tune};
+    $typesettable_version{$tune} = $typesettable_version unless defined $typesettable_version{$tune};
   }
   log_comment sprintf "%s defined in %.2f s", $thing, Time::HiRes::time - $t0 if $debug || $verbose_p;
   return %it;
@@ -1023,11 +1084,11 @@ sub define_chimes () {
   define_event(MODE__CUCKOO, undef, 'Cuckoo clock', undef, '2021', undef, q(
 	x = { \tempo 1 = 35 }
 	S = \absolute { c'1 }
-	A = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:01.15" } }
-	B = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:03.75" } }
-	C = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:05.50" } }
-	D = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:07.15" } }
-	E = \drummode { \textLengthOn ua^\markup { \tiny "play 72699__benboncan__cuckoo from 00:00:00 to 00:00:08.90" } }
+	A = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 1.15) }
+	B = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 3.75) }
+	C = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 5.50) }
+	D = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 7.15) }
+	E = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 8.90) }
       ),
       'halb'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \A \new Staff { \S } >>',
       'h1'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \A \new Staff { \S } >>',
@@ -2581,7 +2642,13 @@ sub generate_proofsheet () {
   }
   my($proportional, $monospaced) = ('Lato', 'Fira Mono');
   print "\\version \"2.18.2\"\n";
-  print "\\paper { #(define fonts (make-pango-font-tree \"$proportional\" \"$proportional\" \"$monospaced\" 1)) }\n";
+  print "\\paper { ";
+  print "#(define fonts (make-pango-font-tree \"$proportional\" \"$proportional\" \"$monospaced\" 1))\n";
+  print "left-margin = 144\\pt\n";
+  print "right-margin = 48\\pt\n";
+  print "top-margin = 24\\pt\n";
+  print "bottom-margin = 24\\pt\n";
+  print "}\n";
   if (defined $title) {
     print "\\header {\n";
     print "title = \\markup {Proof sheet for $title}\n";
@@ -2591,10 +2658,11 @@ sub generate_proofsheet () {
   }
   for my $id (@events_found) {
     my $tune = $chime{$id};
+    my $tune_to_typeset = defined $typesettable_version{$tune}? $typesettable_version{$tune}: $tune;
     print "\\markup{\\vspace #1 }\n";
     print "\\markup{$id}\n";
     print "\\noPageBreak\n";
-    print "$tune\n\n";
+    print "$tune_to_typeset\n\n";
     print "\\markup{Note: melody was defined but not converted}\n" unless $interpretation{$tune};
   }
   print "\\layout { \\context { \\RemoveEmptyStaffContext } }\n";
