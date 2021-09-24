@@ -725,7 +725,7 @@ sub interpret_melody ($) {
       my $quantized_beats = int($unit_beats);
       my @quantized_beats = (1) x $quantized_beats;
       my $remainder = $unit_beats - $quantized_beats;
-      for (my $divisor = 2; $divisor < 16; $divisor *= 2) {
+      for (my $divisor = 2; $divisor < 32; $divisor *= 2) {
 	my $adjustment = 1/$divisor;
 	if (($remainder * $divisor) & 1) {
 	  push @quantized_beats, $divisor;
@@ -742,10 +742,18 @@ sub interpret_melody ($) {
       $typesettable_version .= sprintf('\set Staff.instrumentName = #"%s" \textLengthOn', $filename);
       my $fmt = '_\markup{ \tiny "%0.2f" }';
       my($markup, $tie) = (sprintf($fmt, $start), ' ');
+      my $last_duration;
       for my $duration (@quantized_beats) {
-	$typesettable_version .= sprintf('%sda%d%s', $tie, $duration, $markup);
-	($tie, $markup) = ('~', undef);
+	if (defined $last_duration && $last_duration == $duration/2) {
+	  $typesettable_version .= '.';
+	} else {
+	  $typesettable_version .= sprintf('%sda%d%s', $tie, $duration, $markup);
+	  $markup = undef;
+	}
+	$tie = '~';
+	$last_duration = $duration;
       }
+      $typesettable_version .= $markup if defined $markup;
       $typesettable_version .= sprintf($fmt, $end);
 
     } elsif ($s =~ s/^"((?:\\"|[^"])*)"//s) {				# text
