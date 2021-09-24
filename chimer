@@ -607,6 +607,7 @@ use vars qw( %expressive_mark_to_midi_velocity );
 );
 use vars qw( %interpretation );
 use vars qw( %typesettable_version );
+use vars qw( %mode_description );
 use vars qw( %melody_description );
 
 sub interpret_absolute_pitch ($) { # interpret c' as c4
@@ -978,6 +979,10 @@ sub define_event_internal_real ($$$$$$$%) {
     $melody_description{$melody} = {'description' => $description, 'source' => $source};
     $melody_description{$melody}->{'composer'} = $composer if defined $composer;
     $melody_description{$melody}->{'year'} = $year if defined $year;
+  } elsif (defined $mode && defined $description) {
+    $mode_description{$mode} = {'description' => $description, 'source' => $source};
+    $mode_description{$mode}->{'composer'} = $composer if defined $composer;
+    $mode_description{$mode}->{'year'} = $year if defined $year;
   }
   $shared_defs =~ s/(?:^|(?<=\n))\s+//sg;			# kill indents
   $shared_defs =~ s/\s+$//sg;					# trim
@@ -1082,14 +1087,14 @@ sub define_chimes () {
   define_watches(1,     'ff', 'cyms',  'ff', 'tamb'),
   define_watches(5,     'ff', 'cymch', 'ff', 'mar'),
   define_watches(undef, 'ff', 'cymch', 'ff', 'cl'),
-  define_event(MODE__SYSLINE, undef, 'One beep on the half hour, two beeps on the hour, like sysline(1)', undef, undef, '4.2bsd', q(
+  define_event(MODE__SYSLINE, undef, 'sysline mode', undef, undef, '4.2bsd', q(
 	A = \relative { \set Staff.instrumentName = #"Sine Wave" ees''''8 r4. ~ r4 }
       ),
       'q2' => '\A',
       'q0' => '\A',
       'h' => '\A',
     ),
-  define_event(MODE__CUCKOO, undef, 'Cuckoo clock', undef, '2021', undef, q(
+  define_event(MODE__CUCKOO, undef, 'cuckoo clock mode', undef, '2021', undef, q(
 	x = { \tempo 1 = 35 }
 	S = \absolute { c'1 }
 	A = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 1.15) }
@@ -2636,17 +2641,23 @@ sub generate_proofsheet () {
   my @events_to_check = enumerate_defined_events;
   my @events_found;
   my($title, $source, $composer, $year);
-  for my $event (@events_to_check) {
-    my $id = determine_defined_id_for_event($event);
-    if (defined $id) {
-      push @events_found, $id;
-      if (!defined $title && $id =~ /^carillon-(.*?)-$event$/ && defined $melody_description{$1}) { # FIXME
-	$title = $melody_description{$1}->{'description'};
-	$source = $melody_description{$1}->{'source'};
-	$composer = $melody_description{$1}->{'composer'};
-	$year = $melody_description{$1}->{'year'};
+  for (my $pass = 0; $pass < 2; $pass += 1) {
+    for my $event (@events_to_check) {
+      my $id = determine_defined_id_for_event($event);
+      if (defined $id) {
+	push @events_found, $id;
+	if (!defined $title) {
+	  my $description = $pass == 0? \%melody_description: \%mode_description;
+	  if (($pass == 0? $id =~ /^carillon-(.*?)-$event$/: $id =~ /^(.*?)-$event$/) && defined $description->{$1}) {
+	    $title = $description->{$1}->{'description'};
+	    $source = $description->{$1}->{'source'};
+	    $composer = $description->{$1}->{'composer'};
+	    $year = $description->{$1}->{'year'};
+	  }
+	}
       }
     }
+  last if defined $title;
   }
   my($proportional, $monospaced) = ('Lato', 'Fira Mono');
   print "\\version \"2.18.2\"\n";
