@@ -111,9 +111,18 @@ sub cvs ($) {
   }
   sub format_hash ($) {
     my($s) = @_;
-    for my $key (sort { lazy_sorter($a, $b) } keys %$s) {
-      $it .= ' ' if defined $it;
-      $it .= sprintf('%s %s', format_as_name $key, Debug::cvs($s->{$key}));
+    my @keys = sort { lazy_sorter($a, $b) } keys %$s;
+    my @size;
+    my $it;
+    for (my $i = $#keys; $i >= 0; $i -= 1) {
+      my $key = $keys[$i];
+      $size[$i] = compute_size($key) + compute_size($s->{$key});
+      $size[$i] += $size[$i + 1] if $i < $#keys;
+    }
+    for (my $i = 0; $i < @keys; $i += 1) {
+      my $key = $keys[$i];
+      $it .= ($size[$i] <= 12? ' ': "\n") if defined $it;
+      $it .= sprintf('%s %s', format_as_name $key, cvs($s->{$key}));
     }
     return "<<$it>>";
   }
@@ -1914,7 +1923,7 @@ sub parse_dow_range ($) {
     if ($s =~ /^[UMTWRFS]+$/) { # Waterloo style single-letter codes
       $it = join(',', map { parse_dow($_) } split(//, $s));
     } else {
-      $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_dow(substr($_, 1))): parse_dow($_) } split(/(?=[-,]|$)/, $s));
+      $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_dow(substr($_, 1))): arse_dow($_) } split(/(?=[-,]|$)/, $s));
       $it = 'ERROR' unless $it =~ /^\d+(?:[-,]\d+)*$/;
 
       # Handle looparounds like Fri-Sun or Sat-Tue
@@ -2029,10 +2038,25 @@ sub determine_chinese_time ($) {
   return $it;
 }
 
+sub parse_chime_id ($) {
+  my($id) = @_;
+  my $it = ();
+  $it->{'id'} = $1 if $id =~ s/-([^-]+)$//s || $id =~ s/^(w\d+(?:\.\d+)?)$//s; # FIXME
+  die "parse_chime_id: id not found in \"$id\"" unless defined $it->{'id'};
+  if ($id =~ /^([^-]+)-(.*)$/) {
+    $it->{'mode'} = $1;
+    $it->{'melody'} = $2;
+  } elsif ($id =~ /\S/s) {
+    $it->{'mode'} = $id;
+  }
+  return $it;
+}
+
 sub enumerate_event_types () {
   my %it;
   for my $id (keys %chime) {
-    $it{$1} = 1 if $id =~ /-([^-]+)$/s || $id =~ /^(w\d+(?:\.\d+)?)$/s; # FIXME
+    my $det = parse_chime_id $id;
+    $it{$det->{'id'}} = 1;
   }
   return sort { Debug::lazy_sorter($a, $b) } keys %it;
 }
@@ -2753,8 +2777,13 @@ sub generate_proofsheet () {
   for my $id (@events_found) {
     my $tune = $chime{$id};
     my $tune_to_typeset = defined $typesettable_version{$tune}? $typesettable_version{$tune}: $tune;
-    print "\\markup{\\vspace #1 }\n";
-    print "\\markup{$id}\n";
+    my $attr = parse_chime_id $id;
+    print "\\markup{\\column{\n";
+    print "\\vspace #1\n";
+    print "\\line{\\bold \"$id\"}\n";
+    print "\\line{\\tiny \"", Debug::cvs($attr), "\"}\n";
+    print "\\vspace #0.4\n";
+    print "}}\n";
     print "\\noPageBreak\n";
     print "$tune_to_typeset\n\n";
     print "\\markup{Note: melody was defined but not converted}\n" unless $interpretation{$tune};
