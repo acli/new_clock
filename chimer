@@ -133,11 +133,22 @@ sub cvs ($) {
 
 
 package Interpret_Melody_State;
+no integer;
 
 sub unit_beat {
   my $self = shift;
   $self->{'unit-beat'} = shift if @_;
   return $self->{'unit-beat'};
+}
+
+sub tempo {
+  my $self = shift;
+  if (@_ && defined $_[0]) {
+    my($divisor, $beats_per_minute) = ref $_[0]? @{$_[0]}: @_;
+    $self->{'tempo'} = [$divisor, $beats_per_minute];
+    $self->unit_beat(($divisor*60)/(4*$beats_per_minute));
+  }
+  return wantarray? @{$self->{'tempo'}}: $self->{'tempo'};
 }
 
 sub relative_p {
@@ -150,6 +161,12 @@ sub drummode_p {
   my $self = shift;
   $self->{'drummode-p'} = shift if @_;
   return $self->{'drummode-p'};
+}
+
+sub home_position {
+  my $self = shift;
+  $self->{'home-position'} = shift if @_;
+  return $self->{'home-position'};
 }
 
 sub repeat_start {
@@ -195,25 +212,31 @@ sub new {
 
 sub gsave {
   my $self = shift;
+  my $tempo = $self->tempo();
   my $unit_beat = $self->unit_beat();
   my $relative_p = $self->relative_p();
   my $drummode_p = $self->drummode_p();
+  my $home_position = $self->home_position();
   my $transpose = $self->transpose();
   my $repeat_stacklevel = $self->repeat_stacklevel();
   my $repeat_start = $self->repeat_start();
   my $repeat_count = $self->repeat_count();
-  push @{$self->{'stack'}}, [$unit_beat, $relative_p, $drummode_p, $transpose, $repeat_stacklevel, $repeat_start, $repeat_count];
+  push @{$self->{'stack'}}, [$tempo, $unit_beat, $relative_p, $drummode_p, $home_position, $transpose,
+			    $repeat_stacklevel, $repeat_start, $repeat_count];
 }
 
 sub grestore {
   my $self = shift;
   if (@{$self->{'stack'}}) {
-    my                      ($unit_beat, $relative_p, $drummode_p, $transpose, $repeat_stacklevel, $repeat_start, $repeat_count)
+    my                      ($tempo, $unit_beat, $relative_p, $drummode_p, $home_position, $transpose,
+			      $repeat_stacklevel, $repeat_start, $repeat_count)
 	= @{ pop @{$self->{'stack'}} };
 
+    $self->tempo		($tempo);		# tempo must be restored first because setting it changes unit_beat
     $self->unit_beat		($unit_beat);
     $self->relative_p		($relative_p);
     $self->drummode_p		($drummode_p);
+    $self->home_position	($home_position);
     $self->transpose		($transpose);
     $self->repeat_stacklevel	($repeat_stacklevel);
     $self->repeat_start		($repeat_start);
@@ -260,6 +283,7 @@ use Getopt::Long;
 use Data::Dumper;
 
 use vars qw( $config );
+use vars qw( $overrides );
 use vars qw( $debug );
 use vars qw( $no_cache_p );
 use vars qw( $verbose_p );
@@ -644,7 +668,6 @@ sub interpret_melody ($) {
   my $typesettable_version;
   no integer;
 
-  # NOTE: GetOpt hasn't been called yet so if you need $debug you need to set it here by hand
   state $rest_re = sprintf('(?:r)');
   state $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
   state $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));				# NOTE: 3 captures: base pitch, commas, apostrophes
@@ -657,6 +680,7 @@ sub interpret_melody ($) {
   my($tie_p);
   my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
   my($def_key, $def_value, $def_level, %def);
+  my($current_position, $position_at_end_of_last_recording);
   my $voice;
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
     unless (defined $def_key) {
@@ -740,22 +764,68 @@ sub interpret_melody ($) {
 	  }];
       push @$voice, $fake_note;
 
+      # Generate a typesettable score that makes actual sense. We basically have two options: set it as a one-line percussion staff
+      # and show all the notes, or set it as a non-percussion staff (RhythmicStaff is perfect for this as it's one-line) and show
+      # a cluster that's just one black line. The good thing about separate notes is we can attach start and end times to the correct
+      # notes; we can't do this with clusters but separate notes are misleading given we're talking about recordings (no known notes).
+      # If we use a non-percussion staff b' (absolute) will look about right, otherwise ua is a good placeholder with no MIDI meaning.
+      #
+      # If Lilypond sees two consecutive clusters, it will merge them even though they are two separate clusters. The only way to
+      # prevent this is to insert a rest between them.
+      #
       $typesettable_version .= sprintf('\set Staff.instrumentName = #"%s" \textLengthOn', $filename);
-      my $fmt = '_\markup{ \tiny "%0.2f" }';
-      my($markup, $tie) = (sprintf($fmt, $start), ' ');
-      my $last_duration;
-      for my $duration (@quantized_beats) {
-	if (defined $last_duration && $last_duration == $duration/2) {
-	  $typesettable_version .= '.';
-	} else {
-	  $typesettable_version .= sprintf('%sda%d%s', $tie, $duration, $markup);
-	  $markup = undef;
+      state $last_note_used;
+      my $use_clusters_p = !$state->drummode_p();
+      my $fmt0 = '_\markup{ \halign #CENTER \tiny "%s" }';
+      my($fmt1, $fmt2) = (sprintf($fmt0, '%.2f'), sprintf($fmt0, '%.2f ... %.2f'));
+      my $clash_p = $use_clusters_p && defined $position_at_end_of_last_recording && $position_at_end_of_last_recording == $current_position;
+      my $note = !$use_clusters_p? 'da': !$clash_p? "c''": $last_note_used eq "c''"? "a'": "c''";
+      my $markup = sprintf($fmt1, $start);
+      for my $pass (!$use_clusters_p? ('normal'): ('cluster', 'ghost')) {
+	my $last_duration;
+	my $tie = ' ';
+	$typesettable_version .= "<<\n" if $pass eq 'cluster';
+	$typesettable_version .= "\\\\\n" if $pass eq 'ghost';
+	$typesettable_version .= '\makeClusters ' if $pass eq 'cluster';
+	$typesettable_version .= "{\n\\absolute {\n" if $use_clusters_p;
+	$typesettable_version .= sprintf("%s\n", join(' ', map {"\\hide $_"} ($pass eq 'ghost'? qw(NoteHead Rest Stem Dots Tie): qw(Rest))));
+	my($gap, @effective_quantized_beats) = (undef, @quantized_beats);
+	if ($pass eq 'cluster' && $clash_p) {
+	  $gap = 128;
+	  for (; $quantized_beats[$#quantized_beats] != $gap;) {
+	    my $n = pop @quantized_beats;
+	    $n *= 2;
+	    push @quantized_beats, $n;
+	    push @quantized_beats, $n unless $n == $gap;
+	  }
 	}
-	$tie = '~';
-	$last_duration = $duration;
+	$typesettable_version .= " r$gap" if defined $gap;
+	for my $duration (@quantized_beats) {
+	  if (!$duration) {
+	    ;
+	  } elsif (defined $last_duration && $last_duration == $duration/2) {
+	    $typesettable_version .= '.';
+	  } else {
+	    $typesettable_version .= sprintf('%s%s%d', $tie, $note, $duration);
+	    if ($pass ne 'cluster') {
+	      $typesettable_version .= $markup;
+	      $markup = undef;
+	    }
+	  }
+	  $tie = '~';
+	  $last_duration = $duration;
+	}
+	$typesettable_version .= $markup if $pass ne 'cluster' && defined $markup;
+	$typesettable_version .= sprintf($fmt1, $end) if $pass ne 'cluster';
+	$typesettable_version .= "}\n" if $use_clusters_p;	# close \absolute
+	$typesettable_version .= "}\n" if $use_clusters_p;
       }
-      $typesettable_version .= $markup if defined $markup;
-      $typesettable_version .= sprintf($fmt, $end);
+      $typesettable_version .= ">>\n" if $use_clusters_p;
+      $last_note_used = $note;
+
+      # Update current position manually
+      $current_position += $duration;
+      $position_at_end_of_last_recording = $current_position;
 
     } elsif ($s =~ s/^"((?:\\"|[^"])*)"//s) {				# text
       $typesettable_version .= $&;
@@ -780,7 +850,7 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\omit\s+[A-Z][A-Za-z]+(?:\.[A-Z][A-Za-z]+)+\s+//s) {	# ignore \omit
       $typesettable_version .= $&;
 
-    } elsif ($s =~ s/^\\new\s+(?:(?:(Drum))?Staff|Voice)\s+(?:\\with \{[^\{}]+})?//s || $s =~ s/^\\\\\s*//s) {
+    } elsif ($s =~ s/^\\new\s+(?:(?:(Drum)|Rhythmic)?Staff|Voice)\s+(?:\\with \{[^\{}]+})?//s || $s =~ s/^\\\\\s*//s) {
       $typesettable_version .= $&;
       # FIXME - do we need to gsave?
       $state->drummode_p(1) if $1;
@@ -857,7 +927,7 @@ sub interpret_melody ($) {
       $directive = $1;
     } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
       $typesettable_version .= $&;
-      $state->unit_beat(($1*60)/(4*$2));
+      $state->tempo($1, $2);
     } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
       $typesettable_version .= $&;
     } elsif ($s =~ s/^\\clef\s+"[^""]+"\s*//s) {	# ignore clef change
@@ -945,6 +1015,8 @@ sub interpret_melody ($) {
       push @$voice, [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
       $note = $lhs;
       $tie_p = 0;
+      no integer;
+      $current_position += $rhs;
     } elsif (defined $directive) {
       my $verb = ref $directive? $directive->[0]: $directive;
       if (!defined $note) {
@@ -989,7 +1061,7 @@ sub define_event_internal_real ($$$$$$$%) {
   $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
   for my $event (keys %event_defs) {
     my $tune = $event_defs{$event};
-    $tune = sprintf('\\new Staff { %s }', $tune) unless $tune =~ /^\s*\\(?:drums|new\s+(?:Drum)?Staff)\s+/;
+    $tune = sprintf('\\new Staff { %s }', $tune) unless $tune =~ /^\s*\\(?:drums|new\s+(?:Drum|Rhythmic)?Staff)\s+/;
     $tune = sprintf('%s\score { %s }', $shared_defs, $tune);
     $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
     $event = "q0" if $event eq 'q4';				# in case we got q4
@@ -1097,18 +1169,21 @@ sub define_chimes () {
   define_event(MODE__CUCKOO, undef, 'cuckoo clock mode', undef, '2021', undef, q(
 	x = { \tempo 1 = 35 }
 	S = \absolute { c'1 }
-	A = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 1.15) }
-	B = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 3.75) }
-	C = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 5.50) }
-	D = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 7.15) }
-	E = \drummode { #(play-recording "72699__benboncan__cuckoo" 0 8.90) }
+	A = { #(play-recording "72699__benboncan__cuckoo" 0 1.15) }
+	B = { #(play-recording "72699__benboncan__cuckoo" 0 3.75) }
+	C = { #(play-recording "72699__benboncan__cuckoo" 0 5.50) }
+	D = { #(play-recording "72699__benboncan__cuckoo" 0 7.15) }
+	E = { #(play-recording "72699__benboncan__cuckoo" 0 8.90) }
+	F = { #(play-recording "72699__benboncan__cuckoo" 0 10.65) }
       ),
-      'halb'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \A \new Staff { \S } >>',
-      'h1'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \A \new Staff { \S } >>',
-      'h2'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \B \new Staff { \repeat unfold 2 { \S } } >>',
-      'h3'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \C \new Staff { \repeat unfold 3 { \S } } >>',
-      'h4'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \D \new Staff { \repeat unfold 4 { \S } } >>',
-      'h5'	=> '\new DrumStaff \with { \override StaffSymbol.line-count = #1 } << \x \E \new Staff { \repeat unfold 5 { \S } } >>',
+      'halb'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
+      'h1'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
+      'h2'	=> '\new RhythmicStaff << \x \B \new Staff { \repeat unfold 2 { \S } } >>',
+      'h3'	=> '\new RhythmicStaff << \x \C \new Staff { \repeat unfold 3 { \S } } >>',
+      'h4'	=> '\new RhythmicStaff << \x \D \new Staff { \repeat unfold 4 { \S } } >>',
+      'h5'	=> '\new RhythmicStaff << \x \E \new Staff { \repeat unfold 5 { \S } } >>',
+      'h6'	=> '\new RhythmicStaff << \x \F \new Staff { \repeat unfold 6 { \S } } >>',
+      'h7'	=> '\new RhythmicStaff << \x { \F \A } \new Staff { \repeat unfold 7 { \S } } >>',
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
@@ -2645,7 +2720,7 @@ sub generate_proofsheet () {
     for my $event (@events_to_check) {
       my $id = determine_defined_id_for_event($event);
       if (defined $id) {
-	push @events_found, $id;
+	push @events_found, $id if $pass == 0;
 	if (!defined $title) {
 	  my $description = $pass == 0? \%melody_description: \%mode_description;
 	  if (($pass == 0? $id =~ /^carillon-(.*?)-$event$/: $id =~ /^(.*?)-$event$/) && defined $description->{$1}) {
