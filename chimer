@@ -2091,9 +2091,8 @@ sub determine_defined_id_for_event ($) {
   return $it;
 }
 
-sub determine_event_duration ($$) {
-  my($event, $default) = @_;
-  my $id = determine_defined_id_for_event $event;
+sub determine_chime_duration ($$) {
+  my($id, $default) = @_;
   my $it = $default;
   my $tune = $chime{$id};
   if (defined $tune) {
@@ -2110,7 +2109,14 @@ sub determine_event_duration ($$) {
   } elsif ($method eq METHOD__SYNTH) {
     $it = 0;
   }
-  log_debug "event duration for event $event ($id) is $it" if $debug;
+  log_debug "duration for chime $id is $it" if $debug;
+  return $it;
+}
+
+sub determine_event_duration ($$) {
+  my($event, $default) = @_;
+  my $it = determine_chime_duration(determine_defined_id_for_event $event, $default);
+  log_debug "event duration for event $event is $it" if $debug;
   return $it;
 }
 
@@ -2778,10 +2784,12 @@ sub generate_proofsheet () {
     my $tune = $chime{$id};
     my $tune_to_typeset = defined $typesettable_version{$tune}? $typesettable_version{$tune}: $tune;
     my $attr = parse_chime_id $id;
+    my $duration = determine_chime_duration $id, undef;
     print "\\markup{\\column{\n";
     print "\\vspace #1\n";
     print "\\line{\\bold \"$id\"}\n";
     print "\\line{\\tiny \"", Debug::cvs($attr), "\"}\n";
+    printf "\\line{\\tiny \"%.2f s\"}\n", $duration if defined $duration;
     print "\\vspace #0.4\n";
     print "}}\n";
     print "\\noPageBreak\n";
