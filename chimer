@@ -749,8 +749,8 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\(?:halign\s+#\w+|markup|tiny)\s+//s) {	# ignore markup
       $typesettable_version .= $&;
 
-    } elsif ($s =~ s/^#\(\s*play-recording\s+"([^""]+)"\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s*\)\s+//s) {	# pseudo-lisp 
-      my($filename, $start, $end) = ($1, $2, $3);
+    } elsif ($s =~ s/^#\(\s*play-recording\s+"([^""]+)"\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?\s*\)\s+//s) { # pseudo-lisp 
+      my($filename, $start, $end, $treat_as_this_many_beats) = ($1, $2, $3, $4);
       # Generate pseudo-note directly instead of setting $directive ($directive needs an existing note to act on)
       no integer;
       my $duration = $end - $start;
@@ -767,7 +767,9 @@ sub interpret_melody ($) {
 	  $remainder -= $adjustment;
 	}
       }
-      my $fake_note = ['ua', $quantized_beats, $volume, undef, {
+      my $fake_duration = $quantized_beats*$unit;
+      $fake_duration = $treat_as_this_many_beats*$state->unit_beat() if defined $treat_as_this_many_beats;
+      my $fake_note = ['ua', $fake_duration, $volume, undef, {
 	    'directive' => ['play', $filename, $start, $end],
 	    'durations' => [@quantized_beats],
 	  }];
@@ -1183,7 +1185,7 @@ sub define_chimes () {
 	C = { #(play-recording "72699__benboncan__cuckoo" 0 5.50) }
 	D = { #(play-recording "72699__benboncan__cuckoo" 0 7.15) }
 	E = { #(play-recording "72699__benboncan__cuckoo" 0 8.90) }
-	F = { #(play-recording "72699__benboncan__cuckoo" 0 10.65) }
+	F = { #(play-recording "72699__benboncan__cuckoo" 0 10.65 24) }
       ),
       'halb'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
       'h1'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
@@ -1193,6 +1195,11 @@ sub define_chimes () {
       'h5'	=> '\new RhythmicStaff << \x \E \new Staff { \repeat unfold 5 { \S } } >>',
       'h6'	=> '\new RhythmicStaff << \x \F \new Staff { \repeat unfold 6 { \S } } >>',
       'h7'	=> '\new RhythmicStaff << \x { \F \A } \new Staff { \repeat unfold 7 { \S } } >>',
+      'h8'	=> '\new RhythmicStaff << \x { \F \B } \new Staff { \repeat unfold 8 { \S } } >>',
+      'h9'	=> '\new RhythmicStaff << \x { \F \C } \new Staff { \repeat unfold 9 { \S } } >>',
+      'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { \repeat unfold 10 { \S } } >>',
+      'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { \repeat unfold 11 { \S } } >>',
+      'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { \repeat unfold 12 { \S } } >>',
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
@@ -2106,17 +2113,26 @@ sub determine_chime_duration ($$) {
       }
       $it = $voice_duration if $voice_duration > $it;
     }
-  } elsif ($method eq METHOD__SYNTH) {
-    $it = 0;
+    log_debug "duration for chime $id is $it" if $debug;
+  } elsif (defined $id) {
+    $it = 0 if $method eq METHOD__SYNTH;
+    log_debug "no chime defined for chime $id, using $it" if $debug;
+  } else {
+    log_debug "determine_chime_duration called, but no id was specified" if $debug;
   }
-  log_debug "duration for chime $id is $it" if $debug;
   return $it;
 }
 
 sub determine_event_duration ($$) {
   my($event, $default) = @_;
-  my $it = determine_chime_duration(determine_defined_id_for_event $event, $default);
-  log_debug "event duration for event $event is $it" if $debug;
+  my $id = determine_defined_id_for_event $event;
+  my $it;
+  if (defined $id) {
+    $it = determine_chime_duration($id, $default) if defined $id;
+    log_debug "event duration for event $event is $it" if $debug;
+  } else {
+    log_debug "event duration for event $event is undefined" if $debug;
+  }
   return $it;
 }
 
@@ -2667,6 +2683,7 @@ sub strike_tune (@) {
   }
   if (@midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
     @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
+    map { log_debug "schedule: " . Debug::cvs($_) } @midi_commands if $debug > 1;
     my $t0 = current_time; # reset start time
     for (my $i = 0;; $i += 1) {
       my($t, $midi_command, $non_midi_extra) = @{$midi_commands[$i]};
