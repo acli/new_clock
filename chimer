@@ -1180,12 +1180,12 @@ sub define_chimes () {
   define_event(MODE__CUCKOO, undef, 'cuckoo clock mode', undef, '2021', undef, q(
 	x = { \tempo 1 = 35 }
 	S = \absolute { c'1 }
-	A = { #(play-recording "72699__benboncan__cuckoo" 0 1.15) }
-	B = { #(play-recording "72699__benboncan__cuckoo" 0 3.75) }
-	C = { #(play-recording "72699__benboncan__cuckoo" 0 5.50) }
-	D = { #(play-recording "72699__benboncan__cuckoo" 0 7.15) }
-	E = { #(play-recording "72699__benboncan__cuckoo" 0 8.90) }
-	F = { #(play-recording "72699__benboncan__cuckoo" 0 10.65 24) }
+	A = { #(play-recording "72699__benboncan__cuckoo" 0.05 1.15) }
+	B = { #(play-recording "72699__benboncan__cuckoo" 0.05 3.75) }
+	C = { #(play-recording "72699__benboncan__cuckoo" 0.05 5.50) }
+	D = { #(play-recording "72699__benboncan__cuckoo" 0.05 7.15) }
+	E = { #(play-recording "72699__benboncan__cuckoo" 0.05 8.90) }
+	F = { #(play-recording "72699__benboncan__cuckoo" 0.05 10.65 24) }
       ),
       'halb'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
       'h1'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
