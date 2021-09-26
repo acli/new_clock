@@ -146,6 +146,7 @@ no integer;
 
 sub unit_beat {
   my $self = shift;
+Chimer::log_debug("unit beat $_[0]") if @_;#XXXZZZ
   $self->{'unit-beat'} = shift if @_;
   return $self->{'unit-beat'};
 }
@@ -154,6 +155,7 @@ sub tempo {
   my $self = shift;
   if (@_ && defined $_[0]) {
     my($divisor, $beats_per_minute) = ref $_[0]? @{$_[0]}: @_;
+Chimer::log_debug("tempo $divisor/$beats_per_minute");#XXXZZZ
     $self->{'tempo'} = [$divisor, $beats_per_minute];
     $self->unit_beat(($divisor*60)/(4*$beats_per_minute));
   }
@@ -241,6 +243,7 @@ sub grestore {
 			      $repeat_stacklevel, $repeat_start, $repeat_count)
 	= @{ pop @{$self->{'stack'}} };
 
+Chimer::log_debug('grestore');#XXXZZZ
     $self->tempo		($tempo);		# tempo must be restored first because setting it changes unit_beat
     $self->unit_beat		($unit_beat);
     $self->relative_p		($relative_p);
@@ -250,6 +253,7 @@ sub grestore {
     $self->repeat_stacklevel	($repeat_stacklevel);
     $self->repeat_start		($repeat_start);
     $self->repeat_count		($repeat_count);
+Chimer::log_debug('end grestore');#XXXZZZ
   } else {
     my $comment = sprintf(' (context: %s)', Debug::cvs($1)) if @_ && $_[0] =~ /^(.[^\n]*)/s;
     die "grestore called but stack is empty$comment";
@@ -846,6 +850,9 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\(laisserVibrer)\s+//s) {			# ignore \laisserVibrer for now
       $typesettable_version .= $&;
       $directive = $1;
+
+    } elsif ($s =~ s/^\\(acciaccatura)\s+//s) {				# ignore \acciaccatura for now
+      $typesettable_version .= $&;
 
     } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
       $typesettable_version .= $&;
@@ -1931,7 +1938,7 @@ sub parse_dow_range ($) {
     if ($s =~ /^[UMTWRFS]+$/) { # Waterloo style single-letter codes
       $it = join(',', map { parse_dow($_) } split(//, $s));
     } else {
-      $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_dow(substr($_, 1))): arse_dow($_) } split(/(?=[-,]|$)/, $s));
+      $it = join('', map { substr($_, 0, 1) =~ /[-,]/? (substr($_, 0, 1) . parse_dow(substr($_, 1))): parse_dow($_) } split(/(?=[-,]|$)/, $s));
       $it = 'ERROR' unless $it =~ /^\d+(?:[-,]\d+)*$/;
 
       # Handle looparounds like Fri-Sun or Sat-Tue
