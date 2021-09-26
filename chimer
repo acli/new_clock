@@ -787,11 +787,11 @@ sub interpret_melody ($) {
       $typesettable_version .= sprintf('\set Staff.instrumentName = #"%s" \textLengthOn', $filename);
       state $last_note_used;
       my $use_clusters_p = !$state->drummode_p();
-      my $fmt0 = '_\markup{ \halign #CENTER \tiny "%s" }';
-      my($fmt1, $fmt2) = (sprintf($fmt0, '%.2f'), sprintf($fmt0, '%.2f ... %.2f'));
+      my $fmt0 = '_\markup{ \halign #%s \tiny "%s" }';
+      my($fmt1a, $fmt1b) = (sprintf($fmt0, 'LEFT', '%.2f'), sprintf($fmt0, 'RIGHT', '%.2f'));
       my $clash_p = $use_clusters_p && defined $position_at_end_of_last_recording && $position_at_end_of_last_recording == $current_position;
       my $note = !$use_clusters_p? 'da': !$clash_p? "c''": $last_note_used eq "c''"? "a'": "c''";
-      my $markup = sprintf($fmt1, $start);
+      my $markup = sprintf($fmt1a, $start);
       for my $pass (!$use_clusters_p? ('normal'): ('cluster', 'ghost')) {
 	my $last_duration;
 	my $tie = ' ';
@@ -799,6 +799,7 @@ sub interpret_melody ($) {
 	$typesettable_version .= "\\\\\n" if $pass eq 'ghost';
 	$typesettable_version .= '\makeClusters ' if $pass eq 'cluster';
 	$typesettable_version .= "{\n\\absolute {\n" if $use_clusters_p;
+	$typesettable_version .= '\voiceOne ' if $pass eq 'ghost';
 	$typesettable_version .= sprintf("%s\n", join(' ', map {"\\hide $_"} ($pass eq 'ghost'? qw(NoteHead Rest Stem Dots Tie): qw(Rest))));
 	my($gap, @effective_quantized_beats) = (undef, @quantized_beats);
 	if ($pass eq 'cluster' && $clash_p) {
@@ -827,7 +828,7 @@ sub interpret_melody ($) {
 	  $last_duration = $duration;
 	}
 	$typesettable_version .= $markup if $pass ne 'cluster' && defined $markup;
-	$typesettable_version .= sprintf($fmt1, $end) if $pass ne 'cluster';
+	$typesettable_version .= sprintf($fmt1b, $end) if $pass ne 'cluster';
 	$typesettable_version .= "}\n" if $use_clusters_p;	# close \absolute
 	$typesettable_version .= "}\n" if $use_clusters_p;
       }
