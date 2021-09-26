@@ -2079,13 +2079,13 @@ sub enumerate_event_types () {
 sub enumerate_defined_events () {
   my @it;
   for my $event (enumerate_event_types) {
-    my $id = determine_defined_id_for_event($event);
+    my $id = determine_chime_id_for_event($event);
     push @it, $event if defined $id;
   }
   return @it;
 }
 
-sub determine_defined_id_for_event ($) {
+sub determine_chime_id_for_event ($) {
   my($event) = @_;
   my $it;
   for (;;) {
@@ -2133,7 +2133,7 @@ sub determine_chime_duration ($$) {
 
 sub determine_event_duration ($$) {
   my($event, $default) = @_;
-  my $id = determine_defined_id_for_event $event;
+  my $id = determine_chime_id_for_event $event;
   my $it;
   if (defined $id) {
     $it = determine_chime_duration($id, $default) if defined $id;
@@ -2410,7 +2410,7 @@ sub get_cache_pathname_for_event ($) {
   if ($id ne 'test') {
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-    $it = sprintf '%s/cache-%s.oga', $datadir, determine_defined_id_for_event $id;
+    $it = sprintf '%s/cache-%s.oga', $datadir, determine_chime_id_for_event $id;
   }
   return $it;
 }
@@ -2543,7 +2543,7 @@ sub generate_sound_clip_for_event ($) {
     log_info "Generating audio for event $event_id";
     local @sinks;
     connect_synth $event_id;
-    strike_tune(@{$interpretation{$chime{+determine_defined_id_for_event($event_id)}}});
+    strike_tune(@{$interpretation{$chime{+determine_chime_id_for_event($event_id)}}});
     disconnect_synth;
   }
 }
@@ -2741,7 +2741,7 @@ sub do_event ($) {
   if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
     play_sound_file $output, 100;
   } else {
-    strike_tune @{$interpretation{$chime{+determine_defined_id_for_event $id}}};
+    strike_tune @{$interpretation{$chime{+determine_chime_id_for_event $id}}};
   }
 }
 
@@ -2773,7 +2773,7 @@ sub generate_proofsheet () {
   my($title, $source, $composer, $year);
   for (my $pass = 0; $pass < 2; $pass += 1) {
     for my $event (@events_to_check) {
-      my $id = determine_defined_id_for_event($event);
+      my $id = determine_chime_id_for_event($event);
       if (defined $id) {
 	push @events_found, $id if $pass == 0;
 	if (!defined $title) {
