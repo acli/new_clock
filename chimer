@@ -694,6 +694,7 @@ sub interpret_melody ($) {
   my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
   my($def_key, $def_value, $def_level, %def);
   my($current_position, $position_at_end_of_last_recording);
+  my $grace_note_type;
   my $voice;
   for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
     unless (defined $def_key) {
@@ -853,6 +854,7 @@ sub interpret_melody ($) {
 
     } elsif ($s =~ s/^\\(acciaccatura)\s+//s) {				# ignore \acciaccatura for now
       $typesettable_version .= $&;
+      $grace_note_type = $1;
 
     } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
       $typesettable_version .= $&;
@@ -953,8 +955,9 @@ sub interpret_melody ($) {
       $typesettable_version .= $&;
     } elsif ($s =~ s/^\\breathe\s+//s) {	# ignore breath marks for now
       $typesettable_version .= $&;
-    } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s+//s) {
+    } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s*\x{7b}//s) {
       $typesettable_version .= $&;
+      $state->gsave();
       $state->unit_beat($state->unit_beat() * $2 / $1);
     } elsif ($s =~ s/^$duration_re$end_re//s) {
       $typesettable_version .= $&;
@@ -1031,9 +1034,16 @@ sub interpret_melody ($) {
       }
       my $rest_p = $lhs eq 'r';
       my $instrument = ($lhs eq $percussive_instrument || $rest_p)? undef: $main_instrument; # FIXME
-      push @$voice, [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
+      my $node = [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
+      if (defined $grace_note_type) {	# zero out the note's duration, in effect ignoring all grace notes for now
+	$node->[1] = 0;
+	$node->[4] = {'actual-duration' => $rhs};
+	log_debug "grace note changed to ".Debug::cvs($node);#XXXZZZ
+      }
+      push @$voice, $node if defined $node;
       $note = $lhs;
       $tie_p = 0;
+      $grace_note_type = undef;
       no integer;
       $current_position += $rhs;
     } elsif (defined $directive) {
@@ -2810,6 +2820,7 @@ sub generate_proofsheet () {
     my $tune_to_typeset = defined $typesettable_version{$tune}? $typesettable_version{$tune}: $tune;
     my $attr = parse_chime_id $id;
     my $duration = determine_chime_duration $id, undef;
+    $tune_to_typeset =~ s/\s*\|\s*/\|\n/sg;	# make barcheck warnings more understandable
     print "\\markup{\\column{\n";
     print "\\vspace #1\n";
     print "\\line{\\bold \"$id\"}\n";
