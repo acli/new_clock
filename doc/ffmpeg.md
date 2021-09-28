@@ -38,7 +38,7 @@ and (after a lot of trial-and-error) ended up with the following, which worked:
 Volume adjustments
 ------------------
 
-Volume adjustments can be written as fractions, e.g., 64/127,
+Volume adjustments in *ffmpeg* can be written as fractions, e.g., 64/127,
 which is great considering MIDI velocities range from 0 to 127.
 However, volume adjustments appear to be global, so
 
@@ -48,7 +48,7 @@ looks correct but produces incorrect results.
 After the volume is turned down for input 0,
 the volume is turned down *again* for input 1.
 
-So apparently, this have to have to be written as
+So apparently, this has to be written as
 
 	    [0]atrim=volume=64/127,0.05:10.65 [g0]; [1]atrim=0.05:10.65,adelay=10286 [g1]; [g0][g1] amix=inputs=2
 
