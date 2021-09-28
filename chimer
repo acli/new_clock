@@ -2967,6 +2967,7 @@ sub parse_command_line_arguments () {
   # Handle config file
   $config = read_ini("$ENV{HOME}/.chimerrc");
   @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
+  $mode = $config->{'/'}->{'mode'}->[0] if defined $config->{'/'}->{'mode'};
   $method = $config->{'/'}->{'method'}->[0] if defined $config->{'/'}->{'method'};
   $melody = lc $config->{'/'}->{'melody'}->[0] if defined $config->{'/'}->{'melody'};
   $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
