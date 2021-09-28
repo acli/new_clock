@@ -1,6 +1,9 @@
 References
 ==========
-The script uses the following audio recordings:
+
+Samples-based playback
+----------------------
+The script uses the following audio recordings when method is set to samples:
 
 [Gossner, <span title=Samuel>S.</span>](http://sgossner.versilstudios.com/), ed. (2019).
 Versilian Community Sample Library [Audio file].
@@ -25,8 +28,13 @@ Retrieved from https://freesound.org/people/strangehorizon/packs/32761/
   [the D#5 gong](https://freesound.org/people/strangehorizon/sounds/582159/)
   (The entire set used to be needed for the Westminster chime)
 
-[Walter, <span title=Thomas>T.</span>](http://www.inchadney.com/) (2011).
-Birds: Cuckoo.wav [Audio file].
-Retrieved from https://freesound.org/people/inchadney/sounds/121203/
+
+Both samples- and synth-based playback
+--------------------------------------
+The script always uses the following audio recordings when mode is set to cuckoo:
+
+Benboncan. (2009).
+Various Birds: Cuckoo.wav [Audio file].
+Retrieved from https://freesound.org/people/Benboncan/sounds/72699/
 - This recording is cc-by-3.0 and is used by cuckoo mode
 

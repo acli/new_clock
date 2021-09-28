@@ -37,6 +37,14 @@ references:
   type: software
   url: https://metacpan.org/pod/Astro::Sunrise
 
+- authors:
+  - name: Benboncan.
+  year: 2009
+  title: "Various Birds: Cuckoo.wav"
+  type: sound-recording
+  repository: https://freesound.org/people/Benboncan/sounds/72699/
+  license: CC-BY-3.0
+
 - term: 打更 [Calling out the hour]
   year: 2021
   title: Wikipedia
@@ -247,16 +255,6 @@ references:
   title: MIDI tutorial
   date-accessed: 2021-09-05
   url: http://www.music-software-development.com/midi-tutorial.html
-
-- authors:
-  - family-names: Walter
-    given-names: Thomas
-    url: http://www.inchadney.com/
-  year: 2011
-  title: "Birds: Cuckoo.wav"
-  type: sound-recording
-  repository: https://freesound.org/people/inchadney/sounds/121203/
-  license: CC-BY-3.0
 
 - authors:
   - family-names: Weir
