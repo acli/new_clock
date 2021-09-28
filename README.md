@@ -28,7 +28,7 @@ At some point it should ultimately serve as the back-end of my genmon plugin tha
 Running
 -------
 The script currently only runs on a PulseAudio-based Linux (or similar) system.
-You might have mpv and paplay (part of PulseAudio) installed (see Dependencies below).
+You also must have mpv and ffmpeg installed (see Dependencies below).
 
 If you’re not running directly from a git clone,
 you only need the script itself.
