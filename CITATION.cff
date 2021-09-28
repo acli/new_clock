@@ -56,6 +56,10 @@ references:
   type: software
   url: https://metacpan.org/pod/Expect::Simple
 
+- title: ffmpeg
+  type: software
+  url: https://ffmpeg.org/
+
 - title: Fluidsynth
   type: software
   url: https://www.fluidsynth.org/
@@ -304,4 +308,4 @@ references:
   date-accessed: 2021-09-10
   url: https://www.facebook.com/groups/gnulilypond/permalink/10157912670783529/
 
-# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/sysline.md, doc/CREDITS.md, README.md, and chimer
+# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/sysline.md, doc/ffmpeg.md, doc/CREDITS.md, README.md, and chimer

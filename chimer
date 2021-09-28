@@ -435,6 +435,11 @@ use vars qw( %gong_scale %chime_scale );
   'f5'	=> 'chimes_F2.ogg',
 );
 
+sub gensym () {
+  state $n;
+  return sprintf('g%d', $n++);
+}
+
 sub log_internal ($$;$$$) {
   my($flag, $s, $prefix, $newline_p, $keep_p) = @_;
   state $last_logged;
@@ -2412,10 +2417,11 @@ sub set_sink_volumes ($$$$$) {
 sub get_cache_pathname_for_event ($) {
   my($id) = @_;
   my $it;
-  if (defined $id && $id =~ /\S/s && $id ne 'test') {
+  if (defined $id && $id ne 'test') {
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-    $it = sprintf '%s/cache-%s.oga', $datadir, determine_chime_id_for_event $id;
+    my $basename = $id =~ /^tmp\d+$/? $id: sprintf('cache-%s', determine_chime_id_for_event $id);
+    $it = sprintf '%s/%s.oga', $datadir, $basename if defined $basename && $basename =~ /\S/;
   }
   return $it;
 }
@@ -2459,7 +2465,7 @@ sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
   my($sf_path, $gain);
-  if (!defined $synth) { # if we're connected don't try to create a second instance, we tried that before and it was disastrous
+  if (!defined $synth && defined $output) { # if we're connected don't try to create a second instance, we tried that and it was disastrous
     my $immediate_p = $id eq 'test';
 
     # Figure out where our soundfont is
@@ -2543,17 +2549,36 @@ sub disconnect_synth () {
 
 sub generate_sound_clip_for_event ($) {
   my($event_id) = @_;
+  my $dummy_id = "tmp$$";
+  my $temp = get_cache_pathname_for_event($dummy_id);
   my $output = get_cache_pathname_for_event($event_id);
+  log_debug sprintf "Event %s has cache pathname %s, using temp file %s", $event_id, $output, $temp if $debug;
   if (!-f $output) {
     log_info "Generating audio for event $event_id";
     local @sinks;
-    connect_synth $event_id;
-    strike_tune(@{$interpretation{$chime{+determine_chime_id_for_event($event_id)}}});
+    connect_synth $dummy_id;
+    my %leftovers = strike_tune_real(1, @{$interpretation{$chime{+determine_chime_id_for_event($event_id)}}});
     disconnect_synth;
+    if (!%leftovers) {
+      rename $temp, $output or log_error "$output: $!";
+    } else {										# see ffmpeg.md for comments
+      my @cmd = ('ffmpeg', '-nostdin', '-hide_banner', '-y');				# global options
+      push @cmd, ('-loglevel', 0) unless $debug;
+      push @cmd, map { ('-i', $_) } ($temp, @{$leftovers{'files'}});			# input files
+      push @cmd, ('-filter_complex', $leftovers{'filter-graph'});
+      push @cmd, $output;								# output files
+      log_command @cmd if $debug;
+      local $SIG{'CHLD'} = 'DEFAULT'; # need this to check exit status
+      my $st = system { $cmd[0] } @cmd;
+      log_error "$output: $cmd[0] returned status $st" if $st;
+    }
+    unlink $temp if -f $temp;
   }
 }
 
 sub generate_sound_clips () {
+  log_debug "Generating audio files" if $debug;
+  disconnect_synth;
   for my $event_id (enumerate_defined_events) {
     generate_sound_clip_for_event $event_id;
   }
@@ -2658,9 +2683,11 @@ sub transpose_note ($;$) {
   return defined $it? $it: $note;
 }
 
-sub strike_tune (@) {
-  my @tune = @_;
-  log_debug sprintf "Striking %s", join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @tune) if $debug || $verbose_p;
+sub strike_tune_real ($@) {
+  my($construct_filter_graph_p, @tune) = @_;
+  my %leftovers;
+  my($last_volume_used, @intermediate_input_labels);
+  log_debug sprintf "Flag %d, striking %s", $construct_filter_graph_p, join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @tune) if $debug || $verbose_p;
   no integer;
   my $semitones = 8;
   my @midi_commands;
@@ -2704,8 +2731,23 @@ sub strike_tune (@) {
 	my($directive, @args) = @$midi_command;
 	if ($directive eq 'play') {
 	  my($volume, $filename, $start, $end) = ($non_midi_extra, @args);
+	  my $pathname = sprintf('%s/%s.wav', $datadir, $filename);
 	  no integer;
-	  play_sound_file sprintf('%s/%s.wav', $datadir, $filename), 100*$volume/127, $start, $end;
+	  if ($construct_filter_graph_p) {				# construct ffmpeg filter graph - see ffmpeg.md for comments
+	    my $intermediate_input_label = gensym;
+	    push @{$leftovers{'files'}}, $pathname;
+	    push @intermediate_input_labels, $intermediate_input_label;
+	    my @cmd;
+	    push @cmd, sprintf('volume=127/%d', $last_volume_used) if defined $last_volume_used;
+	    push @cmd, sprintf('volume=%d/127', $volume);
+	    push @cmd, sprintf('atrim=%f:%f', $start, $end);
+	    push @cmd, sprintf('adelay=%d', 1000*$t) if $t;
+	    log_debug sprintf 'intermediate file %s has label %s', $pathname, $intermediate_input_label if $debug;
+	    $leftovers{'filter-graph'} .= sprintf('[%d]%s[%s];', scalar @{$leftovers{'files'}}, join(',', @cmd), $intermediate_input_label);
+	    $last_volume_used = $volume;
+	  } else {
+	    play_sound_file $pathname, 100*$volume/127, $start, $end;
+	  }
 	} else {
 	  log_error "strike_tune: Unknown directive \"$directive\"";
 	}
@@ -2737,6 +2779,20 @@ sub strike_tune (@) {
       Time::HiRes::sleep $dt if $dt > 0;
     }
   }
+  if (%leftovers) {
+    $leftovers{'filter-graph'} .= sprintf('[0]%samix=inputs=%d',
+	join('', map { "[$_]" } @intermediate_input_labels),
+	@intermediate_input_labels + 1);
+
+    log_debug sprintf('strike_tune_real: returning leftovers=%s', Debug::cvs(\%leftovers)) if $debug;
+  }
+  return %leftovers;
+}
+
+sub strike_tune (@) {
+  my @tune = @_;
+  log_debug sprintf "Striking %s", join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @tune) if $debug || $verbose_p;
+  return strike_tune_real 0, @tune;
 }
 
 sub do_event ($) {

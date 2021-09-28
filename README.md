@@ -45,6 +45,8 @@ Dependencies
 - [Perl](https://www.perl.org/) 5 with Unicode support (version 5.14 or later)
 - [mpv](https://github.com/mpv-player/mpv)
   to play audio samples
+- [ffmpeg](https://ffmpeg.org/)
+  if you use cuckoo mode
 - [hebcal](https://github.com/hebcal/hebcal)
   to guess geographical location
   (not needed if you specify your geographical location in the config file)
