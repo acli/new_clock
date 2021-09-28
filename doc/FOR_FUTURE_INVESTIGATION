@@ -94,4 +94,6 @@ Note: papers hosted at the Internet Archive *must* be accessed through scholar.a
 
 
 
-
+It might be possible to generate some sort of a score out of an audio file, for eventual proofing purposes
+- Lilypond side: http://lilypond.org/doc/v2.22/Documentation/notation/graphical-notation
+- FFMPEG side: showwavespic

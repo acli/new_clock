@@ -294,7 +294,7 @@ use Data::Dumper;
 use vars qw( $config );
 use vars qw( $overrides );
 use vars qw( $debug );
-use vars qw( $no_cache_p );
+use vars qw( $no_cache_p $create_cache_p $test_p );
 use vars qw( $verbose_p );
 use vars qw( $quit_p );
 use vars qw( $enable_nonproportional_watches );
@@ -1309,7 +1309,7 @@ sub define_chimes () {
 	A = \relative c' { \x <>-\ff b'4 e, }
 	B = \relative c' { \x <>-\ff d4 e b' a }
 	C = \relative c' { \x <>-\ff b'4 g e a fis d }
-	D = \relative c' { \x <>-\ff d4 fis e g b cis a d }
+	D = \relative c' { \x <>-\ff d4 fis e g b cis a d^\fermata }	% fermata inserted
 	S = \relative c' { <>-\fff r2 a2 }			% durations guessed
       ),
       'q1' => '\x <>-\ff \A',
@@ -2485,8 +2485,8 @@ sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
   my($sf_path, $gain);
-  if (!defined $synth && defined $output) { # if we're connected don't try to create a second instance, we tried that and it was disastrous
-    my $immediate_p = $id eq 'test';
+  my $immediate_p = $id eq 'test';
+  if (!defined $synth && ($immediate_p || defined $output)) { # if we're connected don't try to create a second instance, it was disastrous
 
     # Figure out where our soundfont is
     for my $key ('Timbres Of Heaven', 'FluidR3') {
@@ -2569,6 +2569,7 @@ sub disconnect_synth () {
     log_debug 'synth disconnected' if $debug;
   }
 }
+END { disconnect_synth }
 
 sub generate_sound_clip_for_event ($) {
   my($event_id) = @_;
@@ -2967,6 +2968,7 @@ sub do_setup () {
 	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
 	if $verbose_p || $debug;
 
+    set_test_params if $test_p;
     define_chimes;
     if ($method eq METHOD__SYNTH && $no_cache_p) {
       connect_synth 'test';
@@ -3030,16 +3032,16 @@ sub parse_command_line_arguments () {
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
-    'test' => sub { do_test_setup },
+    'test' => \$test_p,
     'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) { do_event $e };
-	exit disconnect_synth },
+	exit },
     'test-scale' => sub { do_test_setup; strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]);
-	exit disconnect_synth },
+	exit },
     'test-tune=s' => sub { do_test_setup; strike_tune @{interpret_melody $_[1]};
-	exit disconnect_synth },
+	exit },
     'v|verbose' => \$verbose_p,
     'W|what-if=s' => \$what_if,
-    'z|create-cache' => sub { generate_sound_clips if $method eq METHOD__SYNTH },
+    'z|create-cache' => \$create_cache_p,
     'help' => \&usage,
   ) || exit(1);
 
@@ -3176,6 +3178,10 @@ if (!caller) {
 
   parse_command_line_arguments;
   do_setup;
+  if ($create_cache_p) {
+    generate_sound_clips;
+    do_setup;
+  }
   do_main_loop unless $quit_p;
   disconnect_synth;
 }
