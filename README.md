@@ -47,6 +47,7 @@ Dependencies
   to play audio samples
 - [ffmpeg](https://ffmpeg.org/)
   if you use cuckoo mode
+  (see [my comments about ffmpeg](doc/ffmpeg.md))
 - [hebcal](https://github.com/hebcal/hebcal)
   to guess geographical location
   (not needed if you specify your geographical location in the config file)
