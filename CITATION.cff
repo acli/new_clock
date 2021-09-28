@@ -323,4 +323,11 @@ references:
   date-accessed: 2021-09-10
   url: https://www.facebook.com/groups/gnulilypond/permalink/10157912670783529/
 
+- authors:
+  - family-names: Zimmerman
+    given-names: Carl Scott
+  title: Great Bells of the British Isles
+  date-accessed: 2021-09-28
+  url: http://www.towerbells.org/data/GBGreatBells.html
+
 # This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/sysline.md, doc/ffmpeg.md, doc/CREDITS.md, README.md, and chimer
