@@ -160,6 +160,21 @@ references:
   date-accessed: 2021-09-10
   url: https://zh.wikisource.org/w/index.php?title=Page:Gujin_Tushu_Jicheng,_Volume_024_(1700-1725).djvu/54&oldid=1817171
 
+- authors:
+  - family-names: Pearce
+    given-names: Charles W.
+  year: 1903
+  month: 12
+  day: 1
+  title: Occasional notes [Letter to the editor]
+  type: article
+  journal: Musical Times
+  volume: 44
+  issue: 730
+  start: 790
+  end: 790
+  url: https://ia600708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.2307%252F903901.zip&file=10.2307%252F904253.pdf
+
 - section: Percussion notes
   title: LilyPond — Notation Reference v2.22.1 (stable-branch)
   type: book

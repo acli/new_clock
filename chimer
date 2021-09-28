@@ -1206,19 +1206,19 @@ sub define_chimes () {
 	E = { #(play-recording "72699__benboncan__cuckoo" 0.05 8.90) }
 	F = { #(play-recording "72699__benboncan__cuckoo" 0.05 10.65 24) }
       ),
-      'halb'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
-      'h1'	=> '\new RhythmicStaff << \x \A \new Staff { \S } >>',
-      'h2'	=> '\new RhythmicStaff << \x \B \new Staff { \repeat unfold 2 { \S } } >>',
-      'h3'	=> '\new RhythmicStaff << \x \C \new Staff { \repeat unfold 3 { \S } } >>',
-      'h4'	=> '\new RhythmicStaff << \x \D \new Staff { \repeat unfold 4 { \S } } >>',
-      'h5'	=> '\new RhythmicStaff << \x \E \new Staff { \repeat unfold 5 { \S } } >>',
-      'h6'	=> '\new RhythmicStaff << \x \F \new Staff { \repeat unfold 6 { \S } } >>',
-      'h7'	=> '\new RhythmicStaff << \x { \F \A } \new Staff { \repeat unfold 7 { \S } } >>',
-      'h8'	=> '\new RhythmicStaff << \x { \F \B } \new Staff { \repeat unfold 8 { \S } } >>',
-      'h9'	=> '\new RhythmicStaff << \x { \F \C } \new Staff { \repeat unfold 9 { \S } } >>',
-      'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { \repeat unfold 10 { \S } } >>',
-      'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { \repeat unfold 11 { \S } } >>',
-      'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { \repeat unfold 12 { \S } } >>',
+      'halb'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
+      'h1'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
+      'h2'	=> '\new RhythmicStaff << \x \B \new Staff { <>-\ff \repeat unfold 2 { \S } } >>',
+      'h3'	=> '\new RhythmicStaff << \x \C \new Staff { <>-\ff \repeat unfold 3 { \S } } >>',
+      'h4'	=> '\new RhythmicStaff << \x \D \new Staff { <>-\ff \repeat unfold 4 { \S } } >>',
+      'h5'	=> '\new RhythmicStaff << \x \E \new Staff { <>-\ff \repeat unfold 5 { \S } } >>',
+      'h6'	=> '\new RhythmicStaff << \x \F \new Staff { <>-\ff \repeat unfold 6 { \S } } >>',
+      'h7'	=> '\new RhythmicStaff << \x { \F \A } \new Staff { <>-\ff \repeat unfold 7 { \S } } >>',
+      'h8'	=> '\new RhythmicStaff << \x { \F \B } \new Staff { <>-\ff \repeat unfold 8 { \S } } >>',
+      'h9'	=> '\new RhythmicStaff << \x { \F \C } \new Staff { <>-\ff \repeat unfold 9 { \S } } >>',
+      'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { <>-\ff \repeat unfold 10 { \S } } >>',
+      'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { <>-\ff \repeat unfold 11 { \S } } >>',
+      'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { <>-\ff \repeat unfold 12 { \S } } >>',
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
@@ -2563,9 +2563,11 @@ sub connect_synth ($) {
 }
 
 sub disconnect_synth () {
-  sleep SECONDS_BEFORE_DISCONNECT if defined $synth && defined $synth->{'.last-note'};	# wait a bit for things to stabilize if we sent anything
-  $synth = undef;
-  log_debug 'synth disconnected' if $debug;
+  if (defined $synth) {
+    sleep SECONDS_BEFORE_DISCONNECT if defined $synth && defined $synth->{'.last-note'}; # wait a bit for things to stabilize if we sent anything
+    $synth = undef;
+    log_debug 'synth disconnected' if $debug;
+  }
 }
 
 sub generate_sound_clip_for_event ($) {
