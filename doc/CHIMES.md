@@ -162,7 +162,11 @@ Cuckoo options
 --------------
 https://freesound.org/people/Benboncan/sounds/72699/
 - pros: cc-by-3.0, very clear cuckoo sound
-- cons: need to cut and stitch file for >7 cuckoo calls
+- cons: need to cut and stitch file for >7 cuckoo calls, sounds less natural than 35053
+
+https://freesound.org/people/reinsamba/sounds/35053/
+- pros: clear cuckoo sound, cc-by-3.0, background white noise at acceptable level (less than 121203)
+- cons: cuckoo sounds too disjointed (somewhat uneven too, but disjointed is a bigger problem, as in the bird stops then restarts, a few times)
 
 https://freesound.org/people/plantmonkey/sounds/376703/
 - pros: very clear cuckoo sound, cc-by-3.0
@@ -177,10 +181,6 @@ https://freesound.org/people/inchadney/sounds/121203/
 - cons: clearly perceptible background white noise
 - citation: Walter, T. [Thomas]. 2011. Birds: Cuckoo.wav [Audio file].
   Retrieved from https://freesound.org/people/inchadney/sounds/121203/
-
-https://freesound.org/people/reinsamba/sounds/35053/
-- pros: clear cuckoo sound, cc-by-3.0, background white noise at acceptable level (less than 121203)
-- cons: cuckoo sounds too disjointed (somewhat uneven too, but disjointed is a bigger problem, as in the bird stops then restarts, a few times)
 
 https://freesound.org/people/CaganCelik/sounds/435205/
 - pros: clear birdsong, public domain (cc0)
