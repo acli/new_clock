@@ -146,7 +146,6 @@ no integer;
 
 sub unit_beat {
   my $self = shift;
-Chimer::log_debug("unit beat $_[0]") if @_;#XXXZZZ
   $self->{'unit-beat'} = shift if @_;
   return $self->{'unit-beat'};
 }
@@ -155,7 +154,6 @@ sub tempo {
   my $self = shift;
   if (@_ && defined $_[0]) {
     my($divisor, $beats_per_minute) = ref $_[0]? @{$_[0]}: @_;
-Chimer::log_debug("tempo $divisor/$beats_per_minute");#XXXZZZ
     $self->{'tempo'} = [$divisor, $beats_per_minute];
     $self->unit_beat(($divisor*60)/(4*$beats_per_minute));
   }
@@ -243,7 +241,6 @@ sub grestore {
 			      $repeat_stacklevel, $repeat_start, $repeat_count)
 	= @{ pop @{$self->{'stack'}} };
 
-Chimer::log_debug('grestore');#XXXZZZ
     $self->tempo		($tempo);		# tempo must be restored first because setting it changes unit_beat
     $self->unit_beat		($unit_beat);
     $self->relative_p		($relative_p);
@@ -253,7 +250,6 @@ Chimer::log_debug('grestore');#XXXZZZ
     $self->repeat_stacklevel	($repeat_stacklevel);
     $self->repeat_start		($repeat_start);
     $self->repeat_count		($repeat_count);
-Chimer::log_debug('end grestore');#XXXZZZ
   } else {
     my $comment = sprintf(' (context: %s)', Debug::cvs($1)) if @_ && $_[0] =~ /^(.[^\n]*)/s;
     die "grestore called but stack is empty$comment";
@@ -1038,7 +1034,6 @@ sub interpret_melody ($) {
       if (defined $grace_note_type) {	# zero out the note's duration, in effect ignoring all grace notes for now
 	$node->[1] = 0;
 	$node->[4] = {'actual-duration' => $rhs};
-	log_debug "grace note changed to ".Debug::cvs($node);#XXXZZZ
       }
       push @$voice, $node if defined $node;
       $note = $lhs;
@@ -2417,7 +2412,7 @@ sub set_sink_volumes ($$$$$) {
 sub get_cache_pathname_for_event ($) {
   my($id) = @_;
   my $it;
-  if ($id ne 'test') {
+  if (defined $id && $id =~ /\S/s && $id ne 'test') {
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
     $it = sprintf '%s/cache-%s.oga', $datadir, determine_chime_id_for_event $id;
