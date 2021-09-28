@@ -2821,11 +2821,13 @@ sub strike_tune (@) {
 sub do_event ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
-  log_debug sprintf "Cache file %s %s", $output, (-f $output? ($no_cache_p? 'exists but ignored': 'exists'): 'does not exist') if $debug;
-  if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
+  my $chime_id = determine_chime_id_for_event $id;
+  if (!defined $chime_id) {
+    log_debug sprintf "Event %s does not exist for the current mode/melody", $id if $debug;
+  } elsif ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
     play_sound_file $output, 100;
   } else {
-    strike_tune @{$interpretation{$chime{+determine_chime_id_for_event $id}}};
+    strike_tune @{$interpretation{$chime{$chime_id}}};
   }
 }
 
