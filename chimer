@@ -344,6 +344,7 @@ sub MELODY__CAMBRIDGE_RCC () { 'cambridge_rcc' }
 sub MELODY__CANTERBURY    () { 'canterbury' }
 sub MELODY__GUILDFORD     () { 'guildford' }
 sub MELODY__MAGDALEN      () { 'magdalen' }
+sub MELODY__NEWCOLLEGE    () { 'newcollege' }
 sub MELODY__NORWICH       () { 'norwich' }
 sub MELODY__TINGTANG2A    () { 'tingtang2a' }
 sub MELODY__TINGTANG2B    () { 'tingtang2b' }
@@ -1303,6 +1304,34 @@ sub define_chimes () {
       'q0' => '\x <>-\ff \D',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
+  define_event(MODE__CARILLON, MELODY__NEWCOLLEGE, 'New College chimes', undef, undef, 'Pearce, 1903; "Great Bells of the British Isles" (n.d.)', q(
+	x = { \key d \major \omit Staff.TimeSignature }
+	A = \relative c' { \x <>-\ff b'4 e, }
+	B = \relative c' { \x <>-\ff d4 e b' a }
+	C = \relative c' { \x <>-\ff b'4 g e a fis d }
+	D = \relative c' { \x <>-\ff d4 fis e g b cis a d }
+	S = \relative c' { <>-\fff r2 a2 }			% durations guessed
+      ),
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
+    ),
+  define_event(MODE__CARILLON, MELODY__NORWICH, 'Norwich Cathedral chimes', 'E. S. Medley', '1876', 'Starmer, 1907, p. 11', q(
+	x = { \tempo 1 = 75 }
+	A = \relative c' { <>-\ff a'1 g f e d }
+	B = \relative c' { <>-\ff d1 e a g f  | g d f e d }
+	C = \relative c' { <>-\ff d1 e f a d, | f a g e f | d e g f d }
+	D = \relative c' { <>-\ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
+	S = \relative c' { <>-\fff r1. d1 }			% rest inserted to make it sound less rushed
+      ),
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \B',
+      'q3' => '\x <>-\ff \C',
+      'q0' => '\x <>-\ff \D',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
+    ),
   define_event(MODE__CARILLON, MELODY__TINGTANG2A, 'Ting-tang (ding-dong) quarters on major second', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 b }
@@ -1373,20 +1402,6 @@ sub define_chimes () {
       'q2' => '\x <>-\ff \A \B \A',
       'q3' => '\x <>-\ff \A \B \A \B \A',
       'q0' => '\x <>-\ff \A \B \A \B \A \B \A \B',
-      'h' => '\x <>-\fff \repeat volta %I { \S }',
-    ),
-  define_event(MODE__CARILLON, MELODY__NORWICH, 'Norwich Cathedral chimes', 'E. S. Medley', '1876', 'Starmer, 1907, p. 11', q(
-	x = { \tempo 1 = 75 }
-	A = \relative c' { <>-\ff a'1 g f e d }
-	B = \relative c' { <>-\ff d1 e a g f  | g d f e d }
-	C = \relative c' { <>-\ff d1 e f a d, | f a g e f | d e g f d }
-	D = \relative c' { <>-\ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
-	S = \relative c' { <>-\fff r1. d1 }			% rest inserted to make it sound less rushed
-      ),
-      'q1' => '\x <>-\ff \A',
-      'q2' => '\x <>-\ff \B',
-      'q3' => '\x <>-\ff \C',
-      'q0' => '\x <>-\ff \D',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WESTMINSTER, 'Westminster Quarters', 'Jowett et al.', '1793–1794', 'Wikipedia', q(
@@ -2160,7 +2175,7 @@ sub determine_next_uncached_event (@) {
   for my $event (@event) {
     my $event_id = $event->{'id'};
     my $det = get_cache_pathname_for_event($event_id);
-    $it = $event_id unless -f $det;
+    $it = $event_id if defined $det && !-f $det;
   last if defined $it;
   }
   return $it;
@@ -2420,8 +2435,13 @@ sub get_cache_pathname_for_event ($) {
   if (defined $id && $id ne 'test') {
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
-    my $basename = $id =~ /^tmp\d+$/? $id: sprintf('cache-%s', determine_chime_id_for_event $id);
-    $it = sprintf '%s/%s.oga', $datadir, $basename if defined $basename && $basename =~ /\S/;
+    my $basename;
+    if ($id =~ /^tmp\d+$/) {
+      $it = sprintf('%s/%s.oga', $datadir, $id);
+    } else {
+      my $chime_id = determine_chime_id_for_event $id;
+      $it = sprintf('%s/cache-%s.oga', $datadir, $chime_id) if defined $chime_id;
+    }
   }
   return $it;
 }
@@ -2545,6 +2565,7 @@ sub connect_synth ($) {
 sub disconnect_synth () {
   sleep SECONDS_BEFORE_DISCONNECT if defined $synth && defined $synth->{'.last-note'};	# wait a bit for things to stabilize if we sent anything
   $synth = undef;
+  log_debug 'synth disconnected' if $debug;
 }
 
 sub generate_sound_clip_for_event ($) {

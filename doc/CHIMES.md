@@ -223,6 +223,9 @@ https://freesound.org/people/mike_stranks/sounds/397575/
 
 References
 ==========
+Great Bells of the British Isles.
+Retrieved September 28, 2021, from http://www.towerbells.org/data/GBGreatBells.html
+
 Harrison, <span title=Daniel>D.</span> (2000, October).
 Tolling Time.
 <cite>Music Theory Online, 6</cite>(4), Article 6.4.1.
@@ -235,6 +238,10 @@ Retrieved from http://incd.ambroseli.ca/node/308
 Oliver, <span title=Richard>R.</span> (n.d.).
 Clock Chime Tunes: History and Examples You Can Hear.
 Retrieved September 10, 2021, from https://www.clockguy.com/SiteRelated/SiteReferencePages/ClockChimeTunes.html
+
+Pearce, <span title="Charles W.">C. W.</span> (1903, December 1). Occasional notes [Letter to the editor].
+<cite>Musical Times, 44</cite>(730), 790.
+Retrieved from https://ia600708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.2307%252F903901.zip&file=10.2307%252F904253.pdf
 
 Starmer, <span title="William Wooding">W. W.</span> (1907, November 19). Chimes. <cite>Proceedings of the Musical Association, 34</cite>, 1–24.
 Retrieved from https://ia800708.us.archive.org/view_archive.php?archive=/22/items/crossref-pre-1909-scholarly-works/10.1093%252Fjhered%252Fos-3.1.263.zip&file=10.1093%252Fjrma%252F34.1.1.pdf
