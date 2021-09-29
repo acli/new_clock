@@ -915,7 +915,7 @@ sub interpret_melody ($) {
       my($from, $to) = (interpret_absolute_pitch $1, interpret_absolute_pitch $5);
       $state->gsave();
       $state->relative_p(0);
-      $state->transpose($to - $from);
+      $state->transpose($state->transpose() + $to - $from);
 
     } elsif ($s =~ s/^\\repeat\s+(?:volta|unfold|percent)\s+(\d+)\s*\x{7b}//s) {
       $typesettable_version .= $&;
@@ -1219,6 +1219,39 @@ sub define_chimes () {
       'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { <>-\ff \repeat unfold 10 { \S } } >>',
       'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { <>-\ff \repeat unfold 11 { \S } } >>',
       'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { <>-\ff \repeat unfold 12 { \S } } >>',
+    ),
+  define_event(MODE__CUCKOO, 'study1', 'cuckoo clock mode study 1', undef, '2021', undef, q(
+	x = { \tempo 1 = 35 }
+	S = \absolute { c'1 }
+	A = { #(play-recording "72699__benboncan__cuckoo" 0.05 1.15) }
+	B = { #(play-recording "72699__benboncan__cuckoo" 0.05 3.75) }
+	C = { #(play-recording "72699__benboncan__cuckoo" 0.05 5.50) }
+	D = { #(play-recording "72699__benboncan__cuckoo" 0.05 7.15) }
+	E = { #(play-recording "72699__benboncan__cuckoo" 0.05 8.90) }
+	F = { #(play-recording "72699__benboncan__cuckoo" 0.05 10.65 24) }
+	% Source: Stevenson (n.d.)
+	royalanthemglobal = { \time 3/4 \key bes \major \tempo 4 = 72 }
+	% p.4 in the score is p.32 in the PDF
+	royalanthemMelodyPartA = \transpose c c'' { \mark "4p3" bes,4 bes, c | a,4. bes,8 c4 | d d ees | d4. c8 bes,4 | c bes, a, | bes,2. | }
+	royalanthemMelodyPartB = \transpose c c'' { \mark "5p2" f4 f f | f4. ees8 d4 | 
+	    \mark "5p3" ees ees ees | ees4. d8 c4 | }
+	royalanthemMelodyPartC = \transpose c c'' { d ees8[ d] c[ bes,] | d4. ees8 f4 | g8[ f16 ees] d4( c8.) bes,16 | bes,2. | }
+      ),
+      'halb'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
+      'h1'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
+      'h2'	=> '\new RhythmicStaff << \x \B \new Staff { <>-\ff \repeat unfold 2 { \S } } >>',
+      'h3'	=> '\new RhythmicStaff << \x \C \new Staff { <>-\ff \repeat unfold 3 { \S } } >>',
+      'h4'	=> '\new RhythmicStaff << \x \D \new Staff { <>-\ff \repeat unfold 4 { \S } } >>',
+      'h5'	=> '\new RhythmicStaff << \x \E \new Staff { <>-\ff \repeat unfold 5 { \S } } >>',
+      'h6'	=> '\new RhythmicStaff << \x \F \new Staff { <>-\ff \repeat unfold 6 { \S } } >>',
+      'h7'	=> '\new RhythmicStaff << \x { \F \A } \new Staff { <>-\ff \repeat unfold 7 { \S } } >>',
+      'h8'	=> '\new RhythmicStaff << \x { \F \B } \new Staff { <>-\ff \repeat unfold 8 { \S } } >>',
+      'h9'	=> '\new RhythmicStaff << \x { \F \C } \new Staff { <>-\ff \repeat unfold 9 { \S } } >>',
+      'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { <>-\ff \repeat unfold 10 { \S } } >>',
+      'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { <>-\ff \repeat unfold 11 { \S } } >>',
+      'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { <>-\ff \repeat unfold 12 { \S } } >>',
+      'posth'	=> q(\set Staff.instrumentName = #"Music Box" \royalanthemglobal
+	\transpose c c' { <>-\p \royalanthemMelodyPartA \royalanthemMelodyPartB \royalanthemMelodyPartC }),
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
@@ -2202,12 +2235,23 @@ sub determine_events ($$$$$$$$$) {
 			  $next_hour += !$next_half_quarter, $next_hour = ($next_hour - 1)%12 + 1) {
     my $prechime_length;
     if ($next_half_quarter%4 == 0) {
+      my $id = sprintf('%s%d', $next_half_quarter == 0? ('h', $next_hour): ('halb', $next_hour%12 + 1));
       push @it, {
 	't' => $t_next_half_quarter_chime,
-	'id' => sprintf('%s%d', $next_half_quarter == 0? ('h', $next_hour): ('halb', $next_hour%12 + 1)),
+	'id' => $id,
 	'type' => 'hour',
 	'comment' => ($next_half_quarter == 0? "$next_hour o'clock chime": "half past $next_hour chime (continental)"),
       };
+      # Some clock do the melody after the hour/half-hour strikes - push that as posth/posthalb
+      my $chime_length = determine_event_duration($id, undef);
+      if (defined $chime_length) {
+	push @it, {
+	  't' => $t_next_half_quarter_chime + $chime_length,
+	  'id' => "post$id",
+	  'type' => 'post-quarter',
+	  'comment' => ($it[$#it]=>{'comment'} =~ s/\bchime\b/postchime/sr),
+	};
+      }
     }
     if ($next_half_quarter == 0) {
       $prechime_length = determine_event_duration('q0', 25);
@@ -2229,9 +2273,10 @@ sub determine_events ($$$$$$$$$) {
     if ($t_next_half_quarter_chime - $prechime_length >= $t0) {
       if ($next_half_quarter % 2 == 0) {
 	my $next_quarter = $next_half_quarter/2;
+	my $id = "q$next_quarter";
 	push @it, {
 	  't' => $t_next_half_quarter_chime - $prechime_length,
-	  'id' => "q$next_quarter",
+	  'id' => $id,
 	  'type' => 'quarter',
 	  'comment' => "hour $next_hour quarter $next_quarter prechime",
 	  'anticipating' => $prechime_length,
@@ -2507,7 +2552,7 @@ sub connect_synth ($) {
     log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
     set_sink $sinks[0] if $immediate_p && @sinks;
     my @cmd = ('fluidsynth', '-g', $gain,
-			     '--midi-channels', '5',
+			     '--midi-channels', '6',
 			     ($immediate_p?
 				('-a', 'pulseaudio'):
 				('-a', 'file',
@@ -2529,21 +2574,25 @@ sub connect_synth ($) {
     my $wood = find_synth_instrument($instruments, 'Woodblock'); # 000-115
     my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
     my $beep = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
+    my $mbox = find_synth_instrument($instruments, 'Music Box', '000-010'); # fall back to standard number for music box
     ($gong_bank, $gong_inst) = @$gong;
     ($bell_bank, $bell_inst) = @$bell;
     ($wood_bank, $wood_inst) = @$wood;
     ($perc_bank, $perc_inst) = @$perc;
     ($beep_bank, $beep_inst) = @$beep;
+    my($mbox_bank, $mbox_inst) = @$mbox;
     $wood_note = (synth_instrument_name($instruments, $wood) =~ / Kit\b/ || $wood_bank == 128)? 31: $note_to_midi_number{'d#5'};
     send_midi_command "select 0 1 $gong_bank $gong_inst";
     send_midi_command "select 1 1 $bell_bank $bell_inst";
     send_midi_command "select 2 1 $wood_bank $wood_inst";
     send_midi_command "select 3 1 $perc_bank $perc_inst";
     send_midi_command "select 4 1 $beep_bank $beep_inst";
+    send_midi_command "select 5 1 $mbox_bank $mbox_inst";
     $instrument_name_to_channel_number{'Gong'} = 0;
     $instrument_name_to_channel_number{'Carillon'} = 1;
     $instrument_name_to_channel_number{'Woodblock'} = 2;
     $instrument_name_to_channel_number{'Sine Wave'} = 4;
+    $instrument_name_to_channel_number{'Music Box'} = 5;
 
     # Set reverb, based on advice from
     # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
@@ -2825,10 +2874,13 @@ sub do_event ($) {
   my $chime_id = determine_chime_id_for_event $id;
   if (!defined $chime_id) {
     log_debug sprintf "Event %s does not exist for the current mode/melody", $id if $debug;
-  } elsif ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
-    play_sound_file $output, 100;
   } else {
-    strike_tune @{$interpretation{$chime{$chime_id}}};
+    log_debug sprintf "Cache for event %s (%s) %s", $id, $output, (!-f $output? 'does not exist': $no_cache_p? 'exists but ignored by request': 'exists') if $debug;
+    if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
+      play_sound_file $output, 100;
+    } else {
+      strike_tune @{$interpretation{$chime{$chime_id}}};
+    }
   }
 }
 
