@@ -96,7 +96,7 @@ sub cvs ($) {
   }
   sub format_as_name ($) {
     my($s) = @_;
-    return $s =~ /^[-\.\w]+$/? "/$s": sprintf('%s cvs', format_scalar $s);
+    return $s =~ /^[-\.\w]+$/? "/$s": sprintf('%s cvn', cvs($s));
   }
   sub format_array_inner ($) {
     my($s) = @_;
@@ -2232,13 +2232,16 @@ sub determine_events ($$$$$$$$$) {
 
   # Western quarter-hour chime
   # Make absolutely sure we have a chime event, in case it gets thrown out because we're too close to the actual next quarter hour
+  # Actually, make absolutely sure we have four quarter-hour chime events because we are now throwing nonexistent events out
+  # and all quarter-hour chimes can get thrown out (e.g., sysline doesn't use q1 and q3, cuckoo mode doesn't use any of q1..q4)
+  # so we need to make sure the entire next hour is covered
   my $seconds_since_hour_change = 60*$min + $sec;
   my $t_next_half_quarter_chime = int($t0) + (450 - $seconds_since_hour_change%450) + $global_delay;
   my $next_half_quarter = (int($seconds_since_hour_change / 450) + 1)%8;
   my $next_hour = (($next_half_quarter? $hour: $hour + 1) + 11)%12 + 1;
   my $half_quarter_chime_events_pushed = 0;
   my $quarter_chime_events_pushed = 0;
-  for (my $i = 0; $i < 2; $i += 1,
+  for (my $i = 0;; $i += 1,
 			  $t_next_half_quarter_chime += 450,
 			  $next_half_quarter = ($next_half_quarter + 1)%8,
 			  $next_hour += !$next_half_quarter, $next_hour = ($next_hour - 1)%12 + 1) {
@@ -2258,7 +2261,7 @@ sub determine_events ($$$$$$$$$) {
 	  't' => $t_next_half_quarter_chime + $chime_length,
 	  'id' => "post$id",
 	  'type' => 'post-quarter',
-	  'comment' => ($it[$#it]=>{'comment'} =~ s/\bchime\b/postchime/sr),
+	  'comment' => ($it[$#it]->{'comment'} =~ s/(?=\bchime\b)/post/sr),
 	};
       }
     }
@@ -2302,7 +2305,7 @@ sub determine_events ($$$$$$$$$) {
 	$half_quarter_chime_events_pushed += 1;
       }
     }
-  last if $quarter_chime_events_pushed && $half_quarter_chime_events_pushed;
+  last if $quarter_chime_events_pushed > 3 && $half_quarter_chime_events_pushed > 3;
   }
 
   # Spring-and-Autumn-era proportional-deciday-based night watch chimes
@@ -3167,13 +3170,17 @@ sub do_main_loop () {
     no integer;
     my @event = determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size);
     my $next_event;
+    log_debug "Upcoming events determined to be " . Debug::cvs(\@event) if $debug;
     for my $event (@event) {
       # Don't trust floating point calculations - don't use t as key, use id instead
       $pending_events{+$event->{'id'}} = $event;
     }
     for my $id (keys %pending_events) {
       my $chime_id = determine_chime_id_for_event($id);
-      delete $pending_events{$id} unless defined $chime_id; # silently remove events that don't exist in the current mode/melody
+      if (!defined $chime_id) {
+	delete $pending_events{$id};
+	log_debug "Event $id discarded because it's not defined for $mode $melody" if $debug;
+      }
     }
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
