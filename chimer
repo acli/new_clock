@@ -3216,7 +3216,7 @@ sub do_main_loop () {
     # Debug message
     log_comment sprintf "%10.2f=%02d+%2.2f=%2.2f=%2.2f (Δt=%2.2f) > %s",
 	$t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
-	join(', ', map { sprintf '%.2f (%+.1f) %s', $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'} } @event) if $verbose_p;
+	join(', ', map { sprintf(($debug? '%.2f (%+.1f) %s': '%3$s%2$+.1f'), $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'}) } @event) if $verbose_p;
 
     my $t2 = current_time;
     $dt = $max_sleep_time if defined $max_sleep_time && $dt > $max_sleep_time;
