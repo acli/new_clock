@@ -923,7 +923,7 @@ sub interpret_melody ($) {
       $state->gsave();
       $state->repeat_stacklevel($state->stacklevel());
       $state->repeat_count($n);
-      $state->repeat_start(defined $voice? @$voice: 0);
+      $state->repeat_start(defined $voice? scalar @$voice: 0);
 
     } elsif ($s =~ s/^\x{7d}\s*//s) {		# braceright
       $typesettable_version .= $&;
@@ -1220,6 +1220,8 @@ sub define_chimes () {
       'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { <>-\ff \repeat unfold 11 { \S } } >>',
       'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { <>-\ff \repeat unfold 12 { \S } } >>',
     ),
+  # Experiment of adding melodies to cuckoo mode. Edelweiss would have been appropriate
+  # but it turns out Edelweiss cannot be used because it's not a real folk song
   define_event(MODE__CUCKOO, 'study1', 'cuckoo clock mode study 1', undef, '2021', undef, q(
 	x = { \tempo 1 = 35 }
 	S = \absolute { c'1 }
@@ -1229,13 +1231,21 @@ sub define_chimes () {
 	D = { #(play-recording "72699__benboncan__cuckoo" 0.05 7.15) }
 	E = { #(play-recording "72699__benboncan__cuckoo" 0.05 8.90) }
 	F = { #(play-recording "72699__benboncan__cuckoo" 0.05 10.65 24) }
-	% Source: Stevenson (n.d.)
-	royalanthemglobal = { \time 3/4 \key bes \major \tempo 4 = 72 }
-	% p.4 in the score is p.32 in the PDF
-	royalanthemMelodyPartA = \transpose c c'' { \mark "4p3" bes,4 bes, c | a,4. bes,8 c4 | d d ees | d4. c8 bes,4 | c bes, a, | bes,2. | }
-	royalanthemMelodyPartB = \transpose c c'' { \mark "5p2" f4 f f | f4. ees8 d4 | 
-	    \mark "5p3" ees ees ees | ees4. d8 c4 | }
-	royalanthemMelodyPartC = \transpose c c'' { d ees8[ d] c[ bes,] | d4. ees8 f4 | g8[ f16 ees] d4( c8.) bes,16 | bes,2. | }
+	% Source: https://en.wikipedia.org/wiki/Der_Mond_ist_aufgegangen
+	mond = \transpose c c' { \tempo 4 = 120
+	  \key f \major \time 4/4
+	  r1 | r2.
+	  f4 | g f bes a | g2 f4 a | a a d' c' | bes2 a4
+	  a | a a bes a | g2. f4 | g f bes a | g2 f4
+	  a | a a d' c' | bes2 a4 a | a a bes a | g g f
+	}
+	% Source: https://en.wikipedia.org/wiki/Die_Gedanken_sind_frei
+	gedanken = \transpose c c' { \tempo 4 = 120
+	  \key c \major \time 3/4
+	  r1 | r2
+	  \repeat volta 2 { g8 g | c'4 c' e'8[c'] | g2 g4 | f d g | e c } c' | b d' d' |
+	  c' e' e' | b d' d' | c' e' c' | a a c8[a] | g2 g8 e'8 | e'[d'] c' b | c2
+	}
       ),
       'halb'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
       'h1'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
@@ -1250,8 +1260,7 @@ sub define_chimes () {
       'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { <>-\ff \repeat unfold 10 { \S } } >>',
       'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { <>-\ff \repeat unfold 11 { \S } } >>',
       'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { <>-\ff \repeat unfold 12 { \S } } >>',
-      'posth'	=> q(\set Staff.instrumentName = #"Music Box" \royalanthemglobal
-	\transpose c c' { <>-\p \royalanthemMelodyPartA \royalanthemMelodyPartB \royalanthemMelodyPartC }),
+      'posth'	=> q(\set Staff.instrumentName = #"Music Box" \transpose c c'' { <>-\pp \gedanken }),
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
@@ -2574,7 +2583,7 @@ sub connect_synth ($) {
     my $wood = find_synth_instrument($instruments, 'Woodblock'); # 000-115
     my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
     my $beep = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
-    my $mbox = find_synth_instrument($instruments, 'Music Box', '000-010'); # fall back to standard number for music box
+    my $mbox = find_synth_instrument($instruments, 'Music Box', '000-010');	# XXX this doesn't sound right
     ($gong_bank, $gong_inst) = @$gong;
     ($bell_bank, $bell_inst) = @$bell;
     ($wood_bank, $wood_inst) = @$wood;
@@ -3021,6 +3030,18 @@ sub do_setup () {
 	if $verbose_p || $debug;
 
     set_test_params if $test_p;
+    if (defined $melody) {
+      my $melody_exists_p = 0;
+      for my $chime_id (enumerate_defined_events) {
+	my $det = parse_chime_id $chime_id;
+	$melody_exists_p = 1 if defined $det->{'melody'};
+      last if $melody_exists_p;
+      }
+      if (!$melody_exists_p) {
+	log_warning "There is no melody \"$melody\" for mode \"$mode\", melody will be ignored";
+	$melody = undef;
+      }
+    }
     define_chimes;
     if ($method eq METHOD__SYNTH && $no_cache_p) {
       connect_synth 'test';
@@ -3148,6 +3169,10 @@ sub do_main_loop () {
     for my $event (@event) {
       # Don't trust floating point calculations - don't use t as key, use id instead
       $pending_events{+$event->{'id'}} = $event;
+    }
+    for my $id (keys %pending_events) {
+      my $chime_id = determine_chime_id_for_event($id);
+      delete $pending_events{$id} unless defined $chime_id; # silently remove events that don't exist in the current mode/melody
     }
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
