@@ -3030,9 +3030,11 @@ sub do_setup () {
 	if $verbose_p || $debug;
 
     set_test_params if $test_p;
+    define_chimes;
     if (defined $melody) {
       my $melody_exists_p = 0;
-      for my $chime_id (enumerate_defined_events) {
+      for my $event_id (enumerate_defined_events) {
+	my $chime_id = determine_chime_id_for_event($event_id);
 	my $det = parse_chime_id $chime_id;
 	$melody_exists_p = 1 if defined $det->{'melody'};
       last if $melody_exists_p;
@@ -3042,7 +3044,6 @@ sub do_setup () {
 	$melody = undef;
       }
     }
-    define_chimes;
     if ($method eq METHOD__SYNTH && $no_cache_p) {
       connect_synth 'test';
     }
