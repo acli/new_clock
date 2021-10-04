@@ -328,4 +328,4 @@ references:
   date-accessed: 2021-09-28
   url: http://www.towerbells.org/data/GBGreatBells.html
 
-# This file was generated from config/CITATION.cff.in, doc/CHIMES.md, doc/Night_watches.md, doc/sysline.md, doc/ffmpeg.md, doc/CREDITS.md, README.md, and chimer
+# This file was generated from config/CITATION.cff.in, README.md, chimer, doc/CHIMES.md, doc/CREDITS.md, doc/EVENTS.md, doc/Night_watches.md, doc/ffmpeg.md, and doc/sysline.md

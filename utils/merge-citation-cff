@@ -529,7 +529,7 @@ sub emit_file_header () {
 
 sub emit_file_footer ($$) {
   my($template_input, $credits_input) = @_;
-  printf "\n# This file was generated from %s\n", format_list($template_input, @$credits_input);
+  printf "\n# This file was generated from %s\n", format_list($template_input, sort @$credits_input);
 }
 
 
