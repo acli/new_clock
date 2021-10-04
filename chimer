@@ -1231,21 +1231,29 @@ sub define_chimes () {
 	D = { #(play-recording "72699__benboncan__cuckoo" 0.05 7.15) }
 	E = { #(play-recording "72699__benboncan__cuckoo" 0.05 8.90) }
 	F = { #(play-recording "72699__benboncan__cuckoo" 0.05 10.65 24) }
-	% Source: https://en.wikipedia.org/wiki/Der_Mond_ist_aufgegangen
-	mond = \transpose c c' { \tempo 4 = 120
-	  \key f \major \time 4/4
-	  r1 | r2.
-	  f4 | g f bes a | g2 f4 a | a a d' c' | bes2 a4
-	  a | a a bes a | g2. f4 | g f bes a | g2 f4
-	  a | a a d' c' | bes2 a4 a | a a bes a | g g f
-	}
-	% Source: https://en.wikipedia.org/wiki/Die_Gedanken_sind_frei
-	gedanken = \transpose c c' { \tempo 4 = 120
-	  \key c \major \time 3/4
-	  r1 | r2
-	  \repeat volta 2 { g8 g | c'4 c' e'8[c'] | g2 g4 | f d g | e c } c' | b d' d' |
-	  c' e' e' | b d' d' | c' e' c' | a a c8[a] | g2 g8 e'8 | e'[d'] c' b | c2
-	}
+	% Source: https://www.volksliederarchiv.de/des-morgens-in-der-fruehe/
+%	frueheglobal = { \key e \major \time 2/4 }
+%	fruehemelody = \transpose c c' { \partial 8 \repeat volta 2 { e8 | e8. fis16 e8 c' | a4 e8 } c'8 |
+%	  \mark "110p2" b8[e'] b[e'] | c'[a c'] c' | b4 dis' | e' e'8 |
+%	  \mark "110p3" \repeat volta 2 { d'8 b fis gis | a[c'] e c' |
+%	  \mark "110p4" 
+%	}
+	% Source: https://www.volksliederarchiv.de/kein-schoener-land-in-dieser-zeit/ (night)
+	keinschoenerlandindieserzeitglobal = { \key a \major \time 3/4 }
+	keinschoenerlandindieserzeitmelody = \transpose c c' { r2. | r4. % \partial 4.
+	  <>-\mp
+	  e8 e e | a4 cis' b8 a |
+	  b4 r8 e e e | a4 cis' b8 a |
+	  b4 r8 cis' a b | cis'8[e'] d' cis' b a |
+	  b8[d'] cis'8 b a gis | a4 r8 cis' a b |
+	  cis'8[e'] d' cis' b a | b[d'] cis' b a gis | a4 r8 }
+	keinschoenerlandindieserzeitharmony = \transpose c c' { r2. | r4. % \partial 4.
+	  e8 e e | cis4 a gis8 fis |
+	  gis4 r8 e e e | cis4 a gis8 fis |
+	  gis4 r8 a a gis | a8[cis'] b a gis a |
+	  gis8[b] a gis a e | cis4 r8 a a gis |
+	  a8[cis'] b a gis a | gis8[b] a e cis e | cis4 r8 }
+	% Source: https://www.volksliederarchiv.de/ich-stund-an-einem-morgen/
       ),
       'halb'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
       'h1'	=> '\new RhythmicStaff << \x \A \new Staff { <>-\ff \S } >>',
@@ -1260,7 +1268,9 @@ sub define_chimes () {
       'h10'	=> '\new RhythmicStaff << \x { \F \D } \new Staff { <>-\ff \repeat unfold 10 { \S } } >>',
       'h11'	=> '\new RhythmicStaff << \x { \F \E } \new Staff { <>-\ff \repeat unfold 11 { \S } } >>',
       'h12'	=> '\new RhythmicStaff << \x { \F \F } \new Staff { <>-\ff \repeat unfold 12 { \S } } >>',
-      'posth'	=> q(\set Staff.instrumentName = #"Music Box" \transpose c c'' { <>-\pp \gedanken }),
+      'posth'	=> q(\keinschoenerlandindieserzeitglobal %\set Staff.instrumentName = #"Music Box"
+	  << \voiceOne \keinschoenerlandindieserzeitmelody
+	  \\\\ \voiceTwo \keinschoenerlandindieserzeitharmony >>),
     ),
   define_event(MODE__CARILLON, MELODY__ABBEY, 'Abbey chimes, Fort Augustus, NB', undef, '1880', 'Starmer, 1907, p. 13', q(
 	x = { \tempo 1 = 68 }
