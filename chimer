@@ -686,6 +686,7 @@ sub interpret_melody ($) {
   state $rest_re = sprintf('(?:r)');
   state $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
   state $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));				# NOTE: 3 captures: base pitch, commas, apostrophes
+  state $pitch_re_no_captures = ($pitch_re =~ s/\x28(?!\?)/\x28?:/sgr);
   state $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
   state $end_re = q((?=[\s\x{7d}\x{5e}~()\[\]]|$));				# space or braceright or caret or tilde or ()[] or eof
 
@@ -867,6 +868,9 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\\mark\s+(?:\\default|#\d+|"[^""]+")\s+//s) {	# ignore \mark
       $typesettable_version .= $&;
 
+    } elsif ($s =~ s/^\\set\s+Score\.markFormatter\s+=\s+#[-a-z]+\s+//s) {	# ignore set mark formatter
+      $typesettable_version .= $&;
+
     } elsif ($s =~ s/^\\textLengthOn\s+//s) {				# ignore \textLengthOn
       $typesettable_version .= $&;
 
@@ -973,7 +977,9 @@ sub interpret_melody ($) {
       ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       $lhs = 'r';
 
-    } elsif ($s =~ s/^($pitch_re)(?:$duration_re)?$end_re//s) {
+    } elsif ($s =~ s/^($pitch_re)(?:$duration_re)?$end_re//s
+	  || $s =~ s/^<\s*($pitch_re)(?:\s+$pitch_re_no_captures)+\s*>(?:$duration_re)?$end_re//s) {	# discard lower notes in chords
+
       $typesettable_version .= $&;
       my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
 	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
