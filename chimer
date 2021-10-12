@@ -1478,14 +1478,14 @@ sub define_chimes () {
       'h' => '<>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
-	x = { \tempo 4 = 120 }
+	x = { \tempo 4 = 240 }
 	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
 	B = \relative e' { e'4 cis a fis dis' b gis e }
 	C = \relative e' { e'4 dis a gis cis b fis e }
 	D = \relative e' { fis4 a cis e dis b gis e }
 	E = \relative e' { e'4 dis cis b a gis fis e }
-	S = \relative e' { e,1 }
-	F = \relative e' { r1 }
+	S = \relative e' { e,\longa }
+	F = \relative e' { r\longa }
       ),
       'q1' => '\x <>-\ff \E',
       'q2' => '\x <>-\ff \A \B',
