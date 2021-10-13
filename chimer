@@ -1478,7 +1478,7 @@ sub define_chimes () {
       'h' => '<>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
-	x = { \tempo 4 = 240 }
+	x = { \tempo 4 = 240 \key e \major }
 	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
 	B = \relative e' { e'4 cis a fis dis' b gis e }
 	C = \relative e' { e'4 dis a gis cis b fis e }
@@ -1488,9 +1488,9 @@ sub define_chimes () {
 	F = \relative e' { r\longa }
       ),
       'q1' => '\x <>-\f \E',
-      'q2' => '\x <>-\f \A \B',
-      'q3' => '\x <>-\f \C \D \E',
-      'q0' => '\x <>-\f \A \B \C \D \F',
+      'q2' => '\x <>-\f \tuplet 17/16 { \A r \B }',
+      'q3' => '\x <>-\f \tuplet 26/24 { \C r \D r \E }',
+      'q0' => '\x <>-\f \tuplet 35/32 { \A r \B r \C r \D } \F',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
