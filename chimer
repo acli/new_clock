@@ -1487,10 +1487,10 @@ sub define_chimes () {
 	S = \relative e' { e,\longa }
 	F = \relative e' { r\longa }
       ),
-      'q1' => '\x <>-\ff \E',
-      'q2' => '\x <>-\ff \A \B',
-      'q3' => '\x <>-\ff \C \D \E',
-      'q0' => '\x <>-\ff \A \B \C \D \F',
+      'q1' => '\x <>-\f \E',
+      'q2' => '\x <>-\f \A \B',
+      'q3' => '\x <>-\f \C \D \E',
+      'q0' => '\x <>-\f \A \B \C \D \F',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
