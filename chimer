@@ -688,7 +688,7 @@ sub interpret_melody ($) {
   state $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));				# NOTE: 3 captures: base pitch, commas, apostrophes
   state $pitch_re_no_captures = ($pitch_re =~ s/\x28(?!\?)/\x28?:/sgr);
   state $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
-  state $end_re = q((?=[\s\x{7d}\x{5e}~()\[\]]|$));				# space or braceright or caret or tilde or ()[] or eof
+  state $end_re = q((?=[-\s\x{7d}\x{5e}~()\[\]]|$));				# - or space or braceright or caret or tilde or ()[] or eof
 
   my $state = new Interpret_Melody_State;
   my($last_pitch, $percussive_instrument);
@@ -949,6 +949,9 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^\~\s*//s) {		# tie
       $typesettable_version .= $&;
       $tie_p = 1;
+    } elsif ($s =~ s/^(?:\\accent\b|->)//s) {
+      $typesettable_version .= $&;
+      $directive = 'accent';
     } elsif ($s =~ s/^\x{5e}\s*\\(fermata)\b//s) {	# pause
       $typesettable_version .= $&;
       $directive = $1;
@@ -1057,6 +1060,14 @@ sub interpret_melody ($) {
       my $verb = ref $directive? $directive->[0]: $directive;
       if (!defined $note) {
 	log_error "Directive $verb ignored because there is no note before it";
+      } elsif ($verb eq 'accent') {
+	my $volume = $voice->[+scalar @$voice - 1]->[2];
+	if (defined $volume) {
+	  no integer;
+	  $volume *= 1.44;
+	  $volume = 127 if $volume > 127;
+	  $voice->[+scalar @$voice - 1]->[2] = $volume;
+	}
       } elsif ($verb eq 'fermata') {
 	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
       } elsif ($verb eq 'laisserVibrer') {
@@ -1479,18 +1490,18 @@ sub define_chimes () {
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
 	x = { \tempo 4 = 240 \key e \major }
-	A = \relative e' { e'4 fis, dis' gis, cis a b e, }
-	B = \relative e' { e'4 cis a fis dis' b gis e }
-	C = \relative e' { e'4 dis a gis cis b fis e }
-	D = \relative e' { fis4 a cis e dis b gis e }
-	E = \relative e' { e'4 dis cis b a gis fis e }
+	A = \relative e' { e'4-> fis, dis' gis, cis-> a b e, }
+	B = \relative e' { e'4-> cis a fis dis'-> b gis e }
+	C = \relative e' { e'4-> dis a gis cis-> b fis e }
+	D = \relative e' { fis4-> a cis e dis-> b gis e }
+	E = \relative e' { e'4-> dis cis b a-> gis fis e }
 	S = \relative e' { e,\longa }
 	F = \relative e' { r\longa }
       ),
-      'q1' => '\x <>-\f \E',
-      'q2' => '\x <>-\f \tuplet 17/16 { \A r \B }',
-      'q3' => '\x <>-\f \tuplet 26/24 { \C r \D r \E }',
-      'q0' => '\x <>-\f \tuplet 35/32 { \A r \B r \C r \D } \F',
+      'q1' => '\x \E',
+      'q2' => '\x \A \B',
+      'q3' => '\x \C \D \E',
+      'q0' => '\x \A \B \C \D \F',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
