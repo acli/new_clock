@@ -1489,7 +1489,7 @@ sub define_chimes () {
       'h' => '<>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
-	x = { \tempo 4 = 240 \key e \major }
+	x = { \tempo 4 = 196 \key e \major }
 	A = \relative e' { e'4-> fis, dis' gis, cis-> a b e, }
 	B = \relative e' { e'4-> cis a fis dis'-> b gis e }
 	C = \relative e' { e'4-> dis a gis cis-> b fis e }
@@ -1647,6 +1647,43 @@ sub define_chimes () {
       'e3' => q(\x \malinesii),
       'e5' => q(\x \malinesiii),
       'e7' => q(\x \malinesiv),
+    ),
+  define_event(MODE__CARILLON, 'whittington8study', 'Whittington chimes on eight bells (chord study)', '2021', 'arr. Ambrose', 'Wikipedia', q(
+	x = { \tempo 4 = 196 \key e \major }
+	partA = \relative e' { e'4 fis, dis' gis, cis a b e, }
+	partB = \relative e' { e'4 cis a fis dis' b gis e }
+	partC = \relative e' { e'4 dis a gis cis b fis e }
+	partD = \relative e' { fis4 a cis e dis b gis e }
+	partE = \relative e' { e'4 dis cis b a gis fis e }
+	A = { \mark "q1" \partE }
+	B = { \mark "q2" \partA \partB }
+	C = { \mark "q3" \partC \partD \partE }
+	D = { \mark "q4" \partA \partB \partC \partD }
+	S = \relative e' { e1 }
+
+	Aa = \transpose c e	{ c'2 d' e'1 }
+	Ba = \transpose c e	{ c'2 b a g | c'1 e' }
+	Ca = \transpose c e	{ c'2 d' e1 | d'2 e' d'1 | c'2 d' b1 }
+	Da = \transpose c e	{ c'1 d'2 b | e'1 d'2 b | c'1 e'2 d' | a1 g2 a }
+	Sa = \transpose c e	{  }
+
+	At = \transpose c e	{ a2 b g1 }
+	Bt = \transpose c e	{ a2 g f e | a1 g }
+	Ct = \transpose c e	{ a2 b c1 | b2 c' g1 | a2 b e1 }
+	Dt = \transpose c e	{ a1 b2 g | c'1 b2 g | a1 c'2 b | f1 d2 e }
+	St = \transpose c e	{ g,2. r4 }
+
+	Ab = \transpose c e	{ f2 g c1 }
+	Bb = \transpose c e	{ f2 e d c | f1 c }
+	Cb = \transpose c e	{ f2 g a1 | g2 a b,1 | f2 g c1 }
+	Db = \transpose c e	{ f1 g2 e | a1 g2 e | e1 a2 g | d1 b,2 c }
+	Sb = \transpose c e	{ c,2. r4 }
+      ),
+      'q1' => '\x << \A \\\\ \Aa \\\\ \At \\\\ \Ab >>',
+      'q2' => '\x << \B \\\\ \Ba \\\\ \Bt \\\\ \Bb >>',
+      'q3' => '\x << \C \\\\ \Ca \\\\ \Ct \\\\ \Cb >>',
+      'q4' => '\x << \D \\\\ \Da \\\\ \Dt \\\\ \Db >>',
+      'h' => '\x r1 <>-\ff \repeat volta %I { << \S \\\\ \Sa \\\\ \St \\\\ \Sb >> }',
     ),
   define_event(MODE__CARILLON, {
 	'study2' => { 'title' => 'Study 2',
@@ -2671,8 +2708,10 @@ sub generate_sound_clip_for_event ($) {
     connect_synth $dummy_id;
     my %leftovers = strike_tune_real(1, @{$interpretation{$chime{+determine_chime_id_for_event($event_id)}}});
     disconnect_synth;
+    my $ok = 0;
     if (!%leftovers) {
-      rename $temp, $output or log_error "$output: $!";
+      $ok = rename $temp, $output;
+      log_error "$output: $!" unless $ok;
     } else {										# see ffmpeg.md for comments
       my @cmd = ('ffmpeg', '-nostdin', '-hide_banner', '-y');				# global options
       push @cmd, ('-loglevel', 0) unless $debug;
@@ -2682,8 +2721,10 @@ sub generate_sound_clip_for_event ($) {
       log_command @cmd if $debug;
       local $SIG{'CHLD'} = 'DEFAULT'; # need this to check exit status
       my $st = system { $cmd[0] } @cmd;
-      log_error "$output: $cmd[0] returned status $st" if $st;
+      $ok = !$st;
+      log_error "$output: $cmd[0] returned status $st" if !$ok;
     }
+    log_info "Audio for event $event_id generated" if $ok;
     unlink $temp if -f $temp;
   }
 }
