@@ -76,8 +76,11 @@ but it’s safest to use the existing melodies in the code as a guide.
 
 Most percussive notes are understood and are mapped to the corresponding MIDI percussion instrument.
 
-Ideally, the code will later be modified so that the same notation will be used in *samples* mode
-so that there can be consistency.
+One thing that absolutely does not work is polyphony inside a repeat.
+In real Lilypond, you can expect things like `\repeat volta 12 { c1 \\ g, \\ e \\ c }` to work,
+but writing `\repeat volta %I { c1 \\\\ g, \\\\ e \\\\ c }` for hour strikes will confuse the script
+and give you results that are completely wrong.
+
 
 Chime synthesis
 ===============

@@ -655,7 +655,7 @@ sub interpret_absolute_pitch ($) { # interpret c' as c4
   if ($s =~ /^(\w+)(?:(,*)|('*))$/) {
     $it = $ly_notes{$1} + 12*(3 - length($2) + length($3));
   } else {
-    die "Can't interpret absolute pitch \"$s\"";
+    die "Can't interpret absolute pitch " . Debug::cvs($s);
   }
   return $it;
 }
@@ -952,6 +952,9 @@ sub interpret_melody ($) {
     } elsif ($s =~ s/^(?:\\accent\b|->)//s) {
       $typesettable_version .= $&;
       $directive = 'accent';
+    } elsif ($s =~ s/^(?:\\staccato\b|-\.)//s) {
+      $typesettable_version .= $&;
+      $directive = 'staccato';
     } elsif ($s =~ s/^\x{5e}\s*\\(fermata)\b//s) {	# pause
       $typesettable_version .= $&;
       $directive = $1;
@@ -980,9 +983,10 @@ sub interpret_melody ($) {
       ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
       $lhs = 'r';
 
-    } elsif ($s =~ s/^($pitch_re)(?:$duration_re)?$end_re//s
+    } elsif ($s =~ s/^(?!$end_re)($pitch_re)(?:$duration_re)?$end_re//s		# make sure SOMETHING is matched ($pitch_re can match nothing)
 	  || $s =~ s/^<\s*($pitch_re)(?:\s+$pitch_re_no_captures)+\s*>(?:$duration_re)?$end_re//s) {	# discard lower notes in chords
 
+      my $what = $&;
       $typesettable_version .= $&;
       my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
 	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
@@ -1025,7 +1029,7 @@ sub interpret_melody ($) {
 
     } elsif ($s =~ s/^(\S+)//s) {
       $typesettable_version .= $&;
-      log_debug "Unknown expression \"$1\" discarded";
+      log_debug sprintf('Unknown expression "%s" near "%s" discarded', $1, $');
     } else {
       $typesettable_version .= $&;
       log_debug "Internal error: \"else\" case reached in interpret_melody, s=($s)";
@@ -1068,6 +1072,10 @@ sub interpret_melody ($) {
 	  $volume = 127 if $volume > 127;
 	  $voice->[+scalar @$voice - 1]->[2] = $volume;
 	}
+      } elsif ($verb eq 'staccato') {
+	my $node = $voice->[+scalar @$voice - 1];
+	no integer;
+	$node->[4]->{'actual-duration'} = $node->[1]/4;
       } elsif ($verb eq 'fermata') {
 	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
       } elsif ($verb eq 'laisserVibrer') {
@@ -1375,11 +1383,11 @@ sub define_chimes () {
     ),
   define_event(MODE__CARILLON, MELODY__NEWCOLLEGE, 'New College chimes', undef, undef, 'Pearce, 1903; "Great Bells of the British Isles" (n.d.)', q(
 	x = { \key d \major \omit Staff.TimeSignature }
-	A = \relative c' { \x <>-\ff b'4 e, }
-	B = \relative c' { \x <>-\ff d4 e b' a }
-	C = \relative c' { \x <>-\ff b'4 g e a fis d }
-	D = \relative c' { \x <>-\ff d4 fis e g b cis a d^\fermata }	% fermata inserted
-	S = \relative c' { <>-\fff r2 a2 }			% durations guessed
+	A = \relative c' { b'4 e, }
+	B = \relative c' { d4 e b' a }
+	C = \relative c' { b'4 g e a fis d }
+	D = \relative c' { d4 fis e g b cis a d r1}	% rest inserted
+	S = \relative c' { a1 }				% durations guessed
       ),
       'q1' => '\x <>-\ff \A',
       'q2' => '\x <>-\ff \B',
@@ -1389,11 +1397,11 @@ sub define_chimes () {
     ),
   define_event(MODE__CARILLON, MELODY__NORWICH, 'Norwich Cathedral chimes', 'E. S. Medley', '1876', 'Starmer, 1907, p. 11', q(
 	x = { \tempo 1 = 75 }
-	A = \relative c' { <>-\ff a'1 g f e d }
-	B = \relative c' { <>-\ff d1 e a g f  | g d f e d }
-	C = \relative c' { <>-\ff d1 e f a d, | f a g e f | d e g f d }
-	D = \relative c' { <>-\ff a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
-	S = \relative c' { <>-\fff r1. d1 }			% rest inserted to make it sound less rushed
+	A = \relative c' { a'1 g f e d }
+	B = \relative c' { d1 e a g f  | g d f e d }
+	C = \relative c' { d1 e f a d, | f a g e f | d e g f d }
+	D = \relative c' { a'1 e f g d | e f g e a | d, a' g f e | g f e d a' | r }
+	S = \relative c' { r1. d1 }			% rest inserted to make it sound less rushed
       ),
       'q1' => '\x <>-\ff \A',
       'q2' => '\x <>-\ff \B',
@@ -2851,7 +2859,9 @@ sub strike_tune_real ($@) {
       my($note, $time, $velocity, $instrument, $flags) = @$spec;
       $velocity = 127 unless defined $velocity; # NOTE backward compatibility
       my $t_i = current_time;
+      my $actual_time = $flags->{'actual-duration'};
       my $note_length = $time * $beat_length;
+      my $effective_note_length = defined $actual_time? $actual_time * $beat_length: $note_length;
       if (defined $flags && defined $flags->{'directive'}) {
 	push @midi_commands, [$elapsed, $flags->{'directive'}, $velocity];
       } elsif (defined $percussion_note_to_midi_number{$note}) {
@@ -2861,9 +2871,9 @@ sub strike_tune_real ($@) {
       } elsif (defined $note_to_midi_number{$note}) {
 	my $channel = (defined $instrument_name_to_channel_number{$instrument})? $instrument_name_to_channel_number{$instrument}: 1;
 	my $note_number = $note_to_midi_number{$note};
-	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave'; # FIXME
+	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave' || defined $actual_time; # FIXME
 	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
-	push @midi_commands, [$elapsed + $note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
+	push @midi_commands, [$elapsed + $effective_note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       } elsif ($note ne 'r') {
 	log_debug "strike_tune: $note: \"else\" case reached";
       }
@@ -3093,8 +3103,20 @@ EOF
 
 ###############################################################################
 
+sub set_die_handler () {
+  $SIG{__DIE__} = sub {
+      my($sig) = @_;
+      for (my $i = 0; caller $i; $i += 1) {
+	printf STDERR "\n%s%d: %s", (' ' x $i), $i, join(' ', caller $i);
+      }
+      disconnect_synth;
+      die "\n$sig";
+    };
+}
+
 sub do_setup () {
   state $setup_done_p = 0;
+  set_die_handler;		# Force __DIE__ handler to be re-set here because GetOptions will force it to DEFAULT, which is wrong
   if (!$setup_done_p) {
     log_info sprintf "chimer booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
 	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
@@ -3320,15 +3342,7 @@ sub do_main_loop () {
 }
 
 if (!caller) {
-  $SIG{__DIE__} = sub { # XXX This does not actually work
-      my($sig) = @_;
-      for (my $i = 0; caller $i; $i += 1) {
-	printf STDERR "\n%s%d: %s", (' ' x $i), $i, join(' ', caller $i);
-      }
-      disconnect_synth;
-      die "\n$sig";
-    };
-
+  set_die_handler;
   parse_command_line_arguments;
   do_setup;
   if ($create_cache_p) {
