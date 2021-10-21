@@ -444,14 +444,17 @@ sub gensym () {
 sub log_internal ($$;$$$) {
   my($flag, $s, $prefix, $newline_p, $keep_p) = @_;
   state $last_logged;
+  my $daemon_p = !-t STDERR;
   $newline_p = 1 if $s =~ s/^\n+//s;
   $newline_p = 0 unless defined $last_logged;
   $newline_p = 1 if defined $last_logged && $last_logged->{'keep'};
+  $newline_p = 0 if $daemon_p;
+  my $cleol_p = !$daemon_p && !$newline_p;
   $keep_p = 1 if $debug;
   $prefix .= ': ' if defined $prefix && $prefix =~ /\S/s && $prefix !~ /: $/s;
   chomp $s;
   printf STDERR "%s%10.2f%s\t%s%s%s%s", ($newline_p? "\n": ''),
-      current_time, $flag, $prefix, $s, ($newline_p? '': "\033[K"), "\r";
+      current_time, $flag, $prefix, $s, ($cleol_p? "\033[K": ''), ($daemon_p? "\n": "\r");
 
   $last_logged->{'keep'} = $keep_p + 0;
 }
@@ -3120,7 +3123,7 @@ sub do_setup () {
   if (!$setup_done_p) {
     log_info sprintf "chimer booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
 	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
-	if $verbose_p || $debug;
+	if $verbose_p || $debug || !-t STDERR;
 
     set_test_params if $test_p;
     define_chimes;
