@@ -2772,10 +2772,15 @@ sub play_sound_file_real ($;$$$) {
     #push @cmd, ('--volume', 65536*$volume / 100) if $volume != 100;
     $close_stdin_p = 0; # otherwise paplay craps out
   } else {
-    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal', 'no', '--volume', int($volume));
+    # Ubuntu's mpv accepts --input-terminal no but the Pi only accepts --input-terminal=no (otherwise it thinks "no" is an input file)
+    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal=no', '--volume', int($volume));
     push @cmd, ('--start', $start) if defined $start;
     push @cmd, ('--end', $end) if defined $end;
-    push @cmd, ("--ao=pulse::$sink") if $sink;
+
+    # Ubuntu's mpv accepts --ao=pulse::$sink but the Pi says ao doesn't accept sub-options
+    # The Pi's mpv is newer so why this happens is a mystery
+    push @cmd, ("--ao=pulse") if $sink;
+    set_sink $sink;
   }
   push @cmd, $input;
   log_command @cmd;# if $debug;
