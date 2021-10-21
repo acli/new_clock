@@ -2790,7 +2790,7 @@ sub play_sound_file_real ($;$$$) {
     no integer;
     my $sink = get_sink;
     my $dt = $config->{$sink}->{'delay'}->[0] + 0 if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
-    log_debug sprintf "delay %s (interpreted as %f) for %s", $config->{$sink}->{'delay'}->[0], $dt, $sink;#XXXZZ
+    log_debug sprintf "delay %s (interpreted as %f) for %s", $config->{$sink}->{'delay'}->[0], $dt, $sink if $debug || ($verbose_p && $dt);
     Time::HiRes::sleep $dt if defined $dt && $dt > 0;
     POSIX::close(0) if $close_stdin_p;
     exec { $cmd[0] } @cmd;
