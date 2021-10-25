@@ -2990,9 +2990,11 @@ sub update_latency_for_event ($$) {
   if (defined $id && defined $latency) {
     if (defined $expected_latency{$id}) {
       no integer;
-      my $average = ($expected_latency{$id} + $latency)/2;
+      my($w_old, $w_new) = $expected_latency{$id} < $latency? (1, 3): (3, 1);	# privilege larger values
+      my $average = ($w_old * $expected_latency{$id} + $w_new * $latency)/($w_old + $w_new);
+      log_debug sprintf 'Latency for event %s measured at %g (was %g), estimate updated to weighted average of %g',
+	  $id, $latency, $expected_latency{$id}, $average;
       $expected_latency{$id} = $average;
-      log_debug sprintf 'Latency for event %s measured at %g, estimate averaged to %g', $id, $latency, $average;
     } else {
       $expected_latency{$id} = $latency;
       log_debug sprintf 'Latency for event %s initialized to measured value of %g', $id, $latency;
