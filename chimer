@@ -2458,6 +2458,35 @@ sub in_semi_closed_range ($$) {
   return $it;
 }
 
+sub get_cpu_count () {
+  my $it;
+  my $input = '/proc/cpuinfo';
+  if (open(INPUT, '<', $input)) {
+    for (;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      $it += 1 if $s =~ /^processor\s*:/s;	# don't grep for "cpu cores" because some archs don't do that
+    }
+    close INPUT;
+  } else {
+    log_error "get_cpu_count: $input: $!\n";
+  }
+  return $it;
+}
+
+sub get_loadavg () {
+  my $it;
+  my $input = '/proc/loadavg';
+  if (open(INPUT, '<', $input)) {
+    my $s = scalar <INPUT>;
+    $it = $1 if $s =~ /^(\d+\.\d+)\s/s;
+    close INPUT;
+  } else {
+    log_error "get_loadavg: $input: $!\n";
+  }
+  return $it;
+}
+
 sub get_sink () {
   return $ENV{'PULSE_SINK'};
 }
@@ -2784,7 +2813,7 @@ sub play_sound_file_real ($;$$$) {
     $expected_output = 'Playing: ';
   }
   push @cmd, $input;
-  log_command @cmd;# if $debug;
+  log_command @cmd if $verbose_p || $debug;
   my $fh = gensym;
   no strict 'refs';
   my $h = $measure_latency_p? open($fh, '-|'): fork;
@@ -3296,6 +3325,19 @@ sub parse_command_line_arguments () {
   }
 }
 
+sub adjust_latency_estimate ($) {
+  my $latency;
+  my $loadavg = get_loadavg;
+  my $cpucount = get_cpu_count;
+  if (defined $loadavg) {
+    no integer;
+    my $overage = $loadavg - $cpucount;
+    my $k = 0.2;
+    $latency **= log($overage + $k) if $overage > 1;	# XXX this is just a HACK
+  }
+  return $latency;
+}
+
 sub do_main_loop () {
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = current_time;
@@ -3409,8 +3451,9 @@ sub do_main_loop () {
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
+      my $effective_latency = adjust_latency_estimate $expected_latency{$id} if defined $expected_latency{$id};
       $t += $e->{'delay'} if defined $e->{'delay'};
-      $t -= $expected_latency{$id} if defined $expected_latency{$id};
+      $t -= $effective_latency if defined $effective_latency;
       if ($now < $t) {
 	;
       } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
@@ -3418,7 +3461,8 @@ sub do_main_loop () {
 	delete $pending_events{$id};
       } else {
 	my $dt = $now - $t;
-	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)\n", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt));
+	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)%s", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt)),
+	  (defined $effective_latency? sprintf(' (%.2f latency assumed)', $effective_latency): '');
 	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	do_event $id;
 	$countdown = 0; # force a re-countdown
