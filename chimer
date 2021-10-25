@@ -2992,10 +2992,10 @@ sub update_latency_for_event ($$) {
       no integer;
       my $average = ($expected_latency{$id} + $latency)/2;
       $expected_latency{$id} = $average;
-      log_debug sprintf 'Latency for event %s measured at %g, estimate updated to average of %g', $id, $latency, $average;
+      log_debug sprintf 'Latency for event %s measured at %g, estimate averaged to %g', $id, $latency, $average;
     } else {
       $expected_latency{$id} = $latency;
-      log_debug sprintf 'Latency for event %s updated to measured value of %g', $id, $latency;
+      log_debug sprintf 'Latency for event %s initialized to measured value of %g', $id, $latency;
     }
   }
 }
