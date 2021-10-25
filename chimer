@@ -2738,6 +2738,10 @@ sub generate_sound_clips () {
   }
 }
 
+sub latency_measurable_p () {
+  return @sinks < 2;
+}
+
 sub play_sound_file_real ($;$$$) {
   my($input, $volume, $start, $end) = @_;
   my $sink = get_sink;
@@ -2755,7 +2759,7 @@ sub play_sound_file_real ($;$$$) {
   my $user_agent = 'Chiming clock';
   my $close_stdin_p = 1;
   my $use_paplay_p = 0;
-  my $measure_latency_p = @sinks < 2;
+  my $measure_latency_p = latency_measurable_p;
   my $latency;
   my $expected_output;
   my $t0 = Time::HiRes::time;
@@ -3368,7 +3372,7 @@ sub do_main_loop () {
     }
 
     # Ditto for latencies, if it is possible to measure them
-    if (@sinks < 2) {
+    if (latency_measurable_p) {
       my $t1 = current_time;
       my $dt0 = $event[0]->{'t'} - $t1;
       if ($dt0 > 90 && $method eq METHOD__SYNTH && !$no_cache_p) {
