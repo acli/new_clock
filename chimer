@@ -305,6 +305,7 @@ use vars qw( $lat $lon );
 use vars qw( @sinks );
 use vars qw( $synth );
 use vars qw( %children );
+use vars qw( %expected_latency );
 
 use vars qw( $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note $perc_bank $perc_inst $beep_bank $beep_inst );
 use vars qw( %instrument_name_to_channel_number );
@@ -2298,6 +2299,17 @@ sub determine_next_uncached_event (@) {
   return $it;
 }
 
+sub determine_next_event_with_unknown_latency (@) {
+  my @event = @_;
+  my $it;
+  for my $event (@event) {
+    my $event_id = $event->{'id'};
+    $it = $event_id if !defined $expected_latency{$event_id};
+  last if defined $it;
+  }
+  return $it;
+}
+
 sub determine_events ($$$$$$$$$) {
   my($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size) = @_;
   my @it;
@@ -2408,28 +2420,6 @@ sub determine_events ($$$$$$$$$) {
 	'type' => 'watch',
 	'comment' => "watch $next_watch.$next_subwatch",
       };
-      # Check if we should delay this because it would run into the middle of a quarter hour chime
-      my $t_self_i = $t_next_subwatch;
-      my $t_self_f = $t_next_subwatch + determine_event_duration($id, 30);
-      log_debug "$id starts $t_self_i ends $t_self_f" if $debug > 1;
-      my $delay = 0;
-      my $gap = 5;
-      for my $event (@it) {
-	my $id_other = $event->{'id'};
-	if ($id_other ne $id) {
-	  my $t_other_i = $event->{'t'};
-	  my $t_other_f = $t_other_i + determine_event_duration($event->{'id'}, 30);
-	  if (($t_other_i <= $t_self_i && $t_self_i <= $t_other_f)		# start time falls within another event
-	    || $t_other_i <= $t_self_f && $t_self_f <= $t_other_f) {		# end time falls within another event
-
-	    $delay += ($t_other_f + $gap) - $t_self_i;
-	    $t_self_i += $delay;
-	    $t_self_f += $delay;
-	    log_debug "$id delay $delay because $id_other starts $t_other_i ends $t_other_f" if $debug > 1;
-	  }
-	}
-      }
-      $it[$#it]->{'delay'} = $delay if $delay;
     }
   }
 
@@ -2753,6 +2743,7 @@ sub play_sound_file_real ($;$$$) {
   my $sink = get_sink;
   state $exts = ['wav', 'mp3', 'ogg', 'oga', 'flac'];
   state $ext_re = sprintf('(?:%s)', join('|', @$exts));
+  no integer;
 
   # Find a playable file
   for my $ext (@$exts) {
@@ -2764,16 +2755,22 @@ sub play_sound_file_real ($;$$$) {
   my $user_agent = 'Chiming clock';
   my $close_stdin_p = 1;
   my $use_paplay_p = 0;
+  my $measure_latency_p = @sinks < 2;
+  my $latency;
+  my $expected_output;
+  my $t0 = Time::HiRes::time;
   my @cmd;
   if ($use_paplay_p && $volume == 100 && !defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
     @cmd = ('paplay', '-n', $user_agent);
-    push @cmd, ('-v') if $debug > 1;
+    push @cmd, ('-v') if $measure_latency_p;
     push @cmd, ('-d', $sink) if $sink;
     #push @cmd, ('--volume', 65536*$volume / 100) if $volume != 100;
+    $expected_output = 'Stream started.';
     $close_stdin_p = 0; # otherwise paplay craps out
   } else {
     # Ubuntu's mpv accepts --input-terminal no but the Pi only accepts --input-terminal=no (otherwise it thinks "no" is an input file)
-    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--really-quiet', '--input-terminal=no', '--volume', int($volume));
+    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--input-terminal=no', '--volume', int($volume));
+    push @cmd, ($measure_latency_p? '--quiet': '--really-quiet');
     push @cmd, ('--start', $start) if defined $start;
     push @cmd, ('--end', $end) if defined $end;
 
@@ -2781,13 +2778,13 @@ sub play_sound_file_real ($;$$$) {
     # The Pi's mpv is newer so why this happens is a mystery
     push @cmd, ("--ao=pulse") if $sink;
     set_sink $sink;
+    $expected_output = 'Playing: ';
   }
   push @cmd, $input;
   log_command @cmd;# if $debug;
-  my $h = fork;
+  my $h = $measure_latency_p? open(INPUT, '-|'): fork;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
-    no integer;
     my $sink = get_sink;
     my $dt = $config->{$sink}->{'delay'}->[0] + 0 if defined $config->{$sink} && defined $config->{$sink}->{'delay'};
     log_debug sprintf "delay %s (interpreted as %f) for %s", $config->{$sink}->{'delay'}->[0], $dt, $sink if $debug || ($verbose_p && $dt);
@@ -2796,21 +2793,35 @@ sub play_sound_file_real ($;$$$) {
     exec { $cmd[0] } @cmd;
     die "$cmd[0]: exec: $!\n";
   }
+  if ($measure_latency_p) {
+    for (;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      if (!defined $latency && $s =~ /^$expected_output/) {
+	$latency = Time::HiRes::time - $t0;
+	log_debug sprintf 'Latency for %s measured at %g', $input, $latency if $debug;
+      }
+    }
+    close INPUT;
+  }
   $children{$h} = 1;
+  return $latency;
 }
 
 sub play_sound_file ($;$$$) {
   my($input, $volume, $start, $end) = @_;
+  my $latency;
   $volume = 50 unless defined $volume;
   if (@sinks) {
     for my $sink (@sinks) {
       log_debug "set sink $sink" if $debug;
       set_sink $sink;
-      play_sound_file_real($input, $volume, $start, $end);
+      $latency = play_sound_file_real($input, $volume, $start, $end);
     }
   } else {
-    play_sound_file_real($input, $volume, $start, $end);
+    $latency = play_sound_file_real($input, $volume, $start, $end);
   }
+  return $latency;
 }
 
 sub strike_gong (;$) {
@@ -2966,16 +2977,37 @@ sub strike_tune (@) {
   return strike_tune_real 0, @tune;
 }
 
+sub update_latency_for_event ($$) {
+  my($id, $latency) = @_;
+  if (defined $id && defined $latency) {
+    log_debug sprintf 'Latency for event %s measured at %g', $id, $latency;
+    $expected_latency{$id} = $latency;
+  }
+}
+
+sub measure_latency_for_event ($) {
+  my($id) = @_;
+  my $output = get_cache_pathname_for_event($id);
+  my $chime_id = determine_chime_id_for_event $id;
+  my $latency;
+  if (defined $chime_id && $method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
+    $latency = play_sound_file $output, 0;
+    update_latency_for_event $id, $latency;
+  }
+}
+
 sub do_event ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
   my $chime_id = determine_chime_id_for_event $id;
+  my $latency;
   if (!defined $chime_id) {
     log_debug sprintf "Event %s does not exist for the current mode/melody", $id if $debug;
   } else {
     log_debug sprintf "Cache for event %s (%s) %s", $id, $output, (!-f $output? 'does not exist': $no_cache_p? 'exists but ignored by request': 'exists') if $debug;
     if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
-      play_sound_file $output, 100;
+      $latency = play_sound_file $output, 100;
+      update_latency_for_event $id, $latency;
     } else {
       strike_tune @{$interpretation{$chime{$chime_id}}};
     }
@@ -3273,6 +3305,7 @@ sub do_main_loop () {
       # Don't trust floating point calculations - don't use t as key, use id instead
       $pending_events{+$event->{'id'}} = $event;
     }
+    # remove events that don't exist in the current personality
     for my $id (keys %pending_events) {
       my $chime_id = determine_chime_id_for_event($id);
       if (!defined $chime_id) {
@@ -3280,6 +3313,28 @@ sub do_main_loop () {
 	log_debug "Event $id discarded because it's not defined for $mode $melody" if $debug;
       }
     }
+    # delay night watches and post-hour chimes if they clash with other, more important chimes
+    for my $id (sort { $pending_events{$a}->{'t'} + $pending_events{$a}->{'delay'} <=> $pending_events{$b}->{'t'} + $pending_events{$b}->{'delay'} } grep { $pending_events{$_}->{'type'} =~ /^(?:watch|post-quarter)$/ } keys %pending_events) {
+      log_debug Debug::cvs([$pending_events{$id}]);#XXXZZZ
+      for my $id2 (sort { $pending_events{$a}->{'t'} + $pending_events{$a}->{'delay'} <=> $pending_events{$b}->{'t'} + $pending_events{$b}->{'delay'} } grep { $_ ne $id } keys %pending_events) {
+	my $t1_start = $pending_events{$id}->{'t'} + $pending_events{$id}->{'delay'};
+	my $t2_start = $pending_events{$id2}->{'t'} + $pending_events{$id2}->{'delay'};
+	my $d1 = determine_event_duration($id, 30);
+	my $d2 = determine_event_duration($id2, 30);
+	my $t1_end = $t1_start + $d1;
+	my $t2_end = $t2_start + $d2;
+	if ($t2_start <= $t1_start && $t1_start <= $t2_end) {
+	  my $delay = $t2_end - $t1_start + 5;
+	  $pending_events{$id}->{'delay'} += $delay;
+	  log_debug "$id start time $t1_start delayed by $delay s because it falls within $id2 [$t2_start, $t2_end]";
+	} elsif ($t2_start <= $t1_end && $t1_end <= $t2_end) {
+	  my $delay = $t2_end - $t1_end + $d1 + 5;
+	  $pending_events{$id}->{'delay'} += $delay;
+	  log_debug "$id end time $t1_start delayed by $delay s because it falls within $id2 [$t2_start, $t2_end]";
+	}
+      }
+    }
+    # remove events that we somehow missed
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
@@ -3295,6 +3350,7 @@ sub do_main_loop () {
     # Determine when we should wake up; try to make some effort to align it to a second boundary
     my $t1 = current_time;
     my $dt0 = $event[0]->{'t'} - $t1;
+    $dt0 -= $expected_latency{$event[0]->{'id'}} if defined $expected_latency{$event[0]->{'id'}};
     my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
     my $dt = $t_next - $t1;
     $dt = 0 if $dt < 0;
@@ -3308,6 +3364,16 @@ sub do_main_loop () {
 	  generate_sound_clip_for_event $event;
 	}
 	$countdown = 0; # force a re-countdown
+      }
+    }
+
+    # Ditto for latencies, if it is possible to measure them
+    if (@sinks < 2) {
+      my $t1 = current_time;
+      my $dt0 = $event[0]->{'t'} - $t1;
+      if ($dt0 > 90 && $method eq METHOD__SYNTH && !$no_cache_p) {
+	my $event = determine_next_event_with_unknown_latency @event;
+	measure_latency_for_event $event if defined $event;
       }
     }
 
@@ -3328,6 +3394,7 @@ sub do_main_loop () {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
       $t += $e->{'delay'} if defined $e->{'delay'};
+      $t -= $expected_latency{$id} if defined $expected_latency{$id};
       if ($now < $t) {
 	;
       } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
