@@ -2479,7 +2479,8 @@ sub get_loadavg () {
   my $input = '/proc/loadavg';
   if (open(INPUT, '<', $input)) {
     my $s = scalar <INPUT>;
-    $it = $1 if $s =~ /^(\d+\.\d+)\s/s;
+    no integer;
+    $it = $1 + 0 if $s =~ /^(\d+\.\d+)\s/s;
     close INPUT;
   } else {
     log_error "get_loadavg: $input: $!\n";
@@ -3326,14 +3327,16 @@ sub parse_command_line_arguments () {
 }
 
 sub adjust_latency_estimate ($) {
-  my $latency;
+  my($latency) = @_;
   my $loadavg = get_loadavg;
   my $cpucount = get_cpu_count;
   if (defined $loadavg) {
     no integer;
     my $overage = $loadavg - $cpucount;
-    my $k = 0.2;
-    $latency **= log($overage + $k) if $overage > 1;	# XXX this is just a HACK
+    my $adj = 1.5 * 1.1**($overage * 1.1 + 0.5);	# XXX there's no logic to this formula - this is just a HACK
+    log_debug "latency before adjustment = $latency" if $debug > 1;
+    $latency *= 1.1**$adj if $adj > 1;
+    log_debug "using effective latency $latency (adjustment factor $adj: loadavg $loadavg overage $overage)" if $debug > 1;
   }
   return $latency;
 }
