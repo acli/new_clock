@@ -368,7 +368,6 @@ sub SHORT_STRIKE () { 0.5 }
 sub GAP          () { 2.5 }
 # watch chime patterns: repetitions, pattern
 # gap needs to be long enough to hear it, but short enough to not mistake it for a long strike. This is HARD
-# but note that w5 is -.... x 5 should fit within 30s of time, so we must have (long + short x 4 + gap) ≤ 6
 use vars qw( @watch_chime_pattern );
 @watch_chime_pattern = ( # v. https://zh.wikipedia.org/wiki/打更 (q.v.)
    [3, '— .'		],
@@ -3326,7 +3325,6 @@ sub do_main_loop () {
     }
     # delay night watches and post-hour chimes if they clash with other, more important chimes
     for my $id (sort { $pending_events{$a}->{'t'} + $pending_events{$a}->{'delay'} <=> $pending_events{$b}->{'t'} + $pending_events{$b}->{'delay'} } grep { $pending_events{$_}->{'type'} =~ /^(?:watch|post-quarter)$/ } keys %pending_events) {
-      log_debug Debug::cvs([$pending_events{$id}]);#XXXZZZ
       for my $id2 (sort { $pending_events{$a}->{'t'} + $pending_events{$a}->{'delay'} <=> $pending_events{$b}->{'t'} + $pending_events{$b}->{'delay'} } grep { $_ ne $id } keys %pending_events) {
 	my $t1_start = $pending_events{$id}->{'t'} + $pending_events{$id}->{'delay'};
 	my $t2_start = $pending_events{$id2}->{'t'} + $pending_events{$id2}->{'delay'};
