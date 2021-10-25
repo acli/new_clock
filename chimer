@@ -2984,8 +2984,15 @@ sub strike_tune (@) {
 sub update_latency_for_event ($$) {
   my($id, $latency) = @_;
   if (defined $id && defined $latency) {
-    log_debug sprintf 'Latency for event %s measured at %g', $id, $latency;
-    $expected_latency{$id} = $latency;
+    if (defined $expected_latency{$id}) {
+      no integer;
+      my $average = ($expected_latency{$id} + $latency)/2;
+      $expected_latency{$id} = $average;
+      log_debug sprintf 'Latency for event %s measured at %g, estimate updated to average of %g', $id, $latency, $average;
+    } else {
+      $expected_latency{$id} = $latency;
+      log_debug sprintf 'Latency for event %s updated to measured value of %g', $id, $latency;
+    }
   }
 }
 
