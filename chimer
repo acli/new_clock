@@ -2785,7 +2785,10 @@ sub play_sound_file_real ($;$$$) {
   }
   push @cmd, $input;
   log_command @cmd;# if $debug;
-  my $h = $measure_latency_p? open(INPUT, '-|'): fork;
+  my $fh = gensym;
+  no strict 'refs';
+  my $h = $measure_latency_p? open($fh, '-|'): fork;
+  use strict;
   die "$cmd[0]: fork: $!\n" unless defined $h;
   if ($h == 0) {
     my $sink = get_sink;
@@ -2798,14 +2801,16 @@ sub play_sound_file_real ($;$$$) {
   }
   if ($measure_latency_p) {
     for (;;) {
-      my $s = scalar <INPUT>;
+      no strict 'refs';
+      my $s = scalar <$fh>;
+      use strict;
     last unless defined $s;
       if (!defined $latency && $s =~ /^$expected_output/) {
 	$latency = Time::HiRes::time - $t0;
 	log_debug sprintf 'Latency for %s measured at %g', $input, $latency if $debug;
       }
+    last if defined $latency; # XXX must exit or we won't until we get past the 10s silence at the end; hopefully nothing more will be output
     }
-    close INPUT;
   }
   $children{$h} = 1;
   return $latency;
