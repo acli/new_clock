@@ -3333,10 +3333,12 @@ sub adjust_latency_estimate ($) {
   if (defined $loadavg) {
     no integer;
     my $overage = $loadavg - $cpucount;
-    my $adj = 1.5 * 1.1**($overage * 1.1 + 0.5);	# XXX there's no logic to this formula - this is just a HACK
-    log_debug "latency before adjustment = $latency" if $debug > 1;
-    $latency *= 1.1**$adj if $adj > 1;
-    log_debug "using effective latency $latency (adjustment factor $adj: loadavg $loadavg overage $overage)" if $debug > 1;
+    if ($overage > 0) {
+      my $adj = 1.5 * 1.1**($overage * 1.1 + 0.5);	# XXX there's no logic to this formula - this is just a HACK
+      log_debug "latency before adjustment = $latency" if $debug > 1;
+      $latency *= 1.1**$adj if $adj > 1;
+      log_debug "using effective latency $latency (adjustment factor $adj: loadavg $loadavg overage $overage)" if $debug > 1;
+    }
   }
   return $latency;
 }
