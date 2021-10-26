@@ -256,6 +256,92 @@ sub grestore {
   }
 }
 
+
+package Latency;
+no integer;
+use Time::HiRes;
+
+sub MAX_LATENCIES_REMEMBERED () { 16 }
+
+sub get_cpu_count () {
+  state $it;
+  my $input = '/proc/cpuinfo';
+  if (!defined $it && open(INPUT, '<', $input)) {	# probably not Linux if we can't open it
+    for (;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      $it += 1 if $s =~ /^processor\s*:/s;		# don't grep for "cpu cores" because some archs don't do that
+    }
+    close INPUT;
+  }
+  return $it;
+}
+
+sub get_loadavg () {
+  my $it;
+  my $input = '/proc/loadavg';
+  if (open(INPUT, '<', $input)) {			# probably not Linux if we can't open it
+    my $s = scalar <INPUT>;
+    no integer;
+    $it = $1 + 0 if $s =~ /^(\d+\.\d+)\s/s;
+    close INPUT;
+  }
+  return $it;
+}
+
+sub remember {
+  my $self = shift;
+  my($latency) = @_;
+  push @{$self->{'latencies'}}, { 'latency' => $latency,
+				  't' => Time::HiRes::time,
+				  'loadavg' => Latency::get_loadavg };
+  shift @{$self->{'latencies'}} while scalar @{$self->{'latencies'}} > MAX_LATENCIES_REMEMBERED;
+}
+
+sub predict {
+  my $self = shift;
+  my $loadavg = get_loadavg;
+  my @latencies = @{$self->{'latencies'}};
+  my @weights;
+  my $t = Time::HiRes::time;
+  my $t0 = $latencies[0]->{'t'} if @latencies;
+  my $total_weighted_latency;
+  my $total_weight;
+  for my $latency (@latencies) {
+    my $weight = 100;
+    if (defined $loadavg) {
+      my $det = abs($latency->{'loadavg'} - $loadavg);
+      $weight /= $det if $det > 1;
+    } else {
+      my $det = $t - $latency->{'t'};
+      $weight *= $det/($t - $t0) if $det > 0 && $t > $t0;
+    }
+    push @weights, $weight;
+    $total_weighted_latency += $weight * $latency->{'latency'};
+    $total_weight += $weight;
+  }
+  my $it = $total_weighted_latency/$total_weight;
+  Chimer::log_debug(sprintf 'current predicted latency is %g, from %s weights %s', $it,
+      Debug::cvs(\@latencies), Debug::cvs(\@weights)) if defined $Chimer::debug && $Chimer::debug > 1;
+  return $it;
+}
+
+sub tag {
+  my $self = shift;
+  $self->{'tag'} = shift if @_;
+  return $self->{'tag'};
+}
+
+sub new {
+  my $class = shift;
+  my($latency) = @_;
+  my $self = {};
+  bless $self, $class;
+  $self->remember($latency) if defined $latency;
+  return $self;
+}
+
+
 package Chimer;
 
 use POSIX;
@@ -2458,36 +2544,6 @@ sub in_semi_closed_range ($$) {
   return $it;
 }
 
-sub get_cpu_count () {
-  my $it;
-  my $input = '/proc/cpuinfo';
-  if (open(INPUT, '<', $input)) {
-    for (;;) {
-      my $s = scalar <INPUT>;
-    last unless defined $s;
-      $it += 1 if $s =~ /^processor\s*:/s;	# don't grep for "cpu cores" because some archs don't do that
-    }
-    close INPUT;
-  } else {
-    log_error "get_cpu_count: $input: $!\n";
-  }
-  return $it;
-}
-
-sub get_loadavg () {
-  my $it;
-  my $input = '/proc/loadavg';
-  if (open(INPUT, '<', $input)) {
-    my $s = scalar <INPUT>;
-    no integer;
-    $it = $1 + 0 if $s =~ /^(\d+\.\d+)\s/s;
-    close INPUT;
-  } else {
-    log_error "get_loadavg: $input: $!\n";
-  }
-  return $it;
-}
-
 sub get_sink () {
   return $ENV{'PULSE_SINK'};
 }
@@ -3019,15 +3075,12 @@ sub update_latency_for_event ($$) {
   my($id, $latency) = @_;
   if (defined $id && defined $latency) {
     if (defined $expected_latency{$id}) {
-      no integer;
-      my($w_old, $w_new) = $expected_latency{$id} < $latency? (1, 3): (3, 1);	# privilege larger values
-      my $average = ($w_old * $expected_latency{$id} + $w_new * $latency)/($w_old + $w_new);
-      log_debug sprintf 'Latency for event %s measured at %g (was %g), estimate updated to weighted average of %g',
-	  $id, $latency, $expected_latency{$id}, $average;
-      $expected_latency{$id} = $average;
+      $expected_latency{$id}->remember($latency);
+      log_debug sprintf 'measured latency %g for event %s, state updated (currently %s)', $latency, $id, Debug::cvs($expected_latency{$id});
     } else {
-      $expected_latency{$id} = $latency;
-      log_debug sprintf 'Latency for event %s initialized to measured value of %g', $id, $latency;
+      $expected_latency{$id} = Latency->new($latency);
+      $expected_latency{$id}->tag($id);
+      log_debug sprintf 'measured latency %g for event %s, state initialized (currently %s)', $latency, $id, Debug::cvs($expected_latency{$id});
     }
   }
 }
@@ -3326,23 +3379,6 @@ sub parse_command_line_arguments () {
   }
 }
 
-sub adjust_latency_estimate ($) {
-  my($latency) = @_;
-  my $loadavg = get_loadavg;
-  my $cpucount = get_cpu_count;
-  if (defined $loadavg) {
-    no integer;
-    my $overage = $loadavg - $cpucount;
-    if ($overage > 0) {
-      my $adj = $overage/3;	# XXX there's no logic to this formula - this is just a stupid HACK
-      log_debug "latency before adjustment = $latency" if $debug > 1;
-      $latency *= $adj if $adj > 1;
-      log_debug "using effective latency $latency (adjustment factor $adj: loadavg $loadavg overage $overage)" if $debug > 1;
-    }
-  }
-  return $latency;
-}
-
 sub do_main_loop () {
   for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
     my $t0 = current_time;
@@ -3456,7 +3492,7 @@ sub do_main_loop () {
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
-      my $effective_latency = adjust_latency_estimate $expected_latency{$id} if defined $expected_latency{$id};
+      my $effective_latency = $expected_latency{$id}->predict() if defined $expected_latency{$id};
       $t += $e->{'delay'} if defined $e->{'delay'};
       $t -= $effective_latency if defined $effective_latency;
       if ($now < $t) {
