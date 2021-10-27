@@ -1,0 +1,14 @@
+1635310790.30#  EVENT q0 (1635310790.25) fired at 1635310790.30 (0.05 s late) (1.63 latency assumed)
+1635310790.30#  Volume adjusted to 0.75 for studio because of volume rule "C-D: 0.75"
+1635310790.44#  DEBUG: running: mpv --audio-client-name "Chiming clock" --no-video --input-terminal=no --volume 100 --quiet --ao=pulse /u/ambrose/Documents/checkouts/new_clock/data/cache-carillon-whittington11-q0.oga
+1635310791.76#  DEBUG: measured latency 1.32119 for event q0, state updated (currently <</latencies [<</latency 1.6257529258728 /loadavg 16.59 /t 1635309586.94128>> <</latency 1.32119202613831 /loadavg 5.41 /t 1635310791.76208>>] /tag (q0)>> /Latency bless)
+1635310798.43#  EVENT h1 (1635310798.39) fired at 1635310798.43 (0.04 s late) (1.61 latency assumed)
+1635310798.43#  Volume adjusted to 0.75 for studio because of volume rule "C-D: 0.75"
+1635310798.50#  DEBUG: running: mpv --audio-client-name "Chiming clock" --no-video --input-terminal=no --volume 100 --quiet --ao=pulse /u/ambrose/Documents/checkouts/new_clock/data/cache-carillon-whittington11-h1.oga
+1635310798.93#  DEBUG: measured latency 0.426083 for event h1, state updated (currently <</latencies [<</latency 1.61005401611328 /loadavg 16.86 /t 1635309589.46897>> <</latency 0.426082849502563 /loadavg 5.94 /t 1635310798.9249>>] /tag (h1)>> /Latency bless)
+
+- both q0 and h1 were played with assumed latency ~ 1.6 s
+- q0 played with actual latency ~1.3 (actual loadavg 5.41, old measurement taken at loadavg 16.59)
+- h1 played with actual latency ~0.4 (actual loadavg 5.94, old measurement taken at loadavg 16.86)
+- h1 clashed with the end of q0 because it was played ~1 s too soon
+- This is really unfixable other than periodically checking loadavg and remeasuring when we notice loadavg has changed too much

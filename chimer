@@ -304,6 +304,23 @@ sub remember {
   shift @{$self->{'latencies'}} while scalar @{$self->{'latencies'}} > MAX_LATENCIES_REMEMBERED;
 }
 
+sub has_usable_measurements_p {
+  my $self = shift;
+  my $loadavg = get_loadavg;
+  my $it;
+  if (defined $loadavg) {
+    for my $latency (@{$self->{'latencies'}}) {
+      $it = 1 if abs($loadavg - $latency->{'loadavg'}) < 5;	# XXX
+    last if defined $it;
+    }
+    $it = 0 unless defined $it;
+  } else {
+    # We have no way to tell. Just say yes.
+    $it = '0 but true';
+  }
+  return $it;
+}
+
 sub predict {
   my $self = shift;
   my $loadavg = get_loadavg;
@@ -2404,6 +2421,8 @@ sub determine_next_event_with_unknown_latency (@) {
   for my $event (@event) {
     my $event_id = $event->{'id'};
     $it = $event_id if !defined $expected_latency{$event_id};
+  last if defined $it;
+    $it = $event_id if !$expected_latency{$event_id}->has_usable_measurements_p();
   last if defined $it;
   }
   return $it;
