@@ -292,9 +292,18 @@ sub get_loadavg () {
 sub remember {
   my $self = shift;
   my($latency) = @_;
-  push @{$self->{'latencies'}}, { 'latency' => $latency,
-				  't' => Time::HiRes::time,
-				  'loadavg' => Latency::get_loadavg };
+  my $node = {
+      'latency' => $latency,
+      't' => Time::HiRes::time,
+    };
+  my $loadavg = get_loadavg;
+  if (defined $loadavg) {
+    my $n = get_cpu_count;
+    my $overage = $loadavg - $n if defined $n;
+    $node->{'loadavg'} = $loadavg;
+    $node->{'multiplier'} = 2**((log($overage)/log(2)) / 3) if defined $overage && $overage > 1;
+  }
+  push @{$self->{'latencies'}}, $node;
   shift @{$self->{'latencies'}} while scalar @{$self->{'latencies'}} > MAX_LATENCIES_REMEMBERED;
 }
 
@@ -310,13 +319,12 @@ sub predict {
   for my $latency (@latencies) {
     my $weight = 100;
     if (defined $loadavg) {
-      my $n = Latency::get_cpu_count();
-      my $det = abs($latency->{'loadavg'} - $loadavg);
-      $weight *= sqrt($loadavg - $n) if defined $n && $loadavg > $n;
-      $weight /= $det if $det > 1;
+      my $overage = abs($latency->{'loadavg'} - $loadavg);
+      $weight *= $latency->{'multiplier'} if defined $latency->{'multiplier'};
+      $weight /= $overage if $overage > 1;
     } else {
-      my $det = $t - $latency->{'t'};
-      $weight *= $det/($t - $t0) if $det > 0 && $t > $t0;
+      my $dt = $t - $latency->{'t'};
+      $weight *= $dt/($t - $t0) if $dt > 0 && $t > $t0;
     }
     push @weights, $weight;
     $total_weighted_latency += $weight * $latency->{'latency'};
