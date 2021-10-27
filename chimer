@@ -310,7 +310,9 @@ sub predict {
   for my $latency (@latencies) {
     my $weight = 100;
     if (defined $loadavg) {
+      my $n = Latency::get_cpu_count();
       my $det = abs($latency->{'loadavg'} - $loadavg);
+      $weight *= sqrt($loadavg - $n) if defined $n && $loadavg > $n;
       $weight /= $det if $det > 1;
     } else {
       my $det = $t - $latency->{'t'};
