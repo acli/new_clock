@@ -1,0 +1,68 @@
+https://en.wikipedia.org/wiki/Curve_fitting
+https://mycurvefit.com/
+- this is garbage, the UI is garbage
+
+https://sodocumentation.net/gnuplot/topic/8825/fit-data-with-gnuplot
+ f(x) = a * exp(b * x)
+ fit f(x) 'foo' via a, b
+plot f(x), 'foo'
+print f(2.57)
+
+need to be able to implement this completely in Perl because there is no gcc on the Pi so it's not possible to compile random CPAN modules
+
+https://mathworld.wolfram.com/LeastSquaresFitting.html
+
+http://users.ics.forth.gr/~lourakis/levmar/
+https://mathworld.wolfram.com/Levenberg-MarquardtMethod.html
+
+
+
+Prediction anomaly
+==================
+The code predicted 0.19 latency for the longer q0 chime but 0.30 for the shorter h5 chime,
+h5 ended up being played a full beat too early, disappearing into the last part of q0
+
+Actual latency turned out to be 2.21 for q0, 0.22 for h5
+
+-rw-r--r-- 1 ambrose ambrose 230601 Sep 16 23:51 data/cache-carillon-whittington11-h5.oga
+-rw-r--r-- 1 ambrose ambrose 222789 Oct 24 21:49 data/cache-carillon-whittington11-q0.oga
+
+But file size wasn't the problem so I don't know how to fix the prediction.
+
+Possible things to try:
+
+1. Make the first prediction more accurate
+2. Catch the latency measurement from q0, when we're about to fire h5, look at the q0 latency
+   and if we underestimated, delay firing h5 (and possibly the post-quarter chime)
+
+1636145991.69#  EVENT q0 (1636145991.69) fired at 1636145991.69 (on time) (0.19 latency assumed)
+1636145991.70#  Volume adjusted to 0.8125 for studio because of volume rule "0.8125"
+1636145991.76#  DEBUG: running: mpv --audio-client-name "Chiming clock" --no-video --input-terminal=no --volume 100 --quiet --ao=pulse /u/ambrose/Documents/checkouts/new_clock/data/cache-carillon-whittington11-q0.oga
+1636145993.98#  DEBUG: measured latency 2.21271 for event q0, state updated (currently <</latencies [<</latency 0.227527141571045 /loadavg 2.79 /t 1636091991.66734>>
+   <</latency 0.186661958694458 /loadavg 3 /t 1636095591.77582>>
+   <</latency 0.267987966537476 /loadavg 4.56 /t 1636099191.81448>>
+   <</latency 0.183998823165894 /loadavg 5.36 /t 1636102791.71738>>
+   <</latency 0.243020057678223 /loadavg 3.99 /t 1636106391.89515>>
+   <</latency 0.183393001556396 /loadavg 4.52 /t 1636109991.79959>>
+   <</latency 0.191608905792236 /loadavg 1.92 /t 1636113591.86842>>
+   <</latency 0.179188966751099 /loadavg 4.7 /t 1636117191.79395>>
+   <</latency 0.212356090545654 /loadavg 5.31 /t 1636120791.84952>>
+   <</latency 0.171809911727905 /loadavg 4.07 /t 1636124391.81768>>
+   <</latency 0.225640058517456 /loadavg 5.13 /t 1636127991.88042>>
+   <</latency 0.186108112335205 /loadavg 2.48 /t 1636131591.86737>>
+   <</latency 0.222611904144287 /loadavg 2.93 /t 1636135191.91706>>
+   <</latency 0.198724985122681 /loadavg 3.7 /t 1636138791.87798>>
+   <</latency 1.14867305755615 /loadavg 11.46 /t 1636142393.13699>> <</latency 2.2127091884613 /loadavg 6.41 /t 1636145993.9728>>] /tag (q0)>> /Latency bless)
+1636145999.72#  EVENT h5 (1636145999.70) fired at 1636145999.72 (0.02 s late) (0.30 latency assumed)
+1636145999.73#  Volume adjusted to 0.8125 for studio because of volume rule "0.8125"
+1636145999.75#  DEBUG: running: mpv --audio-client-name "Chiming clock" --no-video --input-terminal=no --volume 100 --quiet --ao=pulse /u/ambrose/Documents/checkouts/new_clock/data/cache-carillon-whittington11-h5.oga
+1636145999.97#  DEBUG: measured latency 0.221254 for event h5, state updated (currently <</latencies [<</latency 0.647223949432373 /loadavg 8.24 /t 1635796801.54543>>
+   <</latency 0.307427167892456 /loadavg 8.91 /t 1635800399.68345>>
+   <</latency 0.274565935134888 /loadavg 3.22 /t 1635840548.41506>>
+   <</latency 0.228188991546631 /loadavg 3.17 /t 1635843600.01639>>
+   <</latency 0.259958028793335 /loadavg 4.36 /t 1635886800.10221>>
+   <</latency 0.556707143783569 /loadavg 3.04 /t 1635930000.35125>>
+   <</latency 0.376467943191528 /loadavg 12.12 /t 1635973200.25414>>
+   <</latency 0.196071147918701 /loadavg 5.28 /t 1636016399.95847>>
+   <</latency 0.650781154632568 /loadavg 10.7 /t 1636059600.59412>>
+   <</latency 0.376044034957886 /loadavg 6.68 /t 1636102800.13355>> <</latency 0.221253871917725 /loadavg 6.05 /t 1636145999.96834>>] /tag (h5)>> /Latency bless)
