@@ -337,8 +337,10 @@ sub predict_from_loadavg {
   my $t = Time::HiRes::time;
   my @latencies = @{$self->{'latencies'}};
   if (@latencies > 2) {
+    # Assume latency is exponentially related to loadavg
     my $f = sub { my($x) = @_; $a * exp($b * $x) }; # log f = $b * $x + log($a)
-    # stupid approximation using log f; cf. p. 429 in my numerical methods textbook
+    # But simplify the approximation using log f (cf. p. 429 in my numerical methods textbook)
+    # not because the simplication is sound but because my numerical skills are not up to par
     my $m = @latencies;
     my @x = map { $_->{'loadavg'} } @latencies;
     my @y = map { $_->{'latency'} } @latencies;
