@@ -321,40 +321,47 @@ sub has_usable_measurements_p {
   return $it;
 }
 
+sub summation (@) {
+   my(@x) = @_;
+   my $it = 0;
+   foreach my $x_i (@x) {
+      $it += $x_i;
+   }
+   return $it;
+}
+
+sub predict_from_loadavg {
+  my $self = shift;
+  my($loadavg) = @_;
+  my $it;
+  my $t = Time::HiRes::time;
+  my @latencies = @{$self->{'latencies'}};
+  if (@latencies > 2) {
+    my $f = sub { my($x) = @_; $a * exp($b * $x) }; # log f = $b * $x + log($a)
+    # stupid approximation using log f; cf. p. 429 in my numerical methods textbook
+    my $m = @latencies;
+    my @x = map { $_->{'loadavg'} } @latencies;
+    my @y = map { $_->{'latency'} } @latencies;
+    my @i = 0..($m - 1);
+    my $denominator = ($m * summation(map { $x[$_]**2 } @i) - summation(@x)**2);
+    if ($denominator) {
+      $b = ($m * summation(map { $x[$_]*$y[$_] } @i) - summation(@x) * summation(@y)) / $denominator;
+      $a = (summation(@x) * summation(@y) - summation(map { $x[$_] * $y[$_] } @i) * summation(@x)) / $denominator;
+      $a = exp($a);
+      $it = &$f($loadavg);
+    }
+    Chimer::log_debug(sprintf 'current predicted latency is %g, from %s', $it, Debug::cvs(\@latencies))
+	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
+  } else {
+    Chimer::log_debug(sprintf 'insufficient data to predict latency from %s', Debug::cvs(\@latencies))
+	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
+  }
+  return $it;
+}
+
 sub predict {
   my $self = shift;
-  my $loadavg = get_loadavg;
-  my @latencies = @{$self->{'latencies'}};
-  my @weights;
-  my @multipliers;
-  my $t = Time::HiRes::time;
-  my $t0 = $latencies[0]->{'t'} if @latencies;
-  my $total_weighted_latency;
-  my $total_weight;
-  for my $latency (@latencies) {
-    my $weight = 100;
-    my $multiplier = 1;
-    if (defined $loadavg) {
-      my $overage = $loadavg - $latency->{'loadavg'};
-      my $distance = abs($overage);
-      my $candidate_multiplier = exp(log($overage)/3) if defined $overage && $overage > 1;
-      $multiplier = $candidate_multiplier if defined $candidate_multiplier && $candidate_multiplier > 1;
-      $weight /= $distance**2 if $distance > 1;
-    } else {
-      my $dt = $t - $latency->{'t'};
-      $weight *= $dt/($t - $t0) if $dt > 0 && $t > $t0;
-    }
-    $multiplier = 1 unless defined $multiplier;
-    push @weights, $weight;
-    push @multipliers, $multiplier;
-    $total_weighted_latency += $weight * $latency->{'latency'};
-    $total_weight += $weight*$multiplier;
-  }
-  my $it = $total_weighted_latency/$total_weight;
-  Chimer::log_debug(sprintf 'current predicted latency is %g, from %s weights %s multipliers %s', $it,
-	  Debug::cvs(\@latencies), Debug::cvs(\@weights)), Debug::cvs(\@multipliers)
-	if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
-  return $it;
+  return $self->predict_from_loadavg(get_loadavg);
 }
 
 sub tag {
@@ -3536,7 +3543,7 @@ sub do_main_loop () {
       } else {
 	my $dt = $now - $t;
 	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)%s", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt)),
-	  (defined $effective_latency? sprintf(' (%.2f latency assumed)', $effective_latency): '');
+	  (defined $effective_latency? sprintf(' (%.2f latency predicted)', $effective_latency): ' (unable to predict latency)');
 	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	do_event $id;
 	$countdown = 0; # force a re-countdown

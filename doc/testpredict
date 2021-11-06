@@ -1,0 +1,85 @@
+#!/usr/bin/perl
+# vi:set sw=3 ai sm:
+# see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
+# THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
+use v5.12; # minimal for unicode string feature
+use v5.14; # //u modifier
+use utf8;
+use open qw( :encoding(UTF-8) :std );
+use charnames qw( :full :short );
+use feature "unicode_strings";
+
+use warnings qw( FATAL utf8 );
+use Encode qw( encode decode );
+#@ARGV = map { decode("UTF-8", $_) } @ARGV if grep /\P{ASCII}/ => @ARGV; # This causes more problems than it solves
+
+binmode STDIN, ':utf8';
+binmode STDOUT, ':utf8';
+binmode STDERR, ':utf8';
+
+
+select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
+
+require 'chimer';
+use strict;
+no integer;
+no warnings 'experimental::signatures';
+use feature 'signatures';
+
+sub get_scalar :prototype($$) ($key, $data) {
+   return $data->{$key}->[0];
+}
+
+sub offage :prototype($$) ($predicted, $actual) {
+   return abs($predicted - $actual)/$actual;
+}
+
+sub summation :prototype(@) (@x) {
+   my $it = 0;
+   foreach my $x_i (@x) {
+      $it += $x_i;
+   }
+   return $it;
+}
+
+sub testpredict :prototype($) ($data) {
+   my $t = get_scalar('t', $data->{'/'});
+   my $loadavg = get_scalar('loadavg', $data->{'/'});
+   my $predicted = get_scalar('predicted', $data->{'/'});
+   my $actual = get_scalar('actual', $data->{'/'});
+   my $latencies = [ map {
+	 my($key, $val) = ($_, get_scalar($_, $data->{'history'}));
+	 my($latency, $loadavg) = split(/\s+/, $val);
+	 {
+	    't' => $_,
+	    'latency' => $latency,
+	    'loadavg' => $loadavg,
+	 }
+      } keys %{$data->{'history'}} ];
+   my $a = 1;
+   my $b = 1;
+   my $f = sub ($x) { $a * exp($b * $x) }; # log f = $b * $x + log($a)
+   # stupid approximation using log f; cf. p. 429 in my numerical methods textbook
+   my $m = @$latencies;
+   my @x = map { $_->{'loadavg'} } @$latencies;
+   my @y = map { $_->{'latency'} } @$latencies;
+   my @i = 0..($m - 1);
+   $b = ($m * summation(map { $x[$_]*$y[$_] } @i) - summation(@x) * summation(@y))
+	 / ($m * summation(map { $x[$_]**2 } @i) - summation(@x)**2);
+   $a = (summation(@x) * summation(@y) - summation(map { $x[$_] * $y[$_] } @i) * summation(@x))
+	 / ($m * summation(map { $x[$_]**2 } @i) - summation(@x)**2);
+   $a = exp($a);
+
+   my $testvalue = &$f($loadavg);
+   printf "testpredict (t=%.2f, loadavg=%.2f; a=%f, b=%f)\n", $t, $loadavg, $a, $b;
+   printf "actual measurement: %.2f\n", $actual;
+   printf "old prediction:     %.2f (off %.2f%%)\n", $predicted, 100*offage($predicted, $actual);
+   printf "new prediction:     %.2f (off %.2f%%)\n", $testvalue, 100*offage($testvalue, $actual);
+   printf "\n";
+}
+
+my $data1 = Chimer::read_ini('predict1.dat');
+my $data2 = Chimer::read_ini('predict2.dat');
+testpredict($data1);
+testpredict($data2);
+
