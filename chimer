@@ -354,6 +354,9 @@ sub predict_from_loadavg {
     }
     Chimer::log_debug(sprintf 'current predicted latency is %g, from curve-fitting %s', $it, Debug::cvs(\@latencies))
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
+  }
+  if (defined $it) {
+    ;
   } elsif (@latencies > 2) {
     # Not enough data to fit a curve - fall back to old heuristic of using some kind of an average
     my $m = @latencies;
