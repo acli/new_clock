@@ -2968,18 +2968,39 @@ sub play_sound_file_real ($;$$$) {
   return $latency;
 }
 
+sub interpret_volume ($;$) {
+  my($volume, $default) = @_;
+  if (ref $volume eq 'ARRAY') {
+      my($base, $hour, $min, $sec, $deciday, $wday) = @$volume;
+      if (defined $wday) {
+	no integer;
+	my $sink = get_sink();
+	my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
+	my($adj, $error, $reason) = get_time_parametrized_config($sink, 'clock volume', '\d+(?:\.\d+)?', sub {
+	    my($target_volume) = @_;
+	    no integer;
+	    $target_volume >= 0 && $target_volume <= 1;
+	  }, $hour, $min, $sec, $deciday, $wday);
+	log_info "Clock volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
+	$adj = 1 unless defined $adj;
+	$volume = $base * $adj;
+      }
+  }
+  $volume = $default if !defined $volume && defined $default;
+  return $volume;
+}
+
 sub play_sound_file ($;$$$) {
   my($input, $volume, $start, $end) = @_;
   my $latency;
-  $volume = 50 unless defined $volume;
   if (@sinks) {
     for my $sink (@sinks) {
       log_debug "set sink $sink" if $debug;
       set_sink $sink;
-      $latency = play_sound_file_real($input, $volume, $start, $end);
+      $latency = play_sound_file_real($input, interpret_volume($volume, 50), $start, $end);
     }
   } else {
-    $latency = play_sound_file_real($input, $volume, $start, $end);
+    $latency = play_sound_file_real($input, interpret_volume($volume, 50), $start, $end);
   }
   return $latency;
 }
@@ -3162,8 +3183,8 @@ sub measure_latency_for_event ($) {
   }
 }
 
-sub do_event ($) {
-  my($id) = @_;
+sub do_event ($;$$$$$) {
+  my($id, $hour, $min, $sec, $deciday, $wday) = @_;
   my $output = get_cache_pathname_for_event($id);
   my $chime_id = determine_chime_id_for_event $id;
   my $latency;
@@ -3172,12 +3193,13 @@ sub do_event ($) {
   } else {
     log_debug sprintf "Cache for event %s (%s) %s", $id, $output, (!-f $output? 'does not exist': $no_cache_p? 'exists but ignored by request': 'exists') if $debug;
     if ($method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
-      $latency = play_sound_file $output, 100;
+      $latency = play_sound_file $output, (defined $wday? [100, $hour, $min, $sec, $deciday, $wday]: 100);
       update_latency_for_event $id, $latency;
     } else {
       strike_tune @{$interpretation{$chime{$chime_id}}};
     }
   }
+  return $latency;
 }
 
 sub restart_script_real () {	# NOTE: this function exists only to silence the "Statement unlikely to be reached" warning
@@ -3446,7 +3468,7 @@ sub parse_command_line_arguments () {
 }
 
 sub do_main_loop () {
-  for (my $countdown = COUNTDOWN, my %pending_events, my %completed_events;;) {
+  for (my $countdown = COUNTDOWN, my $last_prediction_error, my $t_last_prediction, my %pending_events, my %completed_events;;) {
     my $t0 = current_time;
     my $c = determine_chinese_time $t0;
     ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
@@ -3561,6 +3583,7 @@ sub do_main_loop () {
       my $effective_latency = $expected_latency{$id}->predict() if defined $expected_latency{$id};
       $t += $e->{'delay'} if defined $e->{'delay'};
       $t -= $effective_latency if defined $effective_latency;
+      $t += $last_prediction_error if defined $last_prediction_error && $last_prediction_error > 0 && $t_last_prediction >= $now - 15; # XXX
       if ($now < $t) {
 	;
       } elsif (defined $completed_events{$id} && $now - $completed_events{$id} < 15) { # This should never happen (but it does)
@@ -3571,7 +3594,14 @@ sub do_main_loop () {
 	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)%s", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt)),
 	  (defined $effective_latency? sprintf(' (%.2f latency predicted)', $effective_latency): ' (unable to predict latency)');
 	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
-	do_event $id;
+	my $actual_latency = do_event($id, $hour, $min, $sec, $deciday, $wday);
+
+	# Remember prediction error
+	my $duration = determine_event_duration($id, undef);
+	$last_prediction_error = defined $actual_latency && defined $effective_latency? $actual_latency - $effective_latency: undef;
+	$t_last_prediction = $now + $duration;
+	log_info sprintf 'prediction error was %.2f (at time %.2f)', $last_prediction_error, $t_last_prediction if defined $last_prediction_error;
+
 	$countdown = 0; # force a re-countdown
 	$completed_events{$id} = $now;
 	delete $pending_events{$id};
