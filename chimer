@@ -2618,11 +2618,11 @@ sub set_sink_volume ($$) {
   system { $cmd[0] } @cmd;
 }
 
-sub determine_something_from_directive_and_time ($$$$$$$$$) {
+sub interpret_time_parametrized_config_value ($$$$$$$$$) {
   my($thing_label, $thing_re, $thing_valid, $directive, $hour, $min, $sec, $deciday, $wday) = @_;
   my($target_dow, $target_times, $target_volume, $dow_in_range_p, $time_in_range_p);
   my($result, $error);
-  die "determine_something_from_directive_and_time : $thing_re: Unsupported regexp" if $thing_re =~ /(?<!\\)\x28(?!\?)/s;
+  die "interpret_time_parametrized_config_value : $thing_re: Unsupported regexp" if $thing_re =~ /(?<!\\)\x28(?!\?)/s;
   no integer;
   my $hours_past_midnight = $hour + $min/60 + $sec/3600;
   if ($directive =~ /^(?:($dow_range_re)\s+)?hours?\s+(\d+(?:[-,]\d+)*)\s*[:=]\s*($thing_re)$/) {		# integer to integer
@@ -2659,13 +2659,18 @@ sub determine_something_from_directive_and_time ($$$$$$$$$) {
   return wantarray? ($result, $error): [$result, $error];
 }
 
-sub determine_volume_from_directive_and_time ($$$$$$) {
-  my($directive, $hour, $min, $sec, $deciday, $wday) = @_;
-  return determine_something_from_directive_and_time('volume', '\d+(?:\.\d+)?', sub {
-	my($target_volume) = @_;
-	no integer;
-	$target_volume >= 0 && $target_volume <= 1;
-      }, $directive, $hour, $min, $sec, $deciday, $wday);
+sub get_time_parametrized_config ($$$$$$$$$;$) {
+  my($section, $key, $thing_re, $thing_valid, $hour, $min, $sec, $deciday, $wday, $thing_label) = @_;
+  my($adj, $error, $reason);
+  $thing_label = $key unless defined $thing_label;
+  for my $directive (map { split /\s*;\s*/ } @{$config->{$section}->{$key}}) {
+    log_debug "considering directive: $directive" if $debug > 1;
+    (my $candidate_adj, $error) = interpret_time_parametrized_config_value($thing_label, $thing_re, $thing_valid, $directive, $hour, $min, $sec, $deciday, $wday);
+    ($adj, $reason) = ($candidate_adj, "because of $thing_label rule \"$directive\"") if defined $candidate_adj;
+    log_error "CONFIG ERROR: $error in [$section] $key" if defined $error;
+  last if defined $adj;
+  }
+  return wantarray? ($adj, $error, $reason): [$adj, $error, $reason];
 }
 
 sub set_sink_volumes ($$$$$) {
@@ -2676,12 +2681,11 @@ sub set_sink_volumes ($$$$$) {
     my $adj;
     my $reason;
     if (defined $config->{$sink} && defined $config->{$sink}->{'volume'}) {
-      for my $directive (map { split /(?:^|(?<=\d))\s*,\s*/ } @{$config->{$sink}->{'volume'}}) {
-	my($candidate_adj, $error) = determine_volume_from_directive_and_time($directive, $hour, $min, $sec, $deciday, $wday);
-	($adj, $reason) = ($candidate_adj, "because of volume rule \"$directive\"") if defined $candidate_adj;
-	log_error "CONFIG ERROR: $error in [$sink] volumes" if defined $error;
-      last if defined $adj;
-      }
+      ($adj, my $error, $reason) = get_time_parametrized_config($sink, 'volume', '\d+(?:\.\d+)?', sub {
+	my($target_volume) = @_;
+	no integer;
+	$target_volume >= 0 && $target_volume <= 1;
+      }, $hour, $min, $sec, $deciday, $wday);
       $adj = 1.0 unless defined $adj;
     } else {
       # Default adjustment for "night"

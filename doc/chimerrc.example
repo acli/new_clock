@@ -60,6 +60,7 @@ volume = 22:00-24:00: 0.8
 ; workdays between office hours; remote school on Tuesday, Thursday and Friday at 6pm
 ; days of the week can be specified in Waterloo style as U, M, T, W, R, F, S
 ; if you use Waterloo style single-letter codes you can just run them together without using a comma
+; (NOTE: In real Waterloo style the days of the week come after the time range, e.g. 09:00-17:00 MTWRF. This is not supported.)
 volume = M-F 9:00-17:00: 0.7
 volume = TRF 18:00-21:00: 0
 
