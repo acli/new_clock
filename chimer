@@ -355,7 +355,7 @@ sub predict_from_loadavg {
     Chimer::log_debug(sprintf 'current predicted latency is %g, from curve-fitting %s', $it, Debug::cvs(\@latencies))
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
     if (defined $it && $it > 15) {
-      Chimer::log_debug(sprintf 'discarded implausible prediction %g', $it
+      Chimer::log_debug(sprintf 'discarded implausible prediction %g', $it)
 	    if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
 
       $it = undef;
