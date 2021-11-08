@@ -2987,8 +2987,8 @@ sub interpret_volume ($;$) {
 	    no integer;
 	    $target_volume >= 0 && $target_volume <= 1;
 	  }, $hour, $min, $sec, $deciday, $wday);
-	log_info "Clock volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
 	$adj = 1 unless defined $adj;
+	log_info "Clock volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
 	$volume = $base * $adj;
       }
   }
