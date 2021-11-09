@@ -35,5 +35,8 @@ proof.ly: chimer $(HOME)/.chimerrc
 CITATION.cff: config/CITATION.cff.in doc/*.md README.md utils/merge-citation-cff chimer
 	utils/merge-citation-cff $(filter-out utils/%,$^) > $@
 
-PHONEY: all clean test doc
+check:
+	perl -cw chimer
+
+PHONEY: all check clean test doc
 DELETE_ON_ERROR:
