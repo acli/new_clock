@@ -333,6 +333,7 @@ sub summation (@) {
 sub predict_from_loadavg {
   my $self = shift;
   my($loadavg) = @_;
+  my $prediction_method;
   my $it;
   my $t = Time::HiRes::time;
   my @latencies = @{$self->{'latencies'}};
@@ -351,6 +352,7 @@ sub predict_from_loadavg {
       $a = (summation(@x) * summation(@y) - summation(map { $x[$_] * $y[$_] } @i) * summation(@x)) / $denominator;
       $a = exp($a);
       $it = &$f($loadavg);
+      $prediction_method = 'curve fitting';
     }
     Chimer::log_debug(sprintf 'current predicted latency is %g, from curve-fitting %s', $it, Debug::cvs(\@latencies))
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
@@ -368,13 +370,15 @@ sub predict_from_loadavg {
     my $m = @latencies;
     my @y = map { $_->{'latency'} } @latencies;
     $it = summation(@y)/$m;
+    $prediction_method = 'averaging';
     Chimer::log_debug(sprintf 'current predicted latency is %g, from averaging %s', $it, Debug::cvs(\@latencies))
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
   } else {
     Chimer::log_debug(sprintf 'insufficient data to predict latency from %s', Debug::cvs(\@latencies))
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
   }
-  return $it;
+  undef $prediction_method unless defined $it;
+  return wantarray? ($it, $prediction_method): $it;
 }
 
 sub predict {
@@ -3586,7 +3590,7 @@ sub do_main_loop () {
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
-      my $effective_latency = $expected_latency{$id}->predict() if defined $expected_latency{$id};
+      my($effective_latency, $prediction_method) = $expected_latency{$id}->predict() if defined $expected_latency{$id};
       $t += $e->{'delay'} if defined $e->{'delay'};
       $t -= $effective_latency if defined $effective_latency;
       $t += $last_prediction_error if defined $last_prediction_error && $last_prediction_error > 0 && $t_last_prediction >= $now - 15; # XXX
@@ -3598,7 +3602,8 @@ sub do_main_loop () {
       } else {
 	my $dt = $now - $t;
 	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)%s", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt)),
-	  (defined $effective_latency? sprintf(' (%.2f latency predicted)', $effective_latency): ' (unable to predict latency)');
+	      (defined $effective_latency? sprintf(' (%.2f latency predicted by %s)', $effective_latency, $prediction_method):
+					  ' (unable to predict latency)');
 	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	my $actual_latency = do_event($id, $hour, $min, $sec, $deciday, $wday);
 
