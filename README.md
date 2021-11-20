@@ -30,6 +30,8 @@ this includes `westminster` (Westminster Quarters),
 and various melodies documented by Starmer (1907, 1910)
 including `whittington11` (the Bow version of Whittington chimes composed by Charles Villiers Stanford in 1905,
 as transcribed by Starmers, 1907, p. 5).
+You can also try `study2` or `study3`,
+which are based on Starmer’s (1910, p. 97) description of “continental” chimes that divides the hour into eight parts.
 
 `cuckoo` mode should work but doesn’t quite work correctly;
 the cause is still to be found.
