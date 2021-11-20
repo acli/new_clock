@@ -1,13 +1,14 @@
-This script sounds [Westminster- or Whittington-style chimes](doc/CHIMES.md) every quarter hour.
+This script sounds [English-style chimes (Westminster, Whittington and others)](doc/CHIMES.md) every quarter hour.
 Between sundown and sunrise,
 it also sounds chimes every 1/5 of a [Chinese night watch](doc/Night_watches.md) (0.2 proportional decimal hours)
 using traditional chiming patterns for night watches and
 according to the old rule of one night watch equalling one decimal hour.
 
-The script makes some effort in preventing
+(I’ve tried to make some effort to prevent
 the two kinds of chimes from clashing with each other.
+Unfortunately this is not working.)
 
-Certain runtime parameters can be configured through a per-user config file,
+Certain runtime parameters can be configured through a [per-user config file](doc/chimerrc.example),
 currently hard-coded to be $HOME/.chimerrc
 
 Aims
@@ -18,16 +19,26 @@ and reducing sound distortion issues caused by RTP broadcasts.
 
 Status
 ------
-This is still a work-in-progress but is already usable,
-although it requires running many copies of mpv at the same time,
-which can potentially be a problem.
-The current tested configuration is `method = synth` and `melody = whittington`.
+This is still a work-in-progress but is already usable.
+The current tested configuration is `method = synth`
+(the synth is only used for pre-generating sound files)
+with `mode = carillon`.
+
+All carillon melodies except the studies should work;
+this includes `westminster` (Westminster Quarters),
+`whittington` (traditional 8-bell Whittington chimes),
+and various melodies documented by Starmer (1907, 1910)
+including `whittington11` (the Bow version of Whittington chimes composed by Charles Villiers Stanford in 1905,
+as transcribed by Starmers, 1907, p. 5).
+
+`cuckoo` mode should work but doesn’t quite work correctly;
+the cause is still to be found.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
 
 Running
 -------
-The script currently only runs on a PulseAudio-based Linux (or similar) system.
+The script currently only runs on a PulseAudio-based Linux system.
 You also must have mpv and ffmpeg installed (see Dependencies below).
 
 If you’re not running directly from a git clone,
