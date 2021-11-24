@@ -261,7 +261,7 @@ package Latency;
 no integer;
 use Time::HiRes;
 
-sub MAX_LATENCIES_REMEMBERED () { 16 }
+sub MAX_LATENCIES_REMEMBERED () { 32 }
 
 sub get_cpu_count () {
   state $it;
@@ -289,16 +289,30 @@ sub get_loadavg () {
   return $it;
 }
 
+sub register_error {
+  my $self = shift;
+  my($method, $delta) = @_;
+  $self->{'errors'}->{$method} = [] unless defined $self->{'errors'}->{$method};
+  push @{$self->{'errors'}->{$method}}, $delta;
+}
+
 sub remember {
   my $self = shift;
-  my($latency) = @_;
+  my($latency, $tag) = @_;
   my $node = {
       'latency' => $latency,
       't' => Time::HiRes::time,
     };
+  $node->{'tag'} = $tag if defined $tag;
   my $loadavg = get_loadavg;
   if (defined $loadavg) {
     $node->{'loadavg'} = $loadavg;
+  }
+  if (defined $self->{'predictions'}) {
+    foreach my $method (keys %{$self->{'predictions'}}) {
+      $self->register_error($method, $latency - $self->{'predictions'}->{$method});
+    }
+    $self->{'predictions'} = undef;
   }
   push @{$self->{'latencies'}}, $node;
   shift @{$self->{'latencies'}} while scalar @{$self->{'latencies'}} > MAX_LATENCIES_REMEMBERED;
@@ -330,21 +344,25 @@ sub summation (@) {
    return $it;
 }
 
-sub predict_from_loadavg {
+sub error_estimate {
   my $self = shift;
-  my($loadavg) = @_;
-  my $prediction_method;
+  my($method) = @_;
+  my $deltas =  $self->{'errors'}->{$method} if defined $self->{'errors'}->{$method};
+  return defined $deltas && @$deltas? summation(map { abs $_ } @$deltas)/scalar(@$deltas): undef;
+}
+
+sub predict_via_exponential_curve_fitting (\@$$) {
+  my($latencies, $loadavg, $t) = @_;
   my $it;
-  my $t = Time::HiRes::time;
-  my @latencies = @{$self->{'latencies'}};
-  if (@latencies > 2) {
+  if (@$latencies > 2) {
     # Assume latency is exponentially related to loadavg
+    my($a, $b);
     my $f = sub { my($x) = @_; $a * exp($b * $x) }; # log f = $b * $x + log($a)
     # But simplify the approximation using log f (cf. p. 429 in my numerical methods textbook)
     # not because the simplication is sound but because my numerical skills are not up to par
-    my $m = @latencies;
-    my @x = map { $_->{'loadavg'} } @latencies;
-    my @y = map { $_->{'latency'} } @latencies;
+    my $m = @$latencies;
+    my @x = map { $_->{'loadavg'} } @$latencies;
+    my @y = map { $_->{'latency'} } @$latencies;
     my @i = 0..($m - 1);
     my $denominator = ($m * summation(map { $x[$_]**2 } @i) - summation(@x)**2);
     if ($denominator) {
@@ -352,32 +370,90 @@ sub predict_from_loadavg {
       $a = (summation(@x) * summation(@y) - summation(map { $x[$_] * $y[$_] } @i) * summation(@x)) / $denominator;
       $a = exp($a);
       $it = &$f($loadavg);
-      $prediction_method = 'curve fitting';
-    }
-    Chimer::log_debug(sprintf 'current predicted latency is %g, from curve-fitting %s', $it, Debug::cvs(\@latencies))
-	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
-    if (defined $it && $it > 15) {
-      Chimer::log_debug(sprintf 'discarded implausible prediction %g', $it)
-	    if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
-
-      $it = undef;
     }
   }
-  if (defined $it) {
-    ;
-  } elsif (@latencies) {
+  return $it;
+}
+
+sub predict_via_polynomial_curve_fitting (\@$$) {
+  my($latencies, $loadavg, $t) = @_;
+  my $it;
+  if (@$latencies > 2) {
+    # Assume latency is quadratically related to loadavg
+    my($a, $b);
+    my $f = sub { my($x) = @_; $a * $x + $b };
+    my $m = @$latencies;
+    my @x = map { $_->{'loadavg'} } @$latencies;
+    my @y = map { $_->{'latency'} } @$latencies;
+    my @i = 0..($m - 1);
+    my $denominator = ($m * summation(map { $x[$_]**2 } @i) - summation(@x)**2);
+    if ($denominator) {
+      $a = ($m * summation(map { $x[$_]*$y[$_] } @i) - summation(@x) * summation(@y)) / $denominator;
+      $b = (summation(@x) * summation(@y) - summation(map { $x[$_] * $y[$_] } @i) * summation(@x)) / $denominator;
+      $it = &$f($loadavg);
+    }
+  }
+  return $it;
+}
+
+sub predict_via_averaging (\@$$) {
+  my($latencies, $loadavg, $t) = @_;
+  my $it;
+  if (@$latencies) {
     # Not enough data to fit a curve - fall back to old heuristic of using some kind of an average
-    my $m = @latencies;
-    my @y = map { $_->{'latency'} } @latencies;
+    my $m = @$latencies;
+    my @y = map { $_->{'latency'} } @$latencies;
     $it = summation(@y)/$m;
-    $prediction_method = 'averaging';
-    Chimer::log_debug(sprintf 'current predicted latency is %g, from averaging %s', $it, Debug::cvs(\@latencies))
+  }
+  return $it;
+}
+
+sub predict_from_loadavg {
+  my $self = shift;
+  my($loadavg) = @_;
+  my $prediction_method;
+  my $it;
+  my $t = Time::HiRes::time;
+  my @latencies = @{$self->{'latencies'}};
+  my %candidates;
+
+  # Calculate candidates predictions
+  $candidates{'exponential curve fitting'} = predict_via_exponential_curve_fitting(@latencies, $loadavg, $t);
+  $candidates{'polynomial curve fitting'} = predict_via_polynomial_curve_fitting(@latencies, $loadavg, $t);
+  $candidates{'averaging'} = predict_via_averaging(@latencies, $loadavg, $t);
+
+  # Remove candidates that returned no results
+  for my $method (keys %candidates) {
+    delete $candidates{$method} unless defined $candidates{$method};
+  }
+
+  # Remove candidates that look implausible
+  for my $method (keys %candidates) {
+    if ($method ne 'averaging' && $candidates{$method} > 15) {
+      Chimer::log_debug(sprintf 'implausible candidate %s from %s removed from consideration', Debug::cvs($candidates{$method}), $method)
+	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
+      delete $candidates{$method};
+    }
+  }
+  Chimer::log_debug(sprintf 'remaining candidates: %s', Debug::cvs(\%candidates))
+      if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
+
+  # Choose "best" prediction from candidates
+  if (keys %candidates == 1) {
+    ($prediction_method, $it) = %candidates;
+    Chimer::log_debug(sprintf 'prediction %s from %s used because it was the only candidate', Debug::cvs(\@latencies), $prediction_method)
+	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
+  } elsif (%candidates) {
+    my @scores = sort { $a->{'error'} <=> $b->{'error'} } map { { 'method' => $_, 'error' => $self->error_estimate($_) } } keys %candidates;
+    $prediction_method = $scores[0]->{'method'};
+    $it = $candidates{$prediction_method};
+    Chimer::log_debug(sprintf 'prediction %s from %s used because it looks historically accurate', Debug::cvs(\@latencies), $prediction_method)
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
   } else {
     Chimer::log_debug(sprintf 'insufficient data to predict latency from %s', Debug::cvs(\@latencies))
 	  if (defined $Chimer::verbose_p && $Chimer::verbose_p > 1) || (defined $Chimer::debug && $Chimer::debug > 1);
   }
-  undef $prediction_method unless defined $it;
+  $self->{'predictions'} = \%candidates;
   return wantarray? ($it, $prediction_method): $it;
 }
 
@@ -390,14 +466,14 @@ sub tag {
   my $self = shift;
   $self->{'tag'} = shift if @_;
   return $self->{'tag'};
-}
+}                                                                                                                                                    
 
 sub new {
   my $class = shift;
-  my($latency) = @_;
+  my($latency, $tag) = @_;
   my $self = {};
   bless $self, $class;
-  $self->remember($latency) if defined $latency;
+  $self->remember($latency, $tag) if defined $latency;
   return $self;
 }
 
@@ -2444,14 +2520,31 @@ sub determine_next_uncached_event (@) {
   return $it;
 }
 
+sub determine_latency_key_from_event_id ($) {
+  my($event_id) = @_;
+  # We used to use $event_id as-is, but it's probably more reasonable to somewhat group them
+  my $it;
+  if ($event_id =~ /^w\d/s) {			# night watches are a separate category because they just randomly happen
+    $it = 'w';
+  } elsif ($event_id =~ /^(?:h|halb)\d/s) {	# hourly/half-hourly melodies that most likely are preceded by a quarter chime
+    $it = 'h';
+  } elsif ($event_id =~ /^posth/s) {		# melodies after the hourly strikes
+    $it = 'posth';
+  } else {					# everything else get massed into one single category
+    $it = '*';
+  }
+  return $it;
+}
+
 sub determine_next_event_with_unknown_latency (@) {
   my @event = @_;
   my $it;
   for my $event (@event) {
     my $event_id = $event->{'id'};
-    $it = $event_id if !defined $expected_latency{$event_id};
+    my $latency_key = determine_latency_key_from_event_id $event_id;
+    $it = $event_id if !defined $expected_latency{$latency_key};
   last if defined $it;
-    $it = $event_id if !$expected_latency{$event_id}->has_usable_measurements_p();
+    $it = $event_id if !$expected_latency{$latency_key}->has_usable_measurements_p();
   last if defined $it;
   }
   return $it;
@@ -3171,13 +3264,14 @@ sub strike_tune (@) {
 sub update_latency_for_event ($$) {
   my($id, $latency) = @_;
   if (defined $id && defined $latency) {
-    if (defined $expected_latency{$id}) {
-      $expected_latency{$id}->remember($latency);
-      log_debug sprintf 'measured latency %g for event %s, state updated (currently %s)', $latency, $id, Debug::cvs($expected_latency{$id});
+    my $latency_key = determine_latency_key_from_event_id $id;
+    if (defined $expected_latency{$latency_key}) {
+      $expected_latency{$latency_key}->remember($latency, $id);
+      log_debug sprintf 'measured latency %g for event %s, state updated (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key});
     } else {
-      $expected_latency{$id} = Latency->new($latency);
-      $expected_latency{$id}->tag($id);
-      log_debug sprintf 'measured latency %g for event %s, state initialized (currently %s)', $latency, $id, Debug::cvs($expected_latency{$id});
+      $expected_latency{$latency_key} = Latency->new($latency, $id);
+      $expected_latency{$latency_key}->tag($latency_key);
+      log_debug sprintf 'measured latency %g for event %s, state initialized (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key});
     }
   }
 }
@@ -3547,7 +3641,8 @@ sub do_main_loop () {
     # Determine when we should wake up; try to make some effort to align it to a second boundary
     my $t1 = current_time;
     my $dt0 = $event[0]->{'t'} - $t1;
-    $dt0 -= $expected_latency{$event[0]->{'id'}}->predict() if defined $expected_latency{$event[0]->{'id'}};
+    my $latency_key0 = determine_latency_key_from_event_id $event[0]->{'id'};
+    $dt0 -= $expected_latency{$latency_key0}->predict() if defined $expected_latency{$latency_key0};
     my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
     my $dt = $t_next - $t1;
     $dt = 0 if $dt < 0;
@@ -3590,7 +3685,8 @@ sub do_main_loop () {
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
       my $t = $e->{'t'};
-      my($effective_latency, $prediction_method) = $expected_latency{$id}->predict() if defined $expected_latency{$id};
+      my $latency_key = determine_latency_key_from_event_id $id;
+      my($effective_latency, $prediction_method) = $expected_latency{$latency_key}->predict() if defined $expected_latency{$latency_key};
       $t += $e->{'delay'} if defined $e->{'delay'};
       $t -= $effective_latency if defined $effective_latency;
       $t += $last_prediction_error if defined $last_prediction_error && $last_prediction_error > 0 && $t_last_prediction >= $now - 15; # XXX
