@@ -262,6 +262,7 @@ no integer;
 use Time::HiRes;
 
 sub MAX_LATENCIES_REMEMBERED () { 32 }
+sub MAX_ERRORS_REMEMBERED    () { 64 }
 
 sub get_cpu_count () {
   state $it;
@@ -294,6 +295,7 @@ sub register_error {
   my($method, $delta) = @_;
   $self->{'errors'}->{$method} = [] unless defined $self->{'errors'}->{$method};
   push @{$self->{'errors'}->{$method}}, $delta;
+  shift @{$self->{'errors'}->{$method}} while scalar @{$self->{'errors'}->{$method}} > MAX_ERRORS_REMEMBERED;
 }
 
 sub remember {
@@ -354,7 +356,8 @@ sub error_estimate {
 sub predict_via_exponential_curve_fitting (\@$$) {
   my($latencies, $loadavg, $t) = @_;
   my $it;
-  if (@$latencies > 2) {
+  if (@$latencies > 2 && defined $loadavg) {
+    no integer;
     # Assume latency is exponentially related to loadavg
     my($a, $b);
     my $f = sub { my($x) = @_; $a * exp($b * $x) }; # log f = $b * $x + log($a)
@@ -378,7 +381,8 @@ sub predict_via_exponential_curve_fitting (\@$$) {
 sub predict_via_polynomial_curve_fitting (\@$$) {
   my($latencies, $loadavg, $t) = @_;
   my $it;
-  if (@$latencies > 2) {
+  if (@$latencies > 2 && defined $loadavg) {
+    no integer;
     # Assume latency is quadratically related to loadavg
     my($a, $b);
     my $f = sub { my($x) = @_; $a * $x + $b };
@@ -400,9 +404,22 @@ sub predict_via_averaging (\@$$) {
   my($latencies, $loadavg, $t) = @_;
   my $it;
   if (@$latencies) {
-    # Not enough data to fit a curve - fall back to old heuristic of using some kind of an average
+    no integer;
     my $m = @$latencies;
     my @y = map { $_->{'latency'} } @$latencies;
+    $it = summation(@y)/$m;
+  }
+  return $it;
+}
+
+sub predict_via_weighted_averaging (\@$$) {
+  my($latencies, $loadavg, $t) = @_;
+  my $it;
+  if (@$latencies && defined $loadavg) {
+    no integer;
+    state $k = 2**0.25;
+    my $m = @$latencies;
+    my @y = map { $_->{'latency'} * 2**($loadavg - $_->{'loadavg'}) } @$latencies;
     $it = summation(@y)/$m;
   }
   return $it;
@@ -420,6 +437,7 @@ sub predict_from_loadavg {
   # Calculate candidates predictions
   $candidates{'exponential curve fitting'} = predict_via_exponential_curve_fitting(@latencies, $loadavg, $t);
   $candidates{'polynomial curve fitting'} = predict_via_polynomial_curve_fitting(@latencies, $loadavg, $t);
+  $candidates{'weighted-averaging'} = predict_via_weighted_averaging(@latencies, $loadavg, $t);
   $candidates{'averaging'} = predict_via_averaging(@latencies, $loadavg, $t);
 
   # Remove candidates that returned no results
