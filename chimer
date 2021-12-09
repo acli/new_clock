@@ -417,7 +417,7 @@ sub predict_via_weighted_averaging (\@$$) {
   my $it;
   if (@$latencies && defined $loadavg) {
     no integer;
-    state $k = 2**0.25;
+    state $k = 2**0.125;
     my $m = @$latencies;
     my @y = map { $_->{'latency'} * 2**($loadavg - $_->{'loadavg'}) } @$latencies;
     $it = summation(@y)/$m;
@@ -3085,7 +3085,7 @@ sub play_sound_file_real ($;$$$) {
     last if defined $latency; # XXX must exit or we won't until we get past the 10s silence at the end; hopefully nothing more will be output
     }
   }
-  $children{$h} = 1;
+  $children{$h} = $fh;
   return $latency;
 }
 
@@ -3602,6 +3602,7 @@ sub do_main_loop () {
     for my $pid (keys %children) {
       if (!kill 0, $pid || waitpid($pid, WNOHANG) == $pid) {
 	log_debug "child process $pid has exited" if $debug;
+	close $children{$pid} if $children{$pid} =~ /\D/s;
 	delete $children{$pid};
       }
     }
