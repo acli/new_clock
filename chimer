@@ -1755,7 +1755,14 @@ sub define_chimes () {
       'q0' => '\x \A \B \C \D \F',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON11, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
+  define_event(MODE__CARILLON, {
+      &MELODY__WHITTINGTON11 => {
+	title => 'Whittington chimes on eleven bells',
+      },
+      'whittington11study' => {
+	title => 'Whittington chimes on eleven bells (arr. Ambrose Li)',
+      },
+    }, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
 	x = { \tempo 4 = 96 }
 	A = \relative { c''4 g' f e }
 	B = \relative { c''4 g' f e g d }
@@ -1763,11 +1770,91 @@ sub define_chimes () {
 	D = \relative { c''4 g' f e g d c a f e g d^\fermata }	% pause inserted to make the hour strike sound less abrupt
 	S = \relative { c'1 }
       ),
-      'q1' => '\x <>-\ff \A',
-      'q2' => '\x <>-\ff \B',
-      'q3' => '\x <>-\ff \C',
-      'q0' => '\x <>-\ff \D',
-      'h' => '\x <>-\fff \repeat volta %I { \S }',
+      &MELODY__WHITTINGTON11 => {
+	'q1' => '\x <>-\ff \A',
+	'q2' => '\x <>-\ff \B',
+	'q3' => '\x <>-\ff \C',
+	'q0' => '\x <>-\ff \D',
+	'h' => '\x <>-\fff \repeat volta %I { \S }',
+      },
+      'whittington11study' => {
+	'q1' => q(<< { \voiceOne \x <>-\f \A }
+	      \new Voice { \voiceThree \x \transpose c c' { a1 } }
+	      \new Voice { \voiceFour  \x \transpose c c' { f1 } }
+	    >>),
+	'q2' => q(<< { \voiceOne \x <>-\f \B }
+	      \new Voice { \voiceThree \x \transpose c c' { b2. a } }
+	      \new Voice { \voiceFour  \x \transpose c c' { g2. f } }
+	    >>),
+	'q3' => q(<< { \voiceOne \x <>-\f \C }
+	      \new Voice { \voiceThree \x \transpose c c' { b2. c' d' } }
+	      \new Voice { \voiceFour  \x \transpose c c' { g2. a  b  } }
+	    >>),
+	'q0' => q(<< { \voiceOne \x <>-\f \D }
+	      \new Voice { \voiceThree \x \transpose c c' { g2. a b a } }
+	      \new Voice { \voiceFour  \x \transpose c c' { e2. f g f } }
+	    >>),
+	'h1' => q(<< { \voiceOne \x <>-\ff { \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 } }
+	      \new Voice { \voiceThree \x \transpose c c' { e1 } }
+	      \new Voice { \voiceFour  \x \transpose c c' { c1 } }
+	    >>),
+	'h2' => q(<< { \voiceOne \x <>-\ff { \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 c } }
+	    >>),
+	'h3' => q(<< { \voiceOne \x <>-\ff { \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d c } }
+	    >>),
+	'h4' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d c } }
+	    >>),
+	'h5' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d c } }
+	    >>),
+	'h6' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d c } }
+	    >>),
+	'h7' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d c } }
+	    >>),
+	'h8' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d c } }
+	    >>),
+	'h9' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d c } }
+	    >>),
+	'h10' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d d c } }
+	    >>),
+	'h11' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d d d c } }
+	    >>),
+	'h12' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g g g g } }
+	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f f f f e } }
+	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d d d d c } }
+	    >>),
+      },
     ),
   define_event(MODE__CARILLON, 'study1', 'Study 1', undef, '2021', 'O Canada, God Save The Queen, Malines half-quarters; cf. Starmers, 1910, p. 97', q(
 	% Calixa Lavallée, 1880 (source: https://laws-lois.justice.gc.ca/fra/lois/N-2/20180207/P1TT3xt3.html)
