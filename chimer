@@ -56,8 +56,12 @@ sub lazy_sorter ($$) {
     my($a1, $a2) = ($1, $2);
     if ($b =~ /^(.*?)(\d+(?:\.\d+)?)$/s) {
       my($b1, $b2) = ($1, $2);
-      $it = $a1 cmp $b1;
-      $it = $a2 <=> $b2 unless $it;
+      if ($a1 eq $b1 && $a1 =~ /q$/s) {		# q0 = q4 therefore > q3
+	$it = ($a2 + 3)%4 <=> ($b2 + 3)%4;
+      } else {
+	$it = $a1 cmp $b1;
+	$it = $a2 <=> $b2 unless $it;
+      }
     }
   }
   $it = $a cmp $b unless defined $it && $it;
