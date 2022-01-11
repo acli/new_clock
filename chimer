@@ -1763,7 +1763,12 @@ sub define_chimes () {
 	title => 'Whittington chimes on eleven bells (arr. Ambrose Li)',
       },
     }, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
-	x = { \tempo 4 = 96 }
+	u = { \voiceOne \clef "treble" }
+	v = { \voiceTwo \clef "bass" }
+	w = { \tempo 4 = 96 }
+	x = { \tempo 4 = 96 \time 3/4 }
+	y = { <>-\mf }
+	z = { <>-\f }
 	A = \relative { c''4 g' f e }
 	B = \relative { c''4 g' f e g d }
 	C = \relative { a'4 g f e g d' c e d }
@@ -1771,88 +1776,60 @@ sub define_chimes () {
 	S = \relative { c'1 }
       ),
       &MELODY__WHITTINGTON11 => {
-	'q1' => '\x <>-\ff \A',
+	'q1' => '\x <>-\ff \partial 4 \A',
 	'q2' => '\x <>-\ff \B',
 	'q3' => '\x <>-\ff \C',
 	'q0' => '\x <>-\ff \D',
-	'h' => '\x <>-\fff \repeat volta %I { \S }',
+	'h' => '\w <>-\fff \repeat volta %I { \S }',
       },
       'whittington11study' => {
-	'q1' => q(<< { \voiceOne \x <>-\f \A }
-	      \new Voice { \voiceThree \x \transpose c c' { a1 } }
-	      \new Voice { \voiceFour  \x \transpose c c' { f1 } }
+	'q1' => q(<< { \u \x <>-\f \partial 4 \A }
+	      \new Staff { \v  \x \z \absolute { \partial 4 <f a>1 } }
 	    >>),
-	'q2' => q(<< { \voiceOne \x <>-\f \B }
-	      \new Voice { \voiceThree \x \transpose c c' { b2. a } }
-	      \new Voice { \voiceFour  \x \transpose c c' { g2. f } }
+	'q2' => q(<< { \u \x <>-\f \B }
+	      \new Staff { \v  \x \z \absolute { <g b>2. <f a> } }
 	    >>),
-	'q3' => q(<< { \voiceOne \x <>-\f \C }
-	      \new Voice { \voiceThree \x \transpose c c' { b2. c' d' } }
-	      \new Voice { \voiceFour  \x \transpose c c' { g2. a  b  } }
+	'q3' => q(<< { \u \x <>-\f \C }
+	      \new Staff { \v  \x \z \absolute { <g b>2. <a c'> <b d'> } }
 	    >>),
-	'q0' => q(<< { \voiceOne \x <>-\f \D }
-	      \new Voice { \voiceThree \x \transpose c c' { g2. a b a } }
-	      \new Voice { \voiceFour  \x \transpose c c' { e2. f g f } }
+	'q0' => q(<< { \u \x <>-\f \D }
+	      \new Staff { \v  \x \z \absolute { <e g>2. <f a> <g b> <f a> } }
 	    >>),
-	'h1' => q(<< { \voiceOne \x <>-\ff { \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 } }
-	      \new Voice { \voiceThree \x \transpose c c' { e1 } }
-	      \new Voice { \voiceFour  \x \transpose c c' { c1 } }
+	'h1' => q(<< { \u \w <>-\ff { \S } }
+	      \new Staff { \v \w \z \absolute { <c e g>1 } }
 	    >>),
-	'h2' => q(<< { \voiceOne \x <>-\ff { \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 c } }
+	'h2' => q(<< { \u \w <>-\ff { \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 \z <c e g> } }
 	    >>),
-	'h3' => q(<< { \voiceOne \x <>-\ff { \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d c } }
+	'h3' => q(<< { \u \w <>-\ff { \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> \z <c e g> } }
 	    >>),
-	'h4' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d c } }
+	'h4' => q(<< { \u \w <>-\ff { \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h5' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d c } }
+	'h5' => q(<< { \u \w <>-\ff { \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h6' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d c } }
+	'h6' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h7' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d c } }
+	'h7' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h8' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d c } }
+	'h8' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h9' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d c } }
+	'h9' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h10' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d d c } }
+	'h10' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h11' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d d d c } }
+	'h11' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
-	'h12' => q(<< { \voiceOne \x <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Voice { \voiceTwo   \x \transpose c c' { g1 g g g g g g g g g g g } }
-	      \new Voice { \voiceThree \x \transpose c c' { f1 f f f f f f f f f f e } }
-	      \new Voice { \voiceFour  \x \transpose c c' { d1 d d d d d d d d d d c } }
+	'h12' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
 	    >>),
       },
     ),
