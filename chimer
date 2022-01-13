@@ -1771,7 +1771,7 @@ sub define_chimes () {
 	v = { \voiceTwo \clef "bass" }
 	w = { \tempo 4 = 96 }
 	x = { \tempo 4 = 96 \time 3/4 }
-	y = { <>-\mf }
+	y = { <>-\f }
 	z = { <>-\f }
 	A = \relative { c''4 g' f e }
 	B = \relative { c''4 g' f e g d }
@@ -1803,37 +1803,37 @@ sub define_chimes () {
 	      \new Staff { \v \w \z \absolute { <c e g>1 } }
 	    >>),
 	'h2' => q(<< { \u \w <>-\ff { \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { b1 \z <c e g> } }
 	    >>),
 	'h3' => q(<< { \u \w <>-\ff { \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { a1 a \z <c e g> } }
 	    >>),
 	'h4' => q(<< { \u \w <>-\ff { \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { g1 g g \z <c e g> } }
 	    >>),
 	'h5' => q(<< { \u \w <>-\ff { \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { f1 f f f \z <c e g> } }
 	    >>),
 	'h6' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { e1 e e e e \z <c e g> } }
 	    >>),
 	'h7' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { d1 d d d d d \z <c e g> } }
 	    >>),
 	'h8' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { c1 c c c c c c \z <c e g> } }
 	    >>),
 	'h9' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { b,1 b, b, b, b, b, b, b, \z <c e g> } }
 	    >>),
 	'h10' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { a,1 a, a, a, a, a, a, a, a, \z <c e g> } }
 	    >>),
 	'h11' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { g,1 g, g, g, g, g, g, g, g, g, \z <c e g> } }
 	    >>),
 	'h12' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { <d f g>1 <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> <d f g> \z <c e g> } }
+	      \new Staff { \v \w \y \absolute { f,1 f, f, f, f, f, f, f, f, f, f, \z <c e g> } }
 	    >>),
       },
     ),
