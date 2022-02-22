@@ -1767,17 +1767,18 @@ sub define_chimes () {
 	title => 'Whittington chimes on eleven bells (arr. Ambrose Li)',
       },
     }, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
-	u = { \voiceOne \clef "treble" }
-	v = { \voiceTwo \clef "bass" }
+	s = { \key b \major \voiceOne \clef "treble" }
+	t = { \key b \major \voiceThree \clef "bass" }
+	b = { \key b \major \voiceFour \clef "bass" }
 	w = { \tempo 4 = 96 }
 	x = { \tempo 4 = 96 \time 3/4 }
-	y = { <>-\f }
-	z = { <>-\f }
-	A = \relative { c''4 g' f e }
-	B = \relative { c''4 g' f e g d }
-	C = \relative { a'4 g f e g d' c e d }
-	D = \relative { c''4 g' f e g d c a f e g d^\fermata }	% pause inserted to make the hour strike sound less abrupt
-	S = \relative { c'1 }
+	y = { <>-\mp \set Staff.instrumentName = #"Keyboard" }
+	z = { <>-\mf }
+	A = \transpose c b { c'4 g' f' e' }
+	B = \transpose c b { c'4 g' f' e' g' d' }
+	C = \transpose c b { a4 g f e g d' c' e' d' }
+	D = \transpose c b { c'4 g' f' e' g' d' c' a f e g d^\fermata }	% pause inserted to make the hour strike sound less abrupt
+	S = \transpose c b { c1 }
       ),
       &MELODY__WHITTINGTON11 => {
 	'q1' => '\x <>-\ff \partial 4 \A',
@@ -1786,54 +1787,71 @@ sub define_chimes () {
 	'q0' => '\x <>-\ff \D',
 	'h' => '\w <>-\fff \repeat volta %I { \S }',
       },
+      # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
       'whittington11study' => {
-	'q1' => q(<< { \u \x <>-\f \partial 4 \A }
-	      \new Staff { \v  \x \z \absolute { \partial 4 <f a>1 } }
+	'q1' => q(<< { \s \x <>-\f \partial 4 \A }
+	      \new Staff { \t \x \y \transpose c b, { \partial 4 a1 } }
+	      \new Staff { \b \x \y \transpose c b, { \partial 4 f1 } }
 	    >>),
-	'q2' => q(<< { \u \x <>-\f \B }
-	      \new Staff { \v  \x \z \absolute { <g b>2. <f a> } }
+	'q2' => q(<< { \s \x <>-\f \B }
+	      \new Staff { \t \x \y \transpose c b, { b2. a } }
+	      \new Staff { \b \x \y \transpose c b, { g2. f } }
 	    >>),
-	'q3' => q(<< { \u \x <>-\f \C }
-	      \new Staff { \v  \x \z \absolute { <g b>2. <a c'> <b d'> } }
+	'q3' => q(<< { \s \x <>-\f \C }
+	      \new Staff { \t \x \y \transpose c b, { b2. c' d' } }
+	      \new Staff { \b \x \y \transpose c b, { g2. a  b  } }
 	    >>),
-	'q0' => q(<< { \u \x <>-\f \D }
-	      \new Staff { \v  \x \z \absolute { <e g>2. <f a> <g b> <f a> } }
+	'q0' => q(<< { \s \x <>-\f \D }
+	      \new Staff { \t \x \y \transpose c b, { g2. a b a } }
+	      \new Staff { \b \x \y \transpose c b, { e2. f g f } }
 	    >>),
-	'h1' => q(<< { \u \w <>-\ff { \S } }
-	      \new Staff { \v \w \z \absolute { <c e g>1 } }
+	'h1' => q(<< { \s \w <>-\ff { \S } }
+	      \new Staff { \t \w \y \transpose c b, { c1 } }
+	      \new Staff { \b \w \y \transpose c b, { c,1 } }
 	    >>),
-	'h2' => q(<< { \u \w <>-\ff { \S \S } }
-	      \new Staff { \v \w \y \absolute { b1 \z <c e g> } }
+	'h2' => q(<< { \s \w <>-\ff { \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { d1 \z c } }
+	      \new Staff { \b \w \y \transpose c b, { c1 \z c, } }
 	    >>),
-	'h3' => q(<< { \u \w <>-\ff { \S \S \S } }
-	      \new Staff { \v \w \y \absolute { a1 a \z <c e g> } }
+	'h3' => q(<< { \s \w <>-\ff { \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { e1 e \z c } }
+	      \new Staff { \b \w \y \transpose c b, { c1 c \z c, } }
 	    >>),
-	'h4' => q(<< { \u \w <>-\ff { \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { g1 g g \z <c e g> } }
+	'h4' => q(<< { \s \w <>-\ff { \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { f1 f f \z c } }
+	      \new Staff { \b \w \y \transpose c b, { c1 c c \z c, } }
 	    >>),
-	'h5' => q(<< { \u \w <>-\ff { \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { f1 f f f \z <c e g> } }
+	'h5' => q(<< { \s \w <>-\ff { \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { g1 g g g \z c } }
+	      \new Staff { \b \w \y \transpose c b, { c1 c c c \z c, } }
 	    >>),
-	'h6' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { e1 e e e e \z <c e g> } }
+	'h6' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { a1 a a a a \z c } }
+	      \new Staff { \b \w \y \transpose c b, { c1 c c c c \z c, } }
 	    >>),
-	'h7' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { d1 d d d d d \z <c e g> } }
+	'h7' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { b1 b b b b b \z c } }
+	      \new Staff { \b \w \y \transpose c b, { c1 c c c c c \z c, } }
 	    >>),
-	'h8' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { c1 c c c c c c \z <c e g> } }
+	'h8' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { c1 c c c c c c \z c, } }
+	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h9' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { b,1 b, b, b, b, b, b, b, \z <c e g> } }
+	'h9' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { d1 d d d d d d d \z c, } }
+	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h10' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { a,1 a, a, a, a, a, a, a, a, \z <c e g> } }
+	'h10' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { e1 e e e e e e e e \z c, } }
+	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h11' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { g,1 g, g, g, g, g, g, g, g, g, \z <c e g> } }
+	'h11' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { f1 f f f f f f f f f \z c, } }
+	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h12' => q(<< { \u \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \v \w \y \absolute { f,1 f, f, f, f, f, f, f, f, f, f, \z <c e g> } }
+	'h12' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \y \transpose c b, { g1 g g g g g g g g g g \z c, } }
+	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
       },
     ),
@@ -2969,7 +2987,7 @@ sub connect_synth ($) {
     log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
     set_sink $sinks[0] if $immediate_p && @sinks;
     my @cmd = ('fluidsynth', '-g', $gain,
-			     '--midi-channels', '6',
+			     '--midi-channels', '7',
 			     ($immediate_p?
 				('-a', 'pulseaudio'):
 				('-a', 'file',
@@ -2992,12 +3010,15 @@ sub connect_synth ($) {
     my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
     my $beep = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
     my $mbox = find_synth_instrument($instruments, 'Music Box', '000-010');	# XXX this doesn't sound right
+    #my $clav = find_synth_instrument($instruments, '000-019');	# church organ
+    my $clav = find_synth_instrument($instruments, '000-000');	# piano
     ($gong_bank, $gong_inst) = @$gong;
     ($bell_bank, $bell_inst) = @$bell;
     ($wood_bank, $wood_inst) = @$wood;
     ($perc_bank, $perc_inst) = @$perc;
     ($beep_bank, $beep_inst) = @$beep;
     my($mbox_bank, $mbox_inst) = @$mbox;
+    my($clav_bank, $clav_inst) = @$clav;
     $wood_note = (synth_instrument_name($instruments, $wood) =~ / Kit\b/ || $wood_bank == 128)? 31: $note_to_midi_number{'d#5'};
     send_midi_command "select 0 1 $gong_bank $gong_inst";
     send_midi_command "select 1 1 $bell_bank $bell_inst";
@@ -3005,11 +3026,13 @@ sub connect_synth ($) {
     send_midi_command "select 3 1 $perc_bank $perc_inst";
     send_midi_command "select 4 1 $beep_bank $beep_inst";
     send_midi_command "select 5 1 $mbox_bank $mbox_inst";
+    send_midi_command "select 6 1 $clav_bank $clav_inst";
     $instrument_name_to_channel_number{'Gong'} = 0;
     $instrument_name_to_channel_number{'Carillon'} = 1;
     $instrument_name_to_channel_number{'Woodblock'} = 2;
     $instrument_name_to_channel_number{'Sine Wave'} = 4;
     $instrument_name_to_channel_number{'Music Box'} = 5;
+    $instrument_name_to_channel_number{'Keyboard'} = 6;
 
     # Set reverb, based on advice from
     # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
@@ -3260,7 +3283,7 @@ sub strike_tune_real ($@) {
       } elsif (defined $note_to_midi_number{$note}) {
 	my $channel = (defined $instrument_name_to_channel_number{$instrument})? $instrument_name_to_channel_number{$instrument}: 1;
 	my $note_number = $note_to_midi_number{$note};
-	my $laisser_vibrer_p = 1 unless $instrument eq 'Sine Wave' || defined $actual_time; # FIXME
+	my $laisser_vibrer_p = 1 unless $instrument =~ /^(?:Keyboard|Sine Wave)$/s || defined $actual_time; # FIXME
 	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
 	push @midi_commands, [$elapsed + $effective_note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       } elsif ($note ne 'r') {
