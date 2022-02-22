@@ -3010,8 +3010,8 @@ sub connect_synth ($) {
     my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
     my $beep = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
     my $mbox = find_synth_instrument($instruments, 'Music Box', '000-010');	# XXX this doesn't sound right
-    #my $clav = find_synth_instrument($instruments, '000-019');	# church organ
-    my $clav = find_synth_instrument($instruments, '000-000');	# piano
+    my $clav = find_synth_instrument($instruments, '000-019');	# church organ
+    #my $clav = find_synth_instrument($instruments, '000-000');	# piano
     ($gong_bank, $gong_inst) = @$gong;
     ($bell_bank, $bell_inst) = @$bell;
     ($wood_bank, $wood_inst) = @$wood;
@@ -3641,7 +3641,7 @@ sub parse_command_line_arguments () {
     'q|quit' => \$quit_p,
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => \$test_p,
-    'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) { do_event $e };
+    'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) { do_event $e; sleep determine_event_duration($e, undef) };
 	exit },
     'test-scale' => sub { do_test_setup; strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]);
 	exit },
