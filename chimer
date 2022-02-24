@@ -1772,7 +1772,10 @@ sub define_chimes () {
 	b = { \key b \major \voiceFour \clef "bass" }
 	w = { \tempo 4 = 96 }
 	x = { \tempo 4 = 96 \time 3/4 }
-	y = { <>-\mp \set Staff.instrumentName = #"Keyboard" }
+	y = { \set Staff.instrumentName = #"Keyboard" }
+	quarteraccomp = { <>-\p \y }
+	halfaccomp = { <>-\mp \y }
+	houraccomp = { <>-\mp \y }
 	z = { <>-\mf }
 	A = \transpose c b { c'4 g' f' e' }
 	B = \transpose c b { c'4 g' f' e' g' d' }
@@ -1790,68 +1793,68 @@ sub define_chimes () {
       # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
       'whittington11study' => {
 	'q1' => q(<< { \s \x <>-\f \partial 4 \A }
-	      \new Staff { \t \x \y \transpose c b, { \partial 4 a1 } }
-	      \new Staff { \b \x \y \transpose c b, { \partial 4 f1 } }
+	      \new Staff { \t \x \quarteraccomp \transpose c b, { \partial 4 a1 } }
+	      \new Staff { \b \x \quarteraccomp \transpose c b, { \partial 4 f1 } }
 	    >>),
 	'q2' => q(<< { \s \x <>-\f \B }
-	      \new Staff { \t \x \y \transpose c b, { b2. a } }
-	      \new Staff { \b \x \y \transpose c b, { g2. f } }
+	      \new Staff { \t \x \halfaccomp \transpose c b, { b2. a } }
+	      \new Staff { \b \x \halfaccomp \transpose c b, { g2. f } }
 	    >>),
 	'q3' => q(<< { \s \x <>-\f \C }
-	      \new Staff { \t \x \y \transpose c b, { b2. c' d' } }
-	      \new Staff { \b \x \y \transpose c b, { g2. a  b  } }
+	      \new Staff { \t \x \quarteraccomp \transpose c b, { b2. c' d' } }
+	      \new Staff { \b \x \quarteraccomp \transpose c b, { g2. a  b  } }
 	    >>),
 	'q0' => q(<< { \s \x <>-\f \D }
-	      \new Staff { \t \x \y \transpose c b, { g2. a b a } }
-	      \new Staff { \b \x \y \transpose c b, { e2. f g f } }
+	      \new Staff { \t \x \houraccomp \transpose c b, { g2. a b a } }
+	      \new Staff { \b \x \houraccomp \transpose c b, { e2. f g f } }
 	    >>),
 	'h1' => q(<< { \s \w <>-\ff { \S } }
-	      \new Staff { \t \w \y \transpose c b, { c1 } }
-	      \new Staff { \b \w \y \transpose c b, { c,1 } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { c1 } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 } }
 	    >>),
 	'h2' => q(<< { \s \w <>-\ff { \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { d1 \z c } }
-	      \new Staff { \b \w \y \transpose c b, { c1 \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { d1 \z c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 \z c, } }
 	    >>),
 	'h3' => q(<< { \s \w <>-\ff { \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { e1 e \z c } }
-	      \new Staff { \b \w \y \transpose c b, { c1 c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e \z c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c \z c, } }
 	    >>),
 	'h4' => q(<< { \s \w <>-\ff { \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { f1 f f \z c } }
-	      \new Staff { \b \w \y \transpose c b, { c1 c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f \z c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c \z c, } }
 	    >>),
 	'h5' => q(<< { \s \w <>-\ff { \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { g1 g g g \z c } }
-	      \new Staff { \b \w \y \transpose c b, { c1 c c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g \z c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c \z c, } }
 	    >>),
 	'h6' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { a1 a a a a \z c } }
-	      \new Staff { \b \w \y \transpose c b, { c1 c c c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { a1 a a a a \z c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c \z c, } }
 	    >>),
 	'h7' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { b1 b b b b b \z c } }
-	      \new Staff { \b \w \y \transpose c b, { c1 c c c c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { b1 b b b b b \z c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c c \z c, } }
 	    >>),
 	'h8' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { c1 c c c c c c \z c, } }
-	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { c1 c c c c c c \z c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, \z c, } }
 	    >>),
 	'h9' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { d1 d d d d d d d \z c, } }
-	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { d1 d d d d d d d \z c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, \z c, } }
 	    >>),
 	'h10' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { e1 e e e e e e e e \z c, } }
-	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e e e e e e e e \z c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
 	'h11' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { f1 f f f f f f f f f \z c, } }
-	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f f f f f f f f \z c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
 	'h12' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \y \transpose c b, { g1 g g g g g g g g g g \z c, } }
-	      \new Staff { \b \w \y \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g g g g g g g g \z c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
       },
     ),
@@ -3641,7 +3644,11 @@ sub parse_command_line_arguments () {
     'q|quit' => \$quit_p,
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => \$test_p,
-    'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) { do_event $e; sleep determine_event_duration($e, undef) };
+    'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) {
+	    my $t0 = Time::HiRes::time; do_event $e;
+	    my $dt = determine_event_duration($e, undef) - (Time::HiRes::time - $t0);
+	    log_debug "event duration compensation $dt";
+	    sleep $dt if $dt > 0 }
 	exit },
     'test-scale' => sub { do_test_setup; strike_tune(map {[$_, 1]} @midi_number_to_note[48, 50, 52, 53, 55, 57, 59, 60]);
 	exit },
