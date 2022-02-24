@@ -3645,8 +3645,9 @@ sub parse_command_line_arguments () {
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => \$test_p,
     'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) {
-	    my $t0 = Time::HiRes::time; do_event $e;
-	    my $dt = determine_event_duration($e, undef) - (Time::HiRes::time - $t0);
+	    my $t0 = Time::HiRes::time;
+	    my $latency = do_event $e;
+	    my $dt = determine_event_duration($e, undef) - (Time::HiRes::time - ($t0 + $latency));
 	    log_debug "event duration compensation $dt";
 	    sleep $dt if $dt > 0 }
 	exit },
