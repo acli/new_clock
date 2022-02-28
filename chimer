@@ -3339,6 +3339,7 @@ sub strike_tune_real ($@) {
   no integer;
   my $semitones = 8;
   my @midi_commands;
+  my $percussion_channel = $instrument_name_to_channel_number{'drum kit'};
   for my $voice (@tune) {
     my $elapsed = 0;
     my $t0 = current_time;
@@ -3353,7 +3354,7 @@ sub strike_tune_real ($@) {
       if (defined $flags && defined $flags->{'directive'}) {
 	push @midi_commands, [$elapsed, $flags->{'directive'}, $velocity];
       } elsif (defined $percussion_note_to_midi_number{$note}) {
-	push @midi_commands, [$elapsed, sprintf 'noteon 3 %d %d', $percussion_note_to_midi_number{$note}, $velocity];
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $percussion_channel, $percussion_note_to_midi_number{$note}, $velocity];
       } elsif (exists $percussion_note_to_midi_number{$note}) {	# valid percussion note but no MIDI equivalent
 	log_debug "percussion note $note has no MIDI equivalent";	# XXX
       } elsif (defined $note_to_midi_number{$note}) {
@@ -3402,7 +3403,7 @@ sub strike_tune_real ($@) {
 	}
       } elsif ($method eq METHOD__SYNTH) {
 	send_midi_command $midi_command;
-      } elsif ($midi_command =~ /^noteon 3 (\d+) (\d+)/) {		# percussion
+      } elsif (defined $percussion_channel && $midi_command =~ /^noteon $percussion_channel (\d+) (\d+)/) {		# percussion
 	my($instrument, $volume) = ($1, $2);
 	if ($instrument == $percussion_note_to_midi_number{'cyms'}
 	  || $instrument == $percussion_note_to_midi_number{'cymch'}) {
