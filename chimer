@@ -551,7 +551,7 @@ use vars qw( $synth );
 use vars qw( %children );
 use vars qw( %expected_latency );
 
-use vars qw( $gong_bank $gong_inst $bell_bank $bell_inst $wood_bank $wood_inst $wood_note $perc_bank $perc_inst $beep_bank $beep_inst );
+use vars qw( $wood_note );
 use vars qw( %instrument_name_to_channel_number );
 use vars qw( $fluidR3 );
 $fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
@@ -605,6 +605,18 @@ use vars qw( $mode $method $melody );
 $mode   = MODE__CARILLON;
 $method = METHOD__SAMPLES;
 $melody = MELODY__WESTMINSTER;
+
+use vars qw( %alias_to_canonical_instrument );
+%alias_to_canonical_instrument = (
+  'Keyboard'	=> 'Piano',
+  'Carillon'	=> 'Bell',
+);
+
+use vars qw( %laisser_vibrer_p );
+%laisser_vibrer_p = (
+  'Bell'	=> 1,
+  'Gong'	=> 1,
+);
 
 # night watch chime patterns
 sub LONG_STRIKE  () { 1.5 }
@@ -1326,7 +1338,8 @@ sub interpret_melody ($) {
       } elsif ($verb eq 'fermata') {
 	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
       } elsif ($verb eq 'laisserVibrer') {
-	;						# FIXME
+	my $node = $voice->[+scalar @$voice - 1];
+	$node->[4]->{'laisser-vibrer'} = 1;
       } else {
 	log_error "interpret_melody: Unknown directive \"$verb\"";
       }
@@ -1334,7 +1347,7 @@ sub interpret_melody ($) {
   }
   push @$it, $voice if $voice;
   log_debug sprintf "%s interpreted as %s", $s0,
-      join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @$it) if $debug > 1;
+      join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @$it) if $debug > 2;
   return wantarray? ($it, $typesettable_version): $it;
 }
 
@@ -2964,12 +2977,52 @@ sub synth_instrument_name ($$) {
   return $instruments->{$id};
 }
 
+sub canonical_instrument ($) {
+  my($instrument) = @_;
+  return defined $instrument && defined $alias_to_canonical_instrument{$instrument}? $alias_to_canonical_instrument{$instrument}: $instrument;
+}
+
+sub probe_score_instruments () {
+  my %instruments;
+  my @events_to_check = enumerate_defined_events;
+  for (my $pass = 0; $pass < 2; $pass += 1) {
+    for my $event (@events_to_check) {
+      my $chime_id = determine_chime_id_for_event $event;
+      my $latency;
+      die "probe_score_instruments: Internal error: $event: Enumerated event has no chime id" unless defined $chime_id;
+      for my $voice (@{$interpretation{$chime{$chime_id}}}) {
+	for my $spec (@$voice) {
+	  my($note, $time, $velocity, $instrument, $flags) = @$spec;
+	  $instrument = canonical_instrument $instrument;
+	  if (defined $instrument) {
+	    $instruments{$instrument} = 1;
+	  } elsif (defined $percussion_note_to_midi_number{$note}) {
+	    $instruments{'drum kit'} = 1;
+	  } elsif ($note ne 'r') {
+	    die "probe_score_instruments: $note: Unknown note";
+	  }
+	}
+      }
+    }
+  }
+  return %instruments;
+}
+
 sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
   my($sf_path, $gain);
   my $immediate_p = $id eq 'test';
   if (!defined $synth && ($immediate_p || defined $output)) { # if we're connected don't try to create a second instance, it was disastrous
+    my %need_instrument = probe_score_instruments;
+    log_debug sprintf "needed instruments = %s", Debug::cvs [keys %need_instrument] if $debug;
+    # Gong, Bell, Woodblock are used by legacy code; assume they are always needed; percussion isn't used unless detected
+    if ($method ne METHOD__SYNTH) {
+      $need_instrument{'Gong'} = 1;
+      $need_instrument{'Bell'} = 1;
+      $need_instrument{'Woodblock'} = 1;
+      log_debug sprintf "needed instruments adjusted to %s", Debug::cvs [keys %need_instrument] if $debug;
+    }
 
     # Figure out where our soundfont is
     for my $key ('Timbres Of Heaven', 'FluidR3') {
@@ -2990,7 +3043,7 @@ sub connect_synth ($) {
     log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
     set_sink $sinks[0] if $immediate_p && @sinks;
     my @cmd = ('fluidsynth', '-g', $gain,
-			     '--midi-channels', '7',
+			     '--midi-channels', scalar(keys %need_instrument),
 			     ($immediate_p?
 				('-a', 'pulseaudio'):
 				('-a', 'file',
@@ -3006,36 +3059,55 @@ sub connect_synth ($) {
 
     # Figure out what instruments to use
     my $instruments = probe_synth_instruments;
-    my $gong = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
-    # XXX Chimes from Sonatina seems to sound nicer than Carillon, but Sonatina doesn't have standard percussion so we can't really use it
-    my $bell = find_synth_instrument($instruments, 'Chimes', 'Carillon', 'Tubular Bells');
-    my $wood = find_synth_instrument($instruments, 'Woodblock'); # 000-115
-    my $perc = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
-    my $beep = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
-    my $mbox = find_synth_instrument($instruments, 'Music Box', '000-010');	# XXX this doesn't sound right
-    my $clav = find_synth_instrument($instruments, '000-019');	# church organ
-    #my $clav = find_synth_instrument($instruments, '000-000');	# piano
-    ($gong_bank, $gong_inst) = @$gong;
-    ($bell_bank, $bell_inst) = @$bell;
-    ($wood_bank, $wood_inst) = @$wood;
-    ($perc_bank, $perc_inst) = @$perc;
-    ($beep_bank, $beep_inst) = @$beep;
-    my($mbox_bank, $mbox_inst) = @$mbox;
-    my($clav_bank, $clav_inst) = @$clav;
-    $wood_note = (synth_instrument_name($instruments, $wood) =~ / Kit\b/ || $wood_bank == 128)? 31: $note_to_midi_number{'d#5'};
-    send_midi_command "select 0 1 $gong_bank $gong_inst";
-    send_midi_command "select 1 1 $bell_bank $bell_inst";
-    send_midi_command "select 2 1 $wood_bank $wood_inst";
-    send_midi_command "select 3 1 $perc_bank $perc_inst";
-    send_midi_command "select 4 1 $beep_bank $beep_inst";
-    send_midi_command "select 5 1 $mbox_bank $mbox_inst";
-    send_midi_command "select 6 1 $clav_bank $clav_inst";
-    $instrument_name_to_channel_number{'Gong'} = 0;
-    $instrument_name_to_channel_number{'Carillon'} = 1;
-    $instrument_name_to_channel_number{'Woodblock'} = 2;
-    $instrument_name_to_channel_number{'Sine Wave'} = 4;
-    $instrument_name_to_channel_number{'Music Box'} = 5;
-    $instrument_name_to_channel_number{'Keyboard'} = 6;
+    for my $instrument ('Gong', 'Bell', 'Woodblock', 'drum kit', sort keys %need_instrument) { # handle hard-coded values 0-3 first
+      if (defined $need_instrument{$instrument} && !defined $instrument_name_to_channel_number{$instrument}) {
+	my $midi_instrument_id = scalar keys %instrument_name_to_channel_number;
+	my $spec;
+	if ($instrument eq 'Gong') {
+	  $spec = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
+	} elsif ($instrument eq 'Bell') {
+	  # XXX Chimes from Sonatina seems to sound nicer than Carillon, but Sonatina doesn't have standard percussion so we can't really use it
+	  $spec = find_synth_instrument($instruments, 'Chimes', 'Carillon', 'Tubular Bells');
+	} elsif ($instrument eq 'Woodblock') {
+	  $spec = find_synth_instrument($instruments, 'Woodblock'); # 000-115
+	} elsif ($instrument eq 'drum kit') {
+	  $spec = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
+	} elsif ($instrument eq 'Sine Wave') {
+	  $spec = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
+	} elsif ($instrument eq 'Music Box') {
+	  $spec = find_synth_instrument($instruments, 'Music Box', '000-010');	# XXX this doesn't sound right
+	} elsif ($instrument eq 'Organ') {
+	  $spec = find_synth_instrument($instruments, '000-019');	# church organ
+	} elsif ($instrument eq 'Piano') {
+	  $spec = find_synth_instrument($instruments, '000-000');	# piano
+	} elsif ($instrument eq 'Flute') {
+	  $spec = find_synth_instrument($instruments, '000-073');	# flute
+	} elsif ($instrument eq 'Recorder') {
+	  $spec = find_synth_instrument($instruments, '000-074');	# recorder
+	} elsif ($instrument eq 'Violin') {
+	  $spec = find_synth_instrument($instruments, '000-040');	# violin
+	} elsif ($instrument eq 'Viola') {
+	  $spec = find_synth_instrument($instruments, '000-041');	# viola
+	} elsif ($instrument eq 'Cello') {
+	  $spec = find_synth_instrument($instruments, '000-042');	# cello
+	} elsif ($instrument eq 'Guitar') {
+	  $spec = find_synth_instrument($instruments, '000-026');	# jazz guitar
+	} elsif ($instrument eq 'Bass Guitar') {
+	  $spec = find_synth_instrument($instruments, '000-032');	# bass guitar
+	} elsif ($instrument eq 'Guzheng') {
+	  $spec = find_synth_instrument($instruments, 'Guzheng Harp');	# this is unrealistic; this is in reality a really quiet instrument
+	} else {
+	  die "$instrument: Unhandled instrument\n";
+	}
+	my($bank, $inst) = @$spec;
+	if ($instrument eq 'Woodblock') {
+	  $wood_note = (synth_instrument_name($instruments, $spec) =~ / Kit\b/ || $bank == 128)? 31: $note_to_midi_number{'d#5'};
+	}
+	send_midi_command "select $midi_instrument_id 1 $bank $inst";
+	$instrument_name_to_channel_number{$instrument} = $midi_instrument_id;
+	log_debug "instrument $instrument mapped to $midi_instrument_id" if $debug;
+      }
+    }
 
     # Set reverb, based on advice from
     # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
@@ -3273,6 +3345,7 @@ sub strike_tune_real ($@) {
     for my $spec (@$voice) {
       my($note, $time, $velocity, $instrument, $flags) = @$spec;
       $velocity = 127 unless defined $velocity; # NOTE backward compatibility
+      $instrument = canonical_instrument $instrument;
       my $t_i = current_time;
       my $actual_time = $flags->{'actual-duration'};
       my $note_length = $time * $beat_length;
@@ -3286,7 +3359,7 @@ sub strike_tune_real ($@) {
       } elsif (defined $note_to_midi_number{$note}) {
 	my $channel = (defined $instrument_name_to_channel_number{$instrument})? $instrument_name_to_channel_number{$instrument}: 1;
 	my $note_number = $note_to_midi_number{$note};
-	my $laisser_vibrer_p = 1 unless $instrument =~ /^(?:Keyboard|Sine Wave)$/s || defined $actual_time; # FIXME
+	my $laisser_vibrer_p = 1 if (defined $flags && defined $flags->{'laisser-vibrer'}) || (defined $laisser_vibrer_p{$instrument} && !defined $actual_time);
 	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
 	push @midi_commands, [$elapsed + $effective_note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       } elsif ($note ne 'r') {
@@ -3294,13 +3367,11 @@ sub strike_tune_real ($@) {
       }
       # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
       # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
-      my $dt = $t0 + $elapsed + $note_length - current_time;
-      Time::HiRes::sleep $dt if $method ne METHOD__SYNTH && $dt > 0;
       $elapsed += $note_length;
     }
   }
-  if (@midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order
-    @midi_commands = sort { $a->[0] <=> $b->[0] } @midi_commands;
+  if (@midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order, noteoff must come before noteon
+    @midi_commands = sort { $a->[0] <=> $b->[0] || $a->[1] cmp $b->[1] } @midi_commands;
     map { log_debug "schedule: " . Debug::cvs($_) } @midi_commands if $debug > 1;
     my $t0 = current_time; # reset start time
     for (my $i = 0;; $i += 1) {
