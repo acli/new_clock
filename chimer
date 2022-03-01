@@ -546,6 +546,7 @@ use vars qw( $enable_qing_quarters );
 
 use vars qw( $coords );
 use vars qw( $lat $lon );
+use vars qw( $use_jack_p );
 use vars qw( @sinks );
 use vars qw( $synth );
 use vars qw( %children );
@@ -3045,7 +3046,7 @@ sub connect_synth ($) {
     my @cmd = ('fluidsynth', '-g', $gain,
 			     '--midi-channels', scalar(keys %need_instrument),
 			     ($immediate_p?
-				('-a', 'pulseaudio'):
+				($use_jack_p? '-j': ('-a', 'pulseaudio')):
 				('-a', 'file',
 				 '-o', "audio.file.name=$output")),
 			     $sf_path);
@@ -3068,6 +3069,8 @@ sub connect_synth ($) {
 	} elsif ($instrument eq 'Bell') {
 	  # XXX Chimes from Sonatina seems to sound nicer than Carillon, but Sonatina doesn't have standard percussion so we can't really use it
 	  $spec = find_synth_instrument($instruments, 'Chimes', 'Carillon', 'Tubular Bells');
+	} elsif ($instrument eq 'Church Bells') {
+	  $spec = find_synth_instrument($instruments, 'Church Bell', 'Church Bells', 'Chimes');
 	} elsif ($instrument eq 'Woodblock') {
 	  $spec = find_synth_instrument($instruments, 'Woodblock'); # 000-115
 	} elsif ($instrument eq 'drum kit') {
@@ -3702,6 +3705,7 @@ sub parse_command_line_arguments () {
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
+    'j' => \$use_jack_p,
     'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; # FIXME
 	print join('', map { defined $melody_description{$_}?
 	      sprintf("%-24s%s%s\n", $_, $melody_description{$_}->{'description'},
