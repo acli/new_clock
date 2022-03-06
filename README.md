@@ -55,7 +55,7 @@ Please see the [sample config file](doc/chimerrc.example).
 Dependencies
 ------------
 - [Pulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio/)-based Linux system
-- [Perl](https://www.perl.org/) 5 with Unicode support (version 5.14 or later)
+- [Perl 5](https://www.perl.org/) with Unicode support (version 5.14 or later)
 - [mpv](https://github.com/mpv-player/mpv)
   to play audio samples
 - [ffmpeg](https://ffmpeg.org/)
@@ -76,6 +76,7 @@ If using *samples* method:
 If using *synth* method:
 - [Fluidsynth](https://www.fluidsynth.org/)
 - [Expect::Simple](https://metacpan.org/pod/Expect::Simple)
+- [File::Format::RIFF](https://metacpan.org/dist/File-Format-RIFF)
 - The [Timbres of Heaven](http://midkar.com/soundfonts/) soundfont by Don Allen
 
 Please

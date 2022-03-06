@@ -68,6 +68,10 @@ references:
   type: software
   url: https://ffmpeg.org/
 
+- title: File::Format::RIFF
+  type: software
+  url: https://metacpan.org/dist/File-Format-RIFF
+
 - title: Fluidsynth
   type: software
   url: https://www.fluidsynth.org/
@@ -189,7 +193,7 @@ references:
   date-accessed: 2021-08-20
   url: http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes
 
-- title: Perl
+- title: Perl 5
   version: 5.14
   type: software
   url: https://www.perl.org/

@@ -507,6 +507,7 @@ use POSIX ":sys_wait_h"; # for nonblocking read
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 use Expect::Simple;
+use File::Format::RIFF;
 
 use Exporter;
 require Exporter;
@@ -554,6 +555,7 @@ use vars qw( %expected_latency );
 
 use vars qw( $wood_note );
 use vars qw( %instrument_name_to_channel_number );
+use vars qw( %instrument_name_to_mf_velocity );
 use vars qw( $fluidR3 );
 $fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
 
@@ -611,6 +613,7 @@ use vars qw( %alias_to_canonical_instrument );
 %alias_to_canonical_instrument = (
   'Keyboard'	=> 'Piano',
   'Carillon'	=> 'Bell',
+  'Chimes'	=> 'Church Bells',
 );
 
 use vars qw( %laisser_vibrer_p );
@@ -1788,10 +1791,10 @@ sub define_chimes () {
 	x = { \tempo 4 = 96 \time 3/4 }
 	y = { \set Staff.instrumentName = #"Organ" }
 	melodyonly = { <>-\fff }
-	melodywaccomp = { <>-\fff \set Staff.instrumentName = #"Piano" }
-	quarteraccomp = { <>-\p \y }
-	halfaccomp = { <>-\mp \y }
-	houraccomp = { <>-\mp \y }
+	melodywaccomp = { <>-\ff \set Staff.instrumentName = #"Carillon" }
+	quarteraccomp = { <>-\mp \y }
+	halfaccomp = { <>-\mf \y }
+	houraccomp = { <>-\f \y }
 	z = { <>-\mf }
 	A = \transpose c b { c'4 g' f' e' }
 	B = \transpose c b { c'4 g' f' e' g' d' }
@@ -2956,15 +2959,34 @@ sub send_midi_command ($) {
   }
 }
 
-sub probe_synth_instruments () {
-  send_midi_command('inst 1');
-  my @instruments = $synth->before;
-  my %instruments = map { /^(\d+)-(\d+)\s+(.*)$/s? ($3 => [$1 + 0, $2 + 0], "$1-$2" => $3): () } split(/\r?\n/, $synth->before);
+sub probe_synth_instruments ($) {
+  my($soundfonts) = @_;
+  my %instruments;
+  for (my $i = 0; $i < @$soundfonts; $i += 1) {
+    my $font = $i + 1;
+    send_midi_command(sprintf('inst %d', $font));
+    for my $s (split(/\r?\n/, $synth->before)) {
+      if ($s =~ /^(\d+)-(\d+)\s+(.*?)\r?$/s) {
+	if (!defined $instruments{$3}) {
+	  $instruments{$3} = [$font, $1 + 0, $2 + 0, $soundfonts->[$i]->{'zero'}];
+	  log_debug sprintf "instrument %s defined as %s", $3, Debug::cvs($instruments{$3}) if $debug > 1;
+	} else {
+	  log_debug sprintf "instrument %s from soundfont %d ignored", $3, $font if $debug > 1;
+	}
+	if (!defined $instruments{"$1-$2"}) {
+	  $instruments{"$1-$2"} = $3;
+	  log_debug sprintf "bank %s-%s from soundfont %s defined as alias for instrument %s", $1, $2, $font, $3 if $debug > 1;
+	} else {
+	  log_debug sprintf "alias %s-%s from soundfont %s ignored", $1, $2, $font if $debug > 1;
+	}
+      }
+    }
+  }
   return wantarray? %instruments: \%instruments;
 }
 
-sub find_synth_instrument ($@) {
-  my($instruments, @preferences) = @_;
+sub find_synth_instrument ($$@) {
+  my($instruments, $soundfonts, @preferences) = @_;
   my $it;
   for my $candidate (@preferences) {
     $it = $instruments->{$candidate} if defined $instruments->{$candidate};
@@ -3014,7 +3036,7 @@ sub probe_score_instruments () {
 sub connect_synth ($) {
   my($id) = @_;
   my $output = get_cache_pathname_for_event($id);
-  my($sf_path, $gain);
+  my($sf_path, $master_gain);
   my $immediate_p = $id eq 'test';
   if (!defined $synth && ($immediate_p || defined $output)) { # if we're connected don't try to create a second instance, it was disastrous
     my %need_instrument = probe_score_instruments;
@@ -3027,31 +3049,66 @@ sub connect_synth ($) {
       log_debug sprintf "needed instruments adjusted to %s", Debug::cvs [keys %need_instrument] if $debug;
     }
 
-    # Figure out where our soundfont is
-    for my $key ('Timbres Of Heaven', 'FluidR3') {
-      if (defined $config->{'/'}->{$key}) {
-	foreach my $candidate (@{$config->{'/'}->{$key}}) {
-	  $sf_path = $candidate if -f $candidate;
-	last if defined $sf_path;
+    # Figure out where our soundfont(s) is (are)
+    my $soundfonts;
+    if (defined $config->{'/'}->{'soundfont'}) {
+      my $prio = 0;
+      for my $input (@{$config->{'/'}->{'soundfont'}}) {
+	if (open(INPUT, '<', $input)) {
+	  my $sf =  new File::Format::RIFF;
+	  $sf->read(*INPUT);
+	  if ($sf->type eq 'sfbk') {
+	    my $chunk = $sf->at(0);	# XXX assume first chunk is INFO
+	    if ($chunk->type eq 'INFO') {
+	      my($inam, $iprd);
+	      for (my $j = 0; $j < $chunk->numChunks; $j += 1) {
+		my $subchunk = $chunk->at($j);
+		$inam = $subchunk->data if $subchunk->id eq 'INAM';
+		$iprd = $subchunk->data if $subchunk->id eq 'IPRD';
+	      }
+	      my($type, $mf); # MIDI velocity that measures ~0 dB in japa when fluidsynth gain = 0.48 (MIDI velocity 64 supposedly = mf)
+	      if ($iprd =~ /^Aegean Symphonic Orchestra\b/) {	# INAM identifies as Musescore_General
+		($type, $mf) = ('Aegean Symphonic Orchestra', 64);
+	      } elsif ($inam =~ /^Sonatina Symphonic Orchestra\b/) {
+		($type, $mf) = ('Sonatina Symphonic Orchestra', 48);
+	      } elsif ($inam =~ /^Timbres Of Heaven\b/) {
+		($type, $mf) = ('Timbres Of Heaven', 32);
+	      } elsif ($inam =~ /^Musescore_General\b/) {
+		($type, $mf) = ('Musescore_General', 64);
+	      } elsif ($inam =~ /^Fluid R\d+\b/) {
+		($type, $mf) = ('Fluid', 64);
+	      } else {
+		$mf = 64;
+		log_warning "$input: Unknown sf2 soundfont, assuming mf=$mf";
+	      }
+	      my $descriptor = {'path' => $input, 'priority' => $prio, 'mf' => $mf};
+	      $descriptor->{'type'} = $type if defined $type;
+	      push @$soundfonts, $descriptor;
+	    } else {
+	      log_warning "$input: INFO chunk not found at beginning of file";
+	    }
+	  } else {
+	    log_warning "$input: Not an sf2 soundfont";
+	  }
+	  close INPUT;
+	} else {
+	  log_warning "$input: $!";
 	}
+	$prio += 1;
       }
-      if (defined $sf_path && $key eq 'Timbres Of Heaven') {
-	$gain = 0.2; # default gain
-      }
-    last if defined $sf_path;
     }
-    $sf_path = $fluidR3 if !defined $sf_path; # hmm hope this works
-    $gain = 1 if !defined $gain;
+    die "No usable soundfont found\n" unless defined $soundfonts;
+    $master_gain = 0.48; # measured ~0 dB with Aegean in japa
 
     log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
     set_sink $sinks[0] if $immediate_p && @sinks;
-    my @cmd = ('fluidsynth', '-g', $gain,
+    my @cmd = ('fluidsynth', '-g', $master_gain,
 			     '--midi-channels', scalar(keys %need_instrument),
 			     ($immediate_p?
 				($use_jack_p? '-j': ('-a', 'pulseaudio')):
 				('-a', 'file',
 				 '-o', "audio.file.name=$output")),
-			     $sf_path);
+			     map { $_->{'path'} } @$soundfonts);
 
     log_command @cmd if $debug;
     $synth = new Expect::Simple({
@@ -3061,55 +3118,70 @@ sub connect_synth ($) {
       });
 
     # Figure out what instruments to use
-    my $instruments = probe_synth_instruments;
+    my $instruments = probe_synth_instruments $soundfonts;
+    %instrument_name_to_channel_number = ();	# need to reset this for each instance of fluidsynth
+    $wood_note = undef;				# and this
     for my $instrument ('Gong', 'Bell', 'Woodblock', 'drum kit', sort keys %need_instrument) { # handle hard-coded values 0-3 first
       if (defined $need_instrument{$instrument} && !defined $instrument_name_to_channel_number{$instrument}) {
 	my $midi_instrument_id = scalar keys %instrument_name_to_channel_number;
 	my $spec;
 	if ($instrument eq 'Gong') {
-	  $spec = find_synth_instrument($instruments, 'Gong!!!', 'Tubular Bells');
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Gong!!!', 'Tubular Bells');
 	} elsif ($instrument eq 'Bell') {
-	  # XXX Chimes from Sonatina seems to sound nicer than Carillon, but Sonatina doesn't have standard percussion so we can't really use it
-	  $spec = find_synth_instrument($instruments, 'Chimes', 'Carillon', 'Tubular Bells');
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Carillon', 'Tubular Bells (damp)', 'Tubular Bells');
 	} elsif ($instrument eq 'Church Bells') {
-	  $spec = find_synth_instrument($instruments, 'Church Bell', 'Church Bells', 'Chimes');
+	  # NOTE: instruments in Sonatina only have a range of [48, 84], Chimes also doesn't sound nicer (though it's a single strike)
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Church Bell', 'Church Bells', 'Chimes');
 	} elsif ($instrument eq 'Woodblock') {
-	  $spec = find_synth_instrument($instruments, 'Woodblock'); # 000-115
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Woodblock'); # 000-115
 	} elsif ($instrument eq 'drum kit') {
-	  $spec = find_synth_instrument($instruments, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
 	} elsif ($instrument eq 'Sine Wave') {
-	  $spec = find_synth_instrument($instruments, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
 	} elsif ($instrument eq 'Music Box') {
-	  $spec = find_synth_instrument($instruments, 'Music Box', '000-010');	# XXX this doesn't sound right
+	  # Glockenspiel from Sonatina sounds the most realistic
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Glockenspiel', 'Music Box', '000-010');
 	} elsif ($instrument eq 'Organ') {
-	  $spec = find_synth_instrument($instruments, '000-019');	# church organ
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-019');	# church organ
 	} elsif ($instrument eq 'Piano') {
-	  $spec = find_synth_instrument($instruments, '000-000');	# piano
+	  # NOTE: These are all 000-000 but they sound very different so there's a preferred order
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Grand Piano C5', 'Concert Grand', 'Grand Piano', '000-000');
+	} elsif ($instrument eq 'Glockenspiel') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-009');	# glockenspiel
 	} elsif ($instrument eq 'Flute') {
-	  $spec = find_synth_instrument($instruments, '000-073');	# flute
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-073');	# flute
 	} elsif ($instrument eq 'Recorder') {
-	  $spec = find_synth_instrument($instruments, '000-074');	# recorder
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-074');	# recorder
 	} elsif ($instrument eq 'Violin') {
-	  $spec = find_synth_instrument($instruments, '000-040');	# violin
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-040');	# violin
 	} elsif ($instrument eq 'Viola') {
-	  $spec = find_synth_instrument($instruments, '000-041');	# viola
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-041');	# viola
 	} elsif ($instrument eq 'Cello') {
-	  $spec = find_synth_instrument($instruments, '000-042');	# cello
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-042');	# cello
 	} elsif ($instrument eq 'Guitar') {
-	  $spec = find_synth_instrument($instruments, '000-026');	# jazz guitar
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-026');	# jazz guitar
 	} elsif ($instrument eq 'Bass Guitar') {
-	  $spec = find_synth_instrument($instruments, '000-032');	# bass guitar
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-032');	# bass guitar
+	} elsif ($instrument eq 'Harp') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Concert Harp', 'Harp (sustain)', 'Clavinova Harp', 'Harp');
+	} elsif ($instrument eq 'Harpsichord') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Harpsichord', "Don's Harpsichord");
 	} elsif ($instrument eq 'Guzheng') {
-	  $spec = find_synth_instrument($instruments, 'Guzheng Harp');	# this is unrealistic; this is in reality a really quiet instrument
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Guzheng Harp');	# this is unrealistic; this is in reality a really quiet instrument
 	} else {
 	  die "$instrument: Unhandled instrument\n";
 	}
-	my($bank, $inst) = @$spec;
+	die "$instrument: Instrument not found\n" unless defined $spec;
+	# XXX You can't compensate for gain. First, there is no formula. Second, even if you can find one,
+	# XXX a loud note with low gain sounds different from a soft note with high gain,
+	# XXX probably because loud and soft notes use different samples
+	my($font, $bank, $inst, $zero) = @$spec;
 	if ($instrument eq 'Woodblock') {
 	  $wood_note = (synth_instrument_name($instruments, $spec) =~ / Kit\b/ || $bank == 128)? 31: $note_to_midi_number{'d#5'};
 	}
-	send_midi_command "select $midi_instrument_id 1 $bank $inst";
+	send_midi_command "select $midi_instrument_id $font $bank $inst";
 	$instrument_name_to_channel_number{$instrument} = $midi_instrument_id;
+	$instrument_name_to_mf_velocity{$instrument} = $zero;
 	log_debug "instrument $instrument mapped to $midi_instrument_id" if $debug;
       }
     }
@@ -3345,6 +3417,7 @@ sub strike_tune_real ($@) {
   my $semitones = 8;
   my @midi_commands;
   my $percussion_channel = $instrument_name_to_channel_number{'drum kit'};
+  my $percussion_mf = $instrument_name_to_mf_velocity{'drum kit'};
   for my $voice (@tune) {
     my $elapsed = 0;
     my $t0 = current_time;
@@ -3352,21 +3425,22 @@ sub strike_tune_real ($@) {
       my($note, $time, $velocity, $instrument, $flags) = @$spec;
       $velocity = 127 unless defined $velocity; # NOTE backward compatibility
       $instrument = canonical_instrument $instrument;
+      my $velocity_adjustment = defined $instrument_name_to_mf_velocity{$instrument}? $instrument_name_to_mf_velocity{$instrument}/64: 1;
       my $t_i = current_time;
       my $actual_time = $flags->{'actual-duration'};
       my $note_length = $time * $beat_length;
       my $effective_note_length = defined $actual_time? $actual_time * $beat_length: $note_length;
       if (defined $flags && defined $flags->{'directive'}) {
-	push @midi_commands, [$elapsed, $flags->{'directive'}, $velocity];
+	push @midi_commands, [$elapsed, $flags->{'directive'}, $velocity * $velocity_adjustment];
       } elsif (defined $percussion_note_to_midi_number{$note}) {
-	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $percussion_channel, $percussion_note_to_midi_number{$note}, $velocity];
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $percussion_channel, $percussion_note_to_midi_number{$note}, $velocity * $velocity_adjustment];
       } elsif (exists $percussion_note_to_midi_number{$note}) {	# valid percussion note but no MIDI equivalent
 	log_debug "percussion note $note has no MIDI equivalent";	# XXX
       } elsif (defined $note_to_midi_number{$note}) {
 	my $channel = (defined $instrument_name_to_channel_number{$instrument})? $instrument_name_to_channel_number{$instrument}: 1;
 	my $note_number = $note_to_midi_number{$note};
 	my $laisser_vibrer_p = 1 if (defined $flags && defined $flags->{'laisser-vibrer'}) || (defined $laisser_vibrer_p{$instrument} && !defined $actual_time);
-	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity];
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity * $velocity_adjustment];
 	push @midi_commands, [$elapsed + $effective_note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
       } elsif ($note ne 'r') {
 	log_debug "strike_tune: $note: \"else\" case reached";

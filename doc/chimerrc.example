@@ -27,7 +27,7 @@ mode = carillon
 method = synth
 
 ; to have synth working correctly you MUST have Timbres Of Heaven and tell the script where to find it
-Timbres Of Heaven = /usr/local/share/sounds/sf2/Timbres Of Heaven (XGM) 3.94.sf2
+soundfont = /usr/local/share/sounds/sf2/Timbres Of Heaven (XGM) 3.94.sf2
 
 ; use Whittington chimes (8-bell version) instead of Westminster
 ; you can get a list of valid options by running chimer with the -l (or --list) option
