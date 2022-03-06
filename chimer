@@ -1786,7 +1786,9 @@ sub define_chimes () {
 	b = { \key b \major \voiceFour \clef "bass" }
 	w = { \tempo 4 = 96 }
 	x = { \tempo 4 = 96 \time 3/4 }
-	y = { \set Staff.instrumentName = #"Keyboard" }
+	y = { \set Staff.instrumentName = #"Organ" }
+	melodyonly = { <>-\fff }
+	melodywaccomp = { <>-\fff \set Staff.instrumentName = #"Piano" }
 	quarteraccomp = { <>-\p \y }
 	halfaccomp = { <>-\mp \y }
 	houraccomp = { <>-\mp \y }
@@ -1798,75 +1800,75 @@ sub define_chimes () {
 	S = \transpose c b { c1 }
       ),
       &MELODY__WHITTINGTON11 => {
-	'q1' => '\x <>-\ff \partial 4 \A',
-	'q2' => '\x <>-\ff \B',
-	'q3' => '\x <>-\ff \C',
-	'q0' => '\x <>-\ff \D',
-	'h' => '\w <>-\fff \repeat volta %I { \S }',
+	'q1' => '\x \melodyonly \partial 4 \A',
+	'q2' => '\x \melodyonly \B',
+	'q3' => '\x \melodyonly \C',
+	'q0' => '\x \melodyonly \D',
+	'h' => '\w \melodyonly \repeat volta %I { \S }',
       },
       # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
       'whittington11study' => {
-	'q1' => q(<< { \s \x <>-\f \partial 4 \A }
+	'q1' => q(<< { \s \x \melodywaccomp \partial 4 \A }
 	      \new Staff { \t \x \quarteraccomp \transpose c b, { \partial 4 a1 } }
 	      \new Staff { \b \x \quarteraccomp \transpose c b, { \partial 4 f1 } }
 	    >>),
-	'q2' => q(<< { \s \x <>-\f \B }
+	'q2' => q(<< { \s \x \melodywaccomp \B }
 	      \new Staff { \t \x \halfaccomp \transpose c b, { b2. a } }
 	      \new Staff { \b \x \halfaccomp \transpose c b, { g2. f } }
 	    >>),
-	'q3' => q(<< { \s \x <>-\f \C }
+	'q3' => q(<< { \s \x \melodywaccomp \C }
 	      \new Staff { \t \x \quarteraccomp \transpose c b, { b2. c' d' } }
 	      \new Staff { \b \x \quarteraccomp \transpose c b, { g2. a  b  } }
 	    >>),
-	'q0' => q(<< { \s \x <>-\f \D }
+	'q0' => q(<< { \s \x \melodywaccomp \D }
 	      \new Staff { \t \x \houraccomp \transpose c b, { g2. a b a } }
 	      \new Staff { \b \x \houraccomp \transpose c b, { e2. f g f } }
 	    >>),
-	'h1' => q(<< { \s \w <>-\ff { \S } }
+	'h1' => q(<< { \s \w \melodywaccomp { \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { c1 } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 } }
 	    >>),
-	'h2' => q(<< { \s \w <>-\ff { \S \S } }
+	'h2' => q(<< { \s \w \melodywaccomp { \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { d1 \z c } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c1 \z c, } }
 	    >>),
-	'h3' => q(<< { \s \w <>-\ff { \S \S \S } }
+	'h3' => q(<< { \s \w \melodywaccomp { \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e \z c } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c \z c, } }
 	    >>),
-	'h4' => q(<< { \s \w <>-\ff { \S \S \S \S } }
+	'h4' => q(<< { \s \w \melodywaccomp { \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f \z c } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c \z c, } }
 	    >>),
-	'h5' => q(<< { \s \w <>-\ff { \S \S \S \S \S } }
+	'h5' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g \z c } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c \z c, } }
 	    >>),
-	'h6' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S } }
+	'h6' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { a1 a a a a \z c } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c \z c, } }
 	    >>),
-	'h7' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S } }
+	'h7' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { b1 b b b b b \z c } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c c \z c, } }
 	    >>),
-	'h8' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S } }
+	'h8' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { c1 c c c c c c \z c, } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h9' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S } }
+	'h9' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { d1 d d d d d d d \z c, } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h10' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S } }
+	'h10' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e e e e e e e e \z c, } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h11' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S } }
+	'h11' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f f f f f f f f \z c, } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
-	'h12' => q(<< { \s \w <>-\ff { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	'h12' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S \S \S \S } }
 	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g g g g g g g g \z c, } }
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \z c, } }
 	    >>),
