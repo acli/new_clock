@@ -507,7 +507,6 @@ use POSIX ":sys_wait_h"; # for nonblocking read
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 use Expect::Simple;
-use File::Format::RIFF;
 
 use Exporter;
 require Exporter;
@@ -1783,6 +1782,9 @@ sub define_chimes () {
       'whittington11study' => {
 	title => 'Whittington chimes on eleven bells (arr. Ambrose Li)',
       },
+      'whittington11pianostudy' => {
+	title => 'Whittington chimes on eleven bells (piano study)',
+      },
     }, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
 	s = { \key b \major \voiceOne \clef "treble" }
 	t = { \key b \major \voiceThree \clef "bass" }
@@ -1790,12 +1792,23 @@ sub define_chimes () {
 	w = { \tempo 4 = 96 }
 	x = { \tempo 4 = 96 \time 3/4 }
 	y = { \set Staff.instrumentName = #"Organ" }
-	melodyonly = { <>-\fff }
+	ytest = { \set Staff.instrumentName = #"Violin" }
+	ytestb = { \set Staff.instrumentName = #"Cello" }
+	melodyonly = { <>-\ff }
 	melodywaccomp = { <>-\ff \set Staff.instrumentName = #"Carillon" }
 	quarteraccomp = { <>-\mp \y }
 	halfaccomp = { <>-\mf \y }
 	houraccomp = { <>-\f \y }
-	z = { <>-\mf }
+	houraccompfinal = { <>-\mf }
+	melodywtestaccomp = { <>-\ff \set Staff.instrumentName = #"Piano" }
+	quartertestaccomp = { <>-\mp \ytest }
+	halftestaccomp = { <>-\mf \ytest }
+	hourtestaccomp = { <>-\f \ytest }
+	hourtestaccompfinal = { <>-\mf }
+	quartertestaccompb = { <>-\mp \ytestb }
+	halftestaccompb = { <>-\mf \ytestb }
+	hourtestaccompb = { <>-\f \ytestb }
+	hourtestaccompfinalb = { <>-\mf }
 	A = \transpose c b { c'4 g' f' e' }
 	B = \transpose c b { c'4 g' f' e' g' d' }
 	C = \transpose c b { a4 g f e g d' c' e' d' }
@@ -1832,48 +1845,115 @@ sub define_chimes () {
 	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 } }
 	    >>),
 	'h2' => q(<< { \s \w \melodywaccomp { \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { d1 \z c } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c1 \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { d1 \houraccompfinal c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 \houraccompfinal c, } }
 	    >>),
 	'h3' => q(<< { \s \w \melodywaccomp { \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e \z c } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e \houraccompfinal c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c \houraccompfinal c, } }
 	    >>),
 	'h4' => q(<< { \s \w \melodywaccomp { \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f \z c } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f \houraccompfinal c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c \houraccompfinal c, } }
 	    >>),
 	'h5' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g \z c } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g \houraccompfinal c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c \houraccompfinal c, } }
 	    >>),
 	'h6' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { a1 a a a a \z c } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { a1 a a a a \houraccompfinal c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c \houraccompfinal c, } }
 	    >>),
 	'h7' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { b1 b b b b b \z c } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c c \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { b1 b b b b b \houraccompfinal c } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c1 c c c c c \houraccompfinal c, } }
 	    >>),
 	'h8' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { c1 c c c c c c \z c, } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { c1 c c c c c c \houraccompfinal c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, \houraccompfinal c, } }
 	    >>),
 	'h9' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { d1 d d d d d d d \z c, } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { d1 d d d d d d d \houraccompfinal c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, \houraccompfinal c, } }
 	    >>),
 	'h10' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e e e e e e e e \z c, } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { e1 e e e e e e e e \houraccompfinal c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, \houraccompfinal c, } }
 	    >>),
 	'h11' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f f f f f f f f \z c, } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { f1 f f f f f f f f f \houraccompfinal c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \houraccompfinal c, } }
 	    >>),
 	'h12' => q(<< { \s \w \melodywaccomp { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g g g g g g g g \z c, } }
-	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \z c, } }
+	      \new Staff { \t \w \houraccomp \transpose c b, { g1 g g g g g g g g g g \houraccompfinal c, } }
+	      \new Staff { \b \w \houraccomp \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \houraccompfinal c, } }
+	    >>),
+      },
+      # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
+      'whittington11pianostudy' => {
+	'q1' => q(<< { \s \x \melodywtestaccomp \partial 4 \A }
+	      \new Staff { \t \x \quartertestaccomp \transpose c b, { \partial 4 a1 } }
+	      \new Staff { \b \x \quartertestaccompb \transpose c b, { \partial 4 f1 } }
+	    >>),
+	'q2' => q(<< { \s \x \melodywtestaccomp \B }
+	      \new Staff { \t \x \halftestaccomp \transpose c b, { b2. a } }
+	      \new Staff { \b \x \halftestaccompb \transpose c b, { g2. f } }
+	    >>),
+	'q3' => q(<< { \s \x \melodywtestaccomp \C }
+	      \new Staff { \t \x \quartertestaccomp \transpose c b, { b2. c' d' } }
+	      \new Staff { \b \x \quartertestaccompb \transpose c b, { g2. a  b  } }
+	    >>),
+	'q0' => q(<< { \s \x \melodywtestaccomp \D }
+	      \new Staff { \t \x \hourtestaccomp \transpose c b, { g2. a b a } }
+	      \new Staff { \b \x \hourtestaccompb \transpose c b, { e2. f g f } }
+	    >>),
+	'h1' => q(<< { \s \w \melodywtestaccomp { \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { c1 } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 } }
+	    >>),
+	'h2' => q(<< { \s \w \melodywtestaccomp { \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { d1 \hourtestaccompfinal c } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 \hourtestaccompfinal c, } }
+	    >>),
+	'h3' => q(<< { \s \w \melodywtestaccomp { \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { e1 e \hourtestaccompfinal c } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c \hourtestaccompfinal c, } }
+	    >>),
+	'h4' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { f1 f f \hourtestaccompfinal c } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c \hourtestaccompfinal c, } }
+	    >>),
+	'h5' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { g1 g g g \hourtestaccompfinal c } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c c \hourtestaccompfinal c, } }
+	    >>),
+	'h6' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { a1 a a a a \hourtestaccompfinal c } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c c c \hourtestaccompfinal c, } }
+	    >>),
+	'h7' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { b1 b b b b b \hourtestaccompfinal c } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c c c c \hourtestaccompfinal c, } }
+	    >>),
+	'h8' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { c1 c c c c c c \hourtestaccompfinal c, } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	    >>),
+	'h9' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { d1 d d d d d d d \hourtestaccompfinal c, } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	    >>),
+	'h10' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { e1 e e e e e e e e \hourtestaccompfinal c, } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	    >>),
+	'h11' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { f1 f f f f f f f f f \hourtestaccompfinal c, } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	    >>),
+	'h12' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourtestaccomp \transpose c b, { g1 g g g g g g g g g g \hourtestaccompfinal c, } }
+	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
 	    >>),
       },
     ),
@@ -3055,6 +3135,7 @@ sub connect_synth ($) {
       my $prio = 0;
       for my $input (@{$config->{'/'}->{'soundfont'}}) {
 	if (open(INPUT, '<', $input)) {
+	  require File::Format::RIFF;
 	  my $sf =  new File::Format::RIFF;
 	  $sf->read(*INPUT);
 	  if ($sf->type eq 'sfbk') {
@@ -3142,7 +3223,8 @@ sub connect_synth ($) {
 	  # Glockenspiel from Sonatina sounds the most realistic
 	  $spec = find_synth_instrument($instruments, $soundfonts, 'Glockenspiel', 'Music Box', '000-010');
 	} elsif ($instrument eq 'Organ') {
-	  $spec = find_synth_instrument($instruments, $soundfonts, '000-019');	# church organ
+	  # FIXME: Pipe Organ (Aegean) sounds a lot softer than Church Organ (Tibres of Heaven). Volume is still not equalized
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Pipe Organ', 'Church Organ');	# sonatina 0-19 is not an organ
 	} elsif ($instrument eq 'Piano') {
 	  # NOTE: These are all 000-000 but they sound very different so there's a preferred order
 	  $spec = find_synth_instrument($instruments, $soundfonts, 'Grand Piano C5', 'Concert Grand', 'Grand Piano', '000-000');
