@@ -1,0 +1,2043 @@
+#!/usr/bin/perl
+# vi:set sw=2 ai sm:
+# Copyright © 2021–2022 by Ambrose Li
+
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+kbd – Keyboard emulator
+
+=head1 DESCRIPTION
+
+This is a conceptually simple script that emulates a MIDI keyboard
+using a regular keyboard for typing.
+
+All the code for interfacing with Fluidsynth came from I<chimer>.
+
+=cut
+
+# see https://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default for these crazy hacks
+# THERE ARE MORE CRAZY HACKS THERE FOR MORE COMPLEX PROJECTS!!
+use v5.12; # minimal for unicode string feature
+use v5.14; # //u modifier
+use utf8;
+open qw( :encoding(UTF-8) :std );
+use charnames qw( :full :short );
+use feature "unicode_strings";
+
+use warnings qw( FATAL utf8 );
+use Encode qw( encode decode );
+#@ARGV = map { decode("UTF-8", $_) } @ARGV if grep /\P{ASCII}/ => @ARGV;
+
+binmode STDIN, ':utf8';
+binmode STDOUT, ':utf8';
+binmode STDERR, ':utf8';
+
+
+
+use strict;
+use integer;
+
+
+package Debug;
+use Scalar::Util qw(blessed dualvar isdual readonly refaddr reftype tainted weaken isweak isvstring looks_like_number set_prototype);
+
+sub lazy_sorter ($$) {
+  my($a, $b) = @_;
+  my $it;
+  if ($a =~ /^(.*?)(\d+(?:\.\d+)?)$/s) {
+    no integer;
+    my($a1, $a2) = ($1, $2);
+    if ($b =~ /^(.*?)(\d+(?:\.\d+)?)$/s) {
+      my($b1, $b2) = ($1, $2);
+      if ($a1 eq $b1 && $a1 =~ /q$/s) {		# q0 = q4 therefore > q3
+	$it = ($a2 + 3)%4 <=> ($b2 + 3)%4;
+      } else {
+	$it = $a1 cmp $b1;
+	$it = $a2 <=> $b2 unless $it;
+      }
+    }
+  }
+  $it = $a cmp $b unless defined $it && $it;
+  return $it;
+}
+
+sub cvs ($) {
+  my($s) = @_;
+  my $it;
+  sub compute_size ($) {
+    my($s) = @_;
+    my $it;
+    if (!defined $s || !ref $s) {
+      $it = 1;
+    } elsif (ref $s eq 'ARRAY') {
+      for my $val (@$s) {
+	$it += compute_size($val);
+      }
+    } else { # hash or object
+      $it += 2 unless ref $s eq 'HASH';
+      for my $val (values %$s) {
+	$it += 1 + compute_size($val);
+      }
+    }
+    return $it;
+  }
+  sub format_scalar ($) {
+    my($it) = @_;
+    no integer;
+    if (!looks_like_number($it)) {
+      $it =~ s/([\\\(\)])/\\\1/sg;
+      $it =~ s/(\n)/\\n/sg;
+      $it = "($it)";
+    }
+    return $it;
+  }
+  sub format_as_name ($) {
+    my($s) = @_;
+    return $s =~ /^[-\.\w]+$/? "/$s": sprintf('%s cvn', cvs($s));
+  }
+  sub format_array_inner ($) {
+    my($s) = @_;
+    my $it;
+    if (compute_size($s) <= 12) {	# cf. https://picolisp.com/wiki/?prettyPrint
+      $it = join(' ', map { cvs($_) } @$s);
+    } else {
+      my @s = @$s;
+      $it = cvs($s[0]) . "\n   " . format_array_inner([@s[1..$#s]]);
+    }
+    return $it;
+  }
+  sub format_hash ($) {
+    my($s) = @_;
+    my @keys = sort { lazy_sorter($a, $b) } keys %$s;
+    my @size;
+    my $it;
+    for (my $i = $#keys; $i >= 0; $i -= 1) {
+      my $key = $keys[$i];
+      $size[$i] = compute_size($key) + compute_size($s->{$key});
+      $size[$i] += $size[$i + 1] if $i < $#keys;
+    }
+    for (my $i = 0; $i < @keys; $i += 1) {
+      my $key = $keys[$i];
+      $it .= ($size[$i] <= 12? ' ': "\n") if defined $it;
+      $it .= sprintf('%s %s', format_as_name $key, cvs($s->{$key}));
+    }
+    return "<<$it>>";
+  }
+  if (!defined $s) {
+    $it = 'null';
+  } elsif (ref $s eq 'ARRAY') {
+    $it = sprintf('[%s]', format_array_inner($s));
+  } elsif (ref $s eq 'HASH') {
+    $it = format_hash $s;
+  } elsif (!ref $s) {
+    $it = format_scalar $s;
+  } else { # object :-/
+    $it = sprintf '%s %s bless', format_hash $s, format_as_name ref $s;
+  }
+  return $it;
+}
+
+
+
+
+package Keyboard_Emulator;
+
+use POSIX;
+use POSIX ":sys_wait_h"; # for nonblocking read
+use DateTime;
+use Time::HiRes; # overrides (qw) do not seem to work
+use Expect::Simple;
+
+use Exporter;
+require Exporter;
+use vars qw( @ISA @EXPORT @EXPORT_OK );
+@ISA = qw(Exporter);
+@EXPORT_OK = qw( $dow_re $dow_range_re %expressive_mark_to_midi_velocity );
+
+use vars qw( @restart_cmd );
+@restart_cmd = ($0, @ARGV); # save this because GetOpt will clear @ARGV
+
+use vars qw( $appName );
+$appName = 'kbd';
+
+
+use Getopt::Long;
+use Data::Dumper;
+
+use Curses;
+
+use vars qw( $config );
+use vars qw( $overrides );
+use vars qw( $debug );
+use vars qw( $no_cache_p $create_cache_p $test_p );
+use vars qw( $verbose_p );
+use vars qw( $quit_p );
+use vars qw( $enable_nonproportional_watches );
+use vars qw( $enable_qing_quarters );
+
+use vars qw( $coords );
+use vars qw( $lat $lon );
+use vars qw( $use_jack_p );
+use vars qw( @sinks );
+use vars qw( $synth );
+use vars qw( %children );
+use vars qw( %expected_latency );
+
+use vars qw( $wood_note );
+use vars qw( %instrument_name_to_channel_number );
+use vars qw( %instrument_name_to_mf_velocity );
+use vars qw( $fluidR3 );
+$fluidR3 = '/usr/share/sounds/sf2/FluidR3_GM.sf2';
+
+use vars qw( $beat_length );
+$beat_length = 1;
+
+use vars qw( $boottime );
+$boottime = Time::HiRes::time;
+
+use vars qw( $time_displacement );
+sub current_time () { no integer; Time::HiRes::time + $time_displacement }
+
+use vars qw( $basedir $datadir );
+$basedir = $1 if $0 =~ /^(.*?)\/+[^\/]+$/;
+$basedir =~ s/(?:^|\/+)bin$//;
+$basedir = '.' if $basedir eq '';
+$datadir = "$basedir/data";
+
+# number of times we try sleeping for 1 second until we sleep until the target event
+sub COUNTDOWN () { 5 } # things stablize after 2-3 times, we do 5 just in case (10 is overkill)
+
+# number of seconds to sleep before we disconnect the synth - from observation this must be at least 6
+sub SECONDS_BEFORE_DISCONNECT () { 7 }
+
+sub MODE__SYSLINE   () { 'sysline' }
+sub MODE__CUCKOO    () { 'cuckoo' }
+sub MODE__CARILLON  () { 'carillon' }
+sub METHOD__SAMPLES () { 'samples' }
+sub METHOD__SYNTH   () { 'synth' }
+
+sub MELODY__ABBEY         () { 'abbey' }
+sub MELODY__CAMBRIDGE     () { 'cambridge' }
+sub MELODY__CAMBRIDGE_RCC () { 'cambridge_rcc' }
+sub MELODY__CANTERBURY    () { 'canterbury' }
+sub MELODY__GUILDFORD     () { 'guildford' }
+sub MELODY__MAGDALEN      () { 'magdalen' }
+sub MELODY__NEWCOLLEGE    () { 'newcollege' }
+sub MELODY__NORWICH       () { 'norwich' }
+sub MELODY__TINGTANG2A    () { 'tingtang2a' }
+sub MELODY__TINGTANG2B    () { 'tingtang2b' }
+sub MELODY__TINGTANG3A    () { 'tingtang3a' }
+sub MELODY__TINGTANG3B    () { 'tingtang3b' }
+sub MELODY__TINGTANG4     () { 'tingtang4' }
+sub MELODY__TINGTANG5     () { 'tingtang5' }
+sub MELODY__WESTMINSTER   () { 'westminster' }
+sub MELODY__WHITTINGTON   () { 'whittington' }
+sub MELODY__WHITTINGTON11 () { 'whittington11' }
+
+use vars qw( $mode $method $melody );
+$mode   = MODE__CARILLON;
+$method = METHOD__SAMPLES;
+$melody = MELODY__WESTMINSTER;
+
+use vars qw( %alias_to_canonical_instrument );
+%alias_to_canonical_instrument = (
+  'Keyboard'	=> 'Piano',
+  'Carillon'	=> 'Bell',
+  'Chimes'	=> 'Church Bells',
+);
+
+use vars qw( %laisser_vibrer_p );
+%laisser_vibrer_p = (
+  'Bell'	=> 1,
+  'Gong'	=> 1,
+);
+
+# night watch chime patterns
+sub LONG_STRIKE  () { 1.5 }
+sub SHORT_STRIKE () { 0.5 }
+sub GAP          () { 2.5 }
+# watch chime patterns: repetitions, pattern
+# gap needs to be long enough to hear it, but short enough to not mistake it for a long strike. This is HARD
+use vars qw( @watch_chime_pattern );
+@watch_chime_pattern = ( # v. https://zh.wikipedia.org/wiki/打更 (q.v.)
+   [3, '— .'		],
+   [2, '. .'		],
+   [3, '— . .'		],
+   [4, '— . . .'	],
+   [5, '— . . . .'	],
+);
+
+use vars qw( @midi_number_to_note %note_to_midi_number );
+@midi_number_to_note = (
+  'c0', 'c#0', 'd0', 'd#0', 'e0', 'f0', 'f#0', 'g0', 'g#0', 'a0', 'a#0', 'b0',
+  'c1', 'c#1', 'd1', 'd#1', 'e1', 'f1', 'f#1', 'g1', 'g#1', 'a1', 'a#1', 'b1',
+  'c2', 'c#2', 'd2', 'd#2', 'e2', 'f2', 'f#2', 'g2', 'g#2', 'a2', 'a#2', 'b2',
+  'c3', 'c#3', 'd3', 'd#3', 'e3', 'f3', 'f#3', 'g3', 'g#3', 'a3', 'a#3', 'b3',
+  'c4', 'c#4', 'd4', 'd#4', 'e4', 'f4', 'f#4', 'g4', 'g#4', 'a4', 'a#4', 'b4',
+  'c5', 'c#5', 'd5', 'd#5', 'e5', 'f5', 'f#5', 'g5', 'g#5', 'a5', 'a#5', 'b5',
+  'c6', 'c#6', 'd6', 'd#6', 'e6', 'f6', 'f#6', 'g6', 'g#6', 'a6', 'a#6', 'b6',
+  'c7', 'c#7', 'd7', 'd#7', 'e7', 'f7', 'f#7', 'g7', 'g#7', 'a7', 'a#7', 'b7',
+  'c8', 'c#8', 'd8', 'd#8', 'e8', 'f8', 'f#8', 'g8', 'g#8', 'a8', 'a#8', 'b8',
+  'c9', 'c#9', 'd9', 'd#9', 'e9', 'f9', 'f#9', 'g9', 'g#9', 'a9', 'a#9', 'b9',
+);
+%note_to_midi_number = map { $midi_number_to_note[$_] => $_ } 0..$#midi_number_to_note;
+
+use vars qw( %gong_scale %chime_scale );
+%gong_scale = (
+  'c4'	=> '582141__strangehorizon__g01-c-4-gong.wav',
+  'c#4'	=> '582140__strangehorizon__g02-c-4-gong.wav',
+  'd4'	=> '582139__strangehorizon__g03-d-4-gong.wav',
+  'd#4'	=> '582138__strangehorizon__g04-d-4-gong.wav',
+  'e4'	=> '582145__strangehorizon__g05-e-4-gong.wav',
+  'f4'	=> '582144__strangehorizon__g06-f-4-gong.wav',
+  'f#4'	=> '582143__strangehorizon__g07-f-4-gong.wav',
+  'g4'	=> '582142__strangehorizon__g08-g-4-gong.wav',
+  'g#4'	=> '582147__strangehorizon__g09-g-4-gong.wav',
+  'a4'	=> '582146__strangehorizon__g10-a-4-gong.wav',
+  'a#4'	=> '582156__strangehorizon__g11-a-4-gong.wav',
+  'b4'	=> '582155__strangehorizon__g12-b-4-gong.wav',
+  'c5'	=> '582154__strangehorizon__g13-c-5-gong.wav',
+  'c#5'	=> '582153__strangehorizon__g14-c-5-gong.wav',
+  'd5'	=> '582160__strangehorizon__g15-d-5-gong.wav',
+  'd#5'	=> '582159__strangehorizon__g16-d-5-gong.wav',
+  'e5'	=> '582158__strangehorizon__g17-e-5-gong.wav',
+  'f5'	=> '582157__strangehorizon__g18-f-5-gong.wav',
+  'f#5'	=> '582162__strangehorizon__g19-f-5-gong.wav',
+  'g5'	=> '582161__strangehorizon__g20-g-5-gong.wav',
+);
+%chime_scale = (
+  'c4'	=> 'chimes_C1.ogg',
+  'c#4'	=> 'chimes_C#1.ogg',
+  'd4'	=> 'chimes_D1.ogg',
+  'd#4'	=> 'chimes_D#1.ogg',
+  'e4'	=> 'chimes_E1.ogg',
+  'f4'	=> 'chimes_F1.ogg',
+  'f#4'	=> 'chimes_F#1.ogg',
+  'g4'	=> 'chimes_G1.ogg',
+  'g#4'	=> 'chimes_G#1.ogg',
+  'a4'	=> 'chimes_A1.ogg',
+  'a#4'	=> 'chimes_A#1.ogg',
+  'b4'	=> 'chimes_B1.ogg',
+  'c5'	=> 'chimes_C2.ogg',
+  'c#5'	=> 'chimes_C#2.ogg',
+  'd5'	=> 'chimes_D2.ogg',
+  'd#5'	=> 'chimes_D#2.ogg',
+  'e5'	=> 'chimes_E2.ogg',
+  'f5'	=> 'chimes_F2.ogg',
+);
+
+sub gensym () {
+  state $n;
+  return sprintf('g%d', $n++);
+}
+
+sub log_internal ($$;$$$) {
+  my($flag, $s, $prefix, $newline_p, $keep_p) = @_;
+  state $last_logged;
+  my $daemon_p = !-t STDERR;
+  $newline_p = 1 if $s =~ s/^\n+//s;
+  $newline_p = 0 unless defined $last_logged;
+  $newline_p = 1 if defined $last_logged && $last_logged->{'keep'};
+  $newline_p = 0 if $daemon_p;
+  my $cleol_p = !$daemon_p && !$newline_p;
+  $keep_p = 1 if $debug;
+  $prefix .= ': ' if defined $prefix && $prefix =~ /\S/s && $prefix !~ /: $/s;
+  chomp $s;
+  printf STDERR "%s%10.2f%s\t%s%s%s%s", ($newline_p? "\n": ''),
+      current_time, $flag, $prefix, $s, ($cleol_p? "\033[K": ''), ($daemon_p? "\n": "\r");
+
+  $last_logged->{'keep'} = $keep_p + 0;
+}
+
+sub log_output  ($) { log_internal '>', $_[0] }
+sub log_comment ($) { log_internal '#', $_[0] }
+sub log_debug   ($) { log_internal '#', $_[0], 'DEBUG', 1, 1 }
+sub log_info    ($) { log_internal '#', $_[0], undef,   0, 1 }
+sub log_error   ($) { log_internal '#', $_[0], 'ERROR', 1, 1 }
+sub log_warning ($) { log_internal '#', $_[0], 'WARNING', 1, 1 }
+sub log_command (@) { log_debug 'running: '. join(' ', map { s/([\\"])/\\\1/sg if /\s/; /\s|^$/? "\"$_\"": $_ } @_) }
+
+
+=pod
+
+=head2 Chime melodies
+
+Each chime melody is internally represented as an array of
+B<[>I<midi note name>, I<time in seconds>, I<percentage volume>, I<instrument>B<]> entries
+(I<instrument> can be undef),
+but written as calls to I<define_event> which takes 3 parameters –
+the identifier for the mode,
+the identifier for the melody,
+a string containing any definitions (in the form S<I<var> = I<some definition>>) –
+plus a list of key-value pairs.
+Valid keys are B<q1> for first-quarter chimes,
+B<q2> for second-quarter chimes,
+B<q3> for third-quarter chimes,
+B<q0> for fourth-quarter chimes,
+and B<h> for the hour strike.
+
+As many definitions as needed can be included, but each definition I<must> be of the form of either of
+
+=over
+
+I<var> = B<\relative> I<pitch> B<{> I<melody> B<}>
+
+I<var> = B<\drums> B<{> I<melody> B<}>
+
+I<var> B<{> I<tempo or some other initialization> B<}>
+
+=back
+
+The values are written in LilyPond notation
+(in either relative pitch or drum mode, optionally including note lengths and basic expressive marks),
+described in
+
+=over
+
+Relative Octave Entry. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
+Retrieved August 18, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/writing-pitches#relative-octave-entry
+
+Percussion notes. (n.d.). In I<LilyPond — Notation Reference v2.22.1 (stable-branch)>.
+Retrieved August 20, 2021, from http://lilypond.org/doc/v2.22/Documentation/notation/percussion-notes
+
+=back
+
+For the hour strike, you should normally use B<%I> for represent the hour
+so that you can strike the bell the correct number of times
+(you should of course omit B<%I> for I<sysline> mode
+or for ancient ting-tang quarters that always strike the hour strike once).
+
+I<event_def> calls I<interpret_melody> to convert this notation into the internal representation described above,
+but this conversion is just a simple pattern match and therefore can produce incorrect results.
+If results are incorrect but the notation typesets correctly in LilyPond, the bug is in I<interpret_melody>.
+
+The mapping between Lilypond expressive marks and MIDI velocities is based on
+
+=over
+
+Yamaha. (n.d.). I<Everything You've Ever Wanted to Know About Using MIDI with a Disklavier>.
+Yamaha Disklavier Education Network.
+Retrieved August 19, 2021, from https://www.yamahaden.com/easyblog/entry/everything-you-ve-ever-wanted-to-know-about-using-midi-with-a-disklavier
+
+Vandenneucker, D.Z<Dominique> (2012). MIDI tutorial.
+Retrieved September 5, 2021, from http://www.music-software-development.com/midi-tutorial.html
+
+=back
+
+The mapping between Lilypond percussion notes and MIDI percussion notes is based on
+
+=over
+
+General MIDI instrument codes. (n.d.).
+Retrieved August 20, 2021, from http://www.ccarh.org/courses/253/handout/gminstruments/
+
+=back
+
+=cut
+
+use vars qw( %ly_notes );
+%ly_notes = (
+  'ces' => -1, 'c' => 0, 'cis' => 1,
+  'des' => 1, 'd' => 2, 'dis' => 3,
+  'ees' => 3, 'e' => 4, 'eis' => 5,
+  'fes' => 4, 'f' => 5, 'fis' => 6,
+  'ges' => 6, 'g' => 7, 'gis' => 8,
+  'aes' => 8, 'a' => 9, 'ais' => 10,
+  'bes' => 10, 'b' => 11, 'bis' => 12,
+);
+use vars qw( %percussion_note_to_midi_number );
+%percussion_note_to_midi_number = (
+  'bassdrum'		=> 36,		'bd'	=> 36,
+  'acousticbassdrum'	=> 35,		'bda'	=> 35,
+  'snare'		=> 38,		'sn'	=> 38,		# arbitrarily map to sna
+  'acousticsnare'	=> 38,		'sna'	=> 38,
+  'electricsnare'	=> 40,		'sne'	=> 40,
+  'lowfloortom'		=> 41,		'tomfl'	=> 41,
+  'highfloortom'	=> 43,		'tomfh'	=> 43,
+  'lowtom'		=> 45,		'toml'	=> 45,
+  'hightom'		=> 50,		'tomh'	=> 50,
+  'lowmidtom'		=> 47,		'tomml'	=> 47,
+  'himidtom'		=> 48,		'tommh'	=> 48,
+  'highhat'		=> 44,		'hh'	=> 44,		# arbitrarily map to hhp
+  'closedhighhat'	=> 42,		'hhc'	=> 42,
+  'openhighhat'		=> 46,		'hho'	=> 46,
+  'halfopenhighhat'	=> undef,	'hhho'	=> undef,	# don't know how to map
+  'pedalhighhat'	=> 44,		'hhp'	=> 44,
+  'crashcymbal'		=> 49,		'cymc'	=> 49,		# arbitrarily map to cymca
+  'crashcymbala'	=> 49,		'cymca'	=> 49,
+  'crashcymbalb'	=> 57,		'cymcb'	=> 57,
+  'ridecymbal'		=> 51,		'cymr'	=> 51,		# arbitrarily map to cymra
+  'ridecymbala'		=> 51,		'cymra'	=> 51,
+  'ridecymbalb'		=> 59,		'cymrb'	=> 59,
+  'chinesecymbal'	=> 52,		'cymch'	=> 52,
+  'splashcymbal'	=> 55,		'cyms'	=> 55,
+  'ridebell'		=> 53,		'rb'	=> 53,
+  'cowbell'		=> 56,		'cb'	=> 56,
+  'hibongo'		=> 60,		'boh'	=> 60,
+  'openhibongo'		=> undef,	'boho'	=> undef,	# don't know how to map
+  'muteopenhibongo'	=> undef,	'bohm'	=> undef,	# don't know how to map
+  'lobongo'		=> 61,		'bol'	=> 61,
+  'openlobongo'		=> undef,	'bolo'	=> undef,	# don't know how to map
+  'muteopenlobongo'	=> undef,	'bolm'	=> undef,	# don't know how to map
+  'hiconga'		=> 63,		'cgh'	=> 63,		# arbitrarily map to cgho
+  'openhiconga'		=> 63,		'cgho'	=> 63,
+  'mutehiconga'		=> 62,		'cghm'	=> 62,
+  'loconga'		=> 64,		'cgl'	=> 64,
+  'openloconga'		=> undef,	'cglo'	=> undef,	# don't know how to map
+  'muteloconga'		=> undef,	'cglm'	=> undef,	# don't know how to map
+  'hitimbale'		=> 65,		'timh'	=> 65,
+  'lotimbale'		=> 66,		'timl'	=> 66,
+  'hiagogo'		=> 67,		'agh'	=> 67,
+  'loagogo'		=> 68,		'agl'	=> 68,
+  'sidestick'		=> 37,		'ss'	=> 37,
+  'hisidestick'		=> undef,	'ssh'	=> undef,	# don't know how to map
+  'losidestick'		=> undef,	'ssl'	=> undef,	# don't know how to map
+  'guiro'		=> 73,		'gui'	=> 73,		# arbitrarily map to guis
+  'shortguiro'		=> 73,		'guis'	=> 73,
+  'longguiro'		=> 74,		'guil'	=> 74,
+  'cabasa'		=> 69,		'cab'	=> 69,
+  'maracas'		=> 70,		'mar'	=> 70,
+  'shortwhistle'	=> 71,		'whs'	=> 71,
+  'longwhistle'		=> 72,		'whl'	=> 72,
+  'handclap'		=> 39,		'hc'	=> 39,
+  'tambourine'		=> 54,		'tamb'	=> 54,
+  'vibraslap'		=> 58,		'vibs'	=> 58,
+  'tamtam'		=> undef,	'tt'	=> undef,	# no way to map this
+  'claves'		=> 75,		'cl'	=> 75,
+  'hiwoodblock'		=> 76,		'wbh'	=> 76,
+  'lowoodblock'		=> 77,		'wbl'	=> 77,
+  'opencuica'		=> 79,		'cuio'	=> 79,
+  'mutecuica'		=> 78,		'cuim'	=> 78,
+  'triangle'		=> 81,		'tri'	=> 81,		# arbitrarily map to trio
+  'opentriangle'	=> 81,		'trio'	=> 81,
+  'mutetriangle'	=> 80,		'trim'	=> 80,
+  'oneup'		=> undef,	'ua'	=> undef,	# no idea what this is
+  'twoup'		=> undef,	'ub'	=> undef,	# no idea what this is
+  'threeup'		=> undef,	'uc'	=> undef,	# no idea what this is
+  'fourup'		=> undef,	'ud'	=> undef,	# no idea what this is
+  'fiveup'		=> undef,	'ue'	=> undef,	# no idea what this is
+  'onedown'		=> undef,	'da'	=> undef,	# no idea what this is
+  'twodown'		=> undef,	'db'	=> undef,	# no idea what this is
+  'threedown'		=> undef,	'dc'	=> undef,	# no idea what this is
+  'fourdown'		=> undef,	'dd'	=> undef,	# no idea what this is
+  'fivedown'		=> undef,	'de'	=> undef,	# no idea what this is
+);
+use vars qw( %expressive_mark_to_midi_velocity );
+%expressive_mark_to_midi_velocity = (
+  'ppppp'	=> 1,
+  'pppp'	=> 8,	# this should be 8 according to Vandenneucker (2012)
+  'ppp'		=> 20,	# this should be close to 20 according to Yamaha (n.d.), exactly 20 according to Vandenneucker (2012)
+  'pp'		=> 31,
+  'p'		=> 42,
+  'mp'		=> 53,
+  'mf'		=> 64,
+  'f'		=> 80,
+  'ff'		=> 96,
+  'fff'		=> 112,	# this should be close to 110 according to Yamaha (n.d.), exactly 112 according to Vandenneucker (2012)
+  'ffff'	=> 119,	# this should be 127 according to Vandenneucker (2012)
+  'fffff'	=> 127,
+);
+use vars qw( %interpretation );
+use vars qw( %typesettable_version );
+use vars qw( %mode_description );
+use vars qw( %melody_description );
+
+sub interpret_absolute_pitch ($) { # interpret c' as c4
+  my($s) = @_;
+  my $it;
+  if ($s =~ /^(\w+)(?:(,*)|('*))$/) {
+    $it = $ly_notes{$1} + 12*(3 - length($2) + length($3));
+  } else {
+    die "Can't interpret absolute pitch " . Debug::cvs($s);
+  }
+  return $it;
+}
+
+sub interpret_divisor ($) {
+  my($s) = @_;
+  no integer;
+  return !defined $s? $s: $s =~ /\x{5c}longa/? 0.25: $s =~ /\x{5c}breve/? 0.5: $s =~ /^\d+$/? $s + 0: $s; # XXX
+}
+
+sub calculate_beat_length ($$) {
+  my($divisor, $dots) = @_;
+  no integer;
+  my $it = 4 / $divisor;
+  for (my $i = $dots, my $adj = $it/2; $i; $i -= 1, $adj /= 2) {
+    $it += $adj;
+  }
+  return $it;
+}
+
+my $duration_re = q((?:(\s*\x{5c}longa|\s*\x{5c}breve|\d+)(\.+)?));	# NOTE: 2 captures: divisor, dots
+sub interpret_melody ($) {
+  my($s0) = @_;
+  my $it;
+  my $typesettable_version;
+  no integer;
+
+  state $rest_re = sprintf('(?:r)');
+  state $percussion_instrument_re = sprintf('(?:%s)', join('|', keys %percussion_note_to_midi_number));
+  state $pitch_re = q(([a-g](?:[ei]s)?)?(?:(,*)|('*)));				# NOTE: 3 captures: base pitch, commas, apostrophes
+  state $pitch_re_no_captures = ($pitch_re =~ s/\x28(?!\?)/\x28?:/sgr);
+  state $expressive_mark_re = sprintf("(?:%s)", join('|', keys %expressive_mark_to_midi_velocity));
+  state $end_re = q((?=[-\s\x{7d}\x{5e}~()\[\]]|$));				# - or space or braceright or caret or tilde or ()[] or eof
+
+  my $state = new Interpret_Melody_State;
+  my($last_pitch, $percussive_instrument);
+  my $main_instrument = 'Carillon';
+  my($tie_p);
+  my($note, $divisor, $dots, $volume) = (undef, 4, 0, $expressive_mark_to_midi_velocity{'mf'});
+  my($def_key, $def_value, $def_level, %def);
+  my($current_position, $position_at_end_of_last_recording);
+  my $grace_note_type;
+  my $voice;
+  for (my($s, @stack) = ($s0); $s =~ /\S/s; ) {
+    unless (defined $def_key) {
+      $s =~ s/^\s*//s;
+      $typesettable_version .= $&;
+    }
+    if ($s =~ /^\\([A-Za-z]+)\b/s && defined $def{$1}) {	# expand variables
+      my($key) = $1;						# we MUST store this in a variable for the substitution to work
+      $s =~ s/^\\$key/$def{$key}/s;
+    }
+    my $lhs;
+    my $directive;
+    log_debug sprintf 's=%s', Debug::cvs($s) if $debug > 2;
+    if ($s =~ s/^\%[^\n]*\n*//s) {		# percent - comment to always discard
+      ;
+    } elsif (!defined $def_key && $s =~ s/^([A-Za-z]+)\s*=\s*//s) {
+      ($def_key, $def_value, $def_level) = ($1);
+    } elsif (defined $def_key) {
+      if ($s =~ s/^(\s+)//s) {
+	$def_value .= ' ';
+      } elsif ($s =~ s/^("[^""]*")//s) {
+	$def_value .= $1;
+      } elsif ($s =~ s/^((?:\x{7b}|<<))//s) {		# braceleft
+	$def_value .= $1;
+	$def_level += 1;
+      } elsif ($s =~ s/^((?:\x{7d}|>>))//s) {		# braceright
+	$def_value .= $1;
+	$def_level -= 1;
+	if ($def_level == 0) {
+	  $def_value = $1 if $def_value =~ /^{\s*(.*?)\s*}$/s;
+	  $def{$def_key} = $def_value;
+	  ($def_key, $def_value, $def_level) = ();
+	}
+      } elsif ($s =~ s/^(\S)//s) {
+	$def_value .= $1;
+      } else {
+	log_error "interpret_melody: defined \$def_key reached \"else\" case";
+      }
+
+    } elsif ($s =~ s/^\x{7b}\s*//s) {		# braceleft
+      $typesettable_version .= $&;
+      $state->gsave();
+
+    } elsif ($s =~ s/^<>-\s*//s) {		# ignore empty containers for expressive marks
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^<<\s*//s) {		# FIXME
+      $typesettable_version .= $&;
+      $state->gsave();
+
+    } elsif ($s =~ s/^>>\s*//s) {		# FIXME
+      $typesettable_version .= $&;
+      $state->grestore($s);
+
+    } elsif ($s =~ s/^[\^_]\\markup\s+//s) {	# ignore markup
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\\(?:halign\s+#\w+|markup|tiny)\s+//s) {	# ignore markup
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^#\(\s*play-recording\s+"([^""]+)"\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?\s*\)\s+//s) { # pseudo-lisp 
+      my($filename, $start, $end, $treat_as_this_many_beats) = ($1, $2, $3, $4);
+      # Generate pseudo-note directly instead of setting $directive ($directive needs an existing note to act on)
+      no integer;
+      my $duration = $end - $start;
+      my $unit = 4*$state->unit_beat();
+      my $unit_beats = $duration/$unit;
+      my $quantized_beats = int($unit_beats);
+      my @quantized_beats = (1) x $quantized_beats;
+      my $remainder = $unit_beats - $quantized_beats;
+      for (my $divisor = 2; $divisor < 32; $divisor *= 2) {
+	my $adjustment = 1/$divisor;
+	if (($remainder * $divisor) & 1) {
+	  push @quantized_beats, $divisor;
+	  $quantized_beats += $adjustment;
+	  $remainder -= $adjustment;
+	}
+      }
+      my $fake_duration = $quantized_beats*$unit;
+      $fake_duration = $treat_as_this_many_beats*$state->unit_beat() if defined $treat_as_this_many_beats;
+      my $fake_note = ['ua', $fake_duration, $volume, undef, {
+	    'directive' => ['play', $filename, $start, $end],
+	    'durations' => [@quantized_beats],
+	  }];
+      push @$voice, $fake_note;
+
+      # Generate a typesettable score that makes actual sense. We basically have two options: set it as a one-line percussion staff
+      # and show all the notes, or set it as a non-percussion staff (RhythmicStaff is perfect for this as it's one-line) and show
+      # a cluster that's just one black line. The good thing about separate notes is we can attach start and end times to the correct
+      # notes; we can't do this with clusters but separate notes are misleading given we're talking about recordings (no known notes).
+      # If we use a non-percussion staff b' (absolute) will look about right, otherwise ua is a good placeholder with no MIDI meaning.
+      #
+      # If Lilypond sees two consecutive clusters, it will merge them even though they are two separate clusters. The only way to
+      # prevent this is to insert a rest between them.
+      #
+      $typesettable_version .= sprintf('\set Staff.instrumentName = #"%s" \textLengthOn', $filename);
+      state $last_note_used;
+      my $use_clusters_p = !$state->drummode_p();
+      my $fmt0 = '_\markup{ \halign #%s \tiny "%s" }';
+      my($fmt1a, $fmt1b) = (sprintf($fmt0, 'LEFT', '%.2f'), sprintf($fmt0, 'RIGHT', '%.2f'));
+      my $clash_p = $use_clusters_p && defined $position_at_end_of_last_recording && $position_at_end_of_last_recording == $current_position;
+      my $note = !$use_clusters_p? 'da': !$clash_p? "c''": $last_note_used eq "c''"? "a'": "c''";
+      my $markup = sprintf($fmt1a, $start);
+      for my $pass (!$use_clusters_p? ('normal'): ('cluster', 'ghost')) {
+	my $last_duration;
+	my $tie = ' ';
+	$typesettable_version .= "<<\n" if $pass eq 'cluster';
+	$typesettable_version .= "\\\\\n" if $pass eq 'ghost';
+	$typesettable_version .= '\makeClusters ' if $pass eq 'cluster';
+	$typesettable_version .= "{\n\\absolute {\n" if $use_clusters_p;
+	$typesettable_version .= '\voiceOne ' if $pass eq 'ghost';
+	$typesettable_version .= sprintf("%s\n", join(' ', map {"\\hide $_"} ($pass eq 'ghost'? qw(NoteHead Rest Stem Dots Tie): qw(Rest))));
+	my($gap, @effective_quantized_beats) = (undef, @quantized_beats);
+	if ($pass eq 'cluster' && $clash_p) {
+	  $gap = 128;
+	  for (; $quantized_beats[$#quantized_beats] != $gap;) {
+	    my $n = pop @quantized_beats;
+	    $n *= 2;
+	    push @quantized_beats, $n;
+	    push @quantized_beats, $n unless $n == $gap;
+	  }
+	}
+	$typesettable_version .= " r$gap" if defined $gap;
+	for my $duration (@quantized_beats) {
+	  if (!$duration) {
+	    ;
+	  } elsif (defined $last_duration && $last_duration == $duration/2) {
+	    $typesettable_version .= '.';
+	  } else {
+	    $typesettable_version .= sprintf('%s%s%d', $tie, $note, $duration);
+	    if ($pass ne 'cluster') {
+	      $typesettable_version .= $markup;
+	      $markup = undef;
+	    }
+	  }
+	  $tie = '~';
+	  $last_duration = $duration;
+	}
+	$typesettable_version .= $markup if $pass ne 'cluster' && defined $markup;
+	$typesettable_version .= sprintf($fmt1b, $end) if $pass ne 'cluster';
+	$typesettable_version .= "}\n" if $use_clusters_p;	# close \absolute
+	$typesettable_version .= "}\n" if $use_clusters_p;
+      }
+      $typesettable_version .= ">>\n" if $use_clusters_p;
+      $last_note_used = $note;
+
+      # Update current position manually
+      $current_position += $duration;
+      $position_at_end_of_last_recording = $current_position;
+
+    } elsif ($s =~ s/^"((?:\\"|[^"])*)"//s) {				# text
+      $typesettable_version .= $&;
+      my($s) = ($1);
+
+    } elsif ($s =~ s/^\\(laisserVibrer)\s+//s) {			# ignore \laisserVibrer for now
+      $typesettable_version .= $&;
+      $directive = $1;
+
+    } elsif ($s =~ s/^\\(acciaccatura)\s+//s) {				# ignore \acciaccatura for now
+      $typesettable_version .= $&;
+      $grace_note_type = $1;
+
+    } elsif ($s =~ s/^\\key\s+$pitch_re\s+\\(?:major|minor)\s+//s) {	# ignore \key
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\partial\s+$duration_re\s+//s) {			# ignore \partial
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\mark\s+(?:\\default|#\d+|"[^""]+")\s+//s) {	# ignore \mark
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\set\s+Score\.markFormatter\s+=\s+#[-a-z]+\s+//s) {	# ignore set mark formatter
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\textLengthOn\s+//s) {				# ignore \textLengthOn
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\omit\s+[A-Z][A-Za-z]+(?:\.[A-Z][A-Za-z]+)+\s+//s) {	# ignore \omit
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\new\s+(?:(?:(Drum)|Rhythmic)?Staff|Voice)\s+(?:\\with \{[^\{}]+})?//s || $s =~ s/^\\\\\s*//s) {
+      $typesettable_version .= $&;
+      # FIXME - do we need to gsave?
+      $state->drummode_p(1) if $1;
+      push @$it, $voice if $voice;
+      $voice = undef;
+
+    } elsif ($s =~ s/^\\voice(?:One|Two|Three|Four)\s+//s) {
+      $typesettable_version .= $&;
+
+    } elsif ($s =~ s/^\\score\s+\x{7b}\s*//s) {
+      $typesettable_version .= $&;
+      $state->gsave();
+
+    } elsif ($s =~ s/^\\(?:drums|drummode)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      $state->gsave();
+      $state->drummode_p(1);
+      # FIXME - do we need to push voice?
+
+    } elsif ($s =~ s/^\\absolute\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      $state->gsave();
+      $state->relative_p(0);
+
+    } elsif ($s =~ s/^\\relative\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      $state->gsave();
+      $state->relative_p(1);
+      $last_pitch = undef;
+
+    } elsif ($s =~ s/^\\relative\s+($pitch_re)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      $state->gsave();
+      $state->relative_p(1);
+      $last_pitch = interpret_absolute_pitch $1;
+
+    } elsif ($s =~ s/^\\transpose\s+($pitch_re)\s+($pitch_re)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      my($from, $to) = (interpret_absolute_pitch $1, interpret_absolute_pitch $5);
+      $state->gsave();
+      $state->relative_p(0);
+      $state->transpose($state->transpose() + $to - $from);
+
+    } elsif ($s =~ s/^\\repeat\s+(?:volta|unfold|percent)\s+(\d+)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      my $n = $1 + 0;
+      $state->gsave();
+      $state->repeat_stacklevel($state->stacklevel());
+      $state->repeat_count($n);
+      $state->repeat_start(defined $voice? scalar @$voice: 0);
+
+    } elsif ($s =~ s/^\x{7d}\s*//s) {		# braceright
+      $typesettable_version .= $&;
+      if (defined $state->repeat_stacklevel() && $state->repeat_stacklevel() == $state->stacklevel()) {
+	my @A = @$voice;
+	my $i = $state->repeat_start();
+	my $n = $state->repeat_count();
+	$voice = [@A[0 .. $i - 1], (@A[$i .. $#A]) x $n];
+      }
+      $state->grestore($s);
+    } elsif ($s =~ s/^[\[\]]\s*//s) {		# ignore bracketleft/bracketright = beam on/beam off
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\(\s*//s) {		# ignore parenleft = phrasing slur start
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\)\s*//s) {		# ignore parenright = phrasing slur end
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\|\s*//s) {		# ignore bar checks
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\~\s*//s) {		# tie
+      $typesettable_version .= $&;
+      $tie_p = 1;
+    } elsif ($s =~ s/^(?:\\accent\b|->)//s) {
+      $typesettable_version .= $&;
+      $directive = 'accent';
+    } elsif ($s =~ s/^(?:\\staccato\b|-\.)//s) {
+      $typesettable_version .= $&;
+      $directive = 'staccato';
+    } elsif ($s =~ s/^\x{5e}\s*\\(fermata)\b//s) {	# pause
+      $typesettable_version .= $&;
+      $directive = $1;
+    } elsif ($s =~ s/^\\tempo(?:\s+"[^""]+")?\s+(\d+)\s+=\s+(\d+)\s+//s) {
+      $typesettable_version .= $&;
+      $state->tempo($1, $2);
+    } elsif ($s =~ s/^\\time\s+\d+\/\d+\s+//s) {	# ignore time signature
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\\clef\s+"[^""]+"\s*//s) {	# ignore clef change
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\\breathe\s+//s) {	# ignore breath marks for now
+      $typesettable_version .= $&;
+    } elsif ($s =~ s/^\\tuplet\s+(\d+)\/(\d+)\s*\x{7b}//s) {
+      $typesettable_version .= $&;
+      $state->gsave();
+      $state->unit_beat($state->unit_beat() * $2 / $1);
+    } elsif ($s =~ s/^$duration_re$end_re//s) {
+      $typesettable_version .= $&;
+      ($divisor, $dots) = (interpret_divisor $1, length $2);
+      log_debug "Duration \"$divisor$dots\" encountered before any rest, pitch, or percussion instrument" unless defined $note;
+      $lhs = $note;
+
+    } elsif ($s =~ s/^$rest_re(?:$duration_re)?$end_re//s) {
+      $typesettable_version .= $&;
+      my($new_divisor, $new_dots) = ($1, $2);
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
+      $lhs = 'r';
+
+    } elsif ($s =~ s/^(?!$end_re)($pitch_re)(?:$duration_re)?$end_re//s		# make sure SOMETHING is matched ($pitch_re can match nothing)
+	  || $s =~ s/^<\s*($pitch_re)(?:\s+$pitch_re_no_captures)+\s*>(?:$duration_re)?$end_re//s) {	# discard lower notes in chords
+
+      my $what = $&;
+      $typesettable_version .= $&;
+      my($pitch_as_written, $base_pitch, $lower, $raise, $new_divisor, $new_dots)
+	  = ($1, ($ly_notes{$2} + 12)%12, 0 + length $3, 0 + length $4, $5, $6);
+
+      my $pitch;
+      if ($state->relative_p()) {
+	($last_pitch, $lower, $raise) = (interpret_absolute_pitch $pitch_as_written, undef, undef) if !defined $last_pitch;
+	my $last_base_pitch = ($last_pitch + 12)%12;
+	for (my $i = 0; $i < 8; $i += 1) {
+	  for my $dir (-1, 1) {
+	    my $candidate = $last_pitch + $dir*$i;
+	    $pitch = $candidate if $candidate%12 == $base_pitch;
+	  last if defined $pitch;
+	  }
+	last if defined $pitch;
+	}
+	$pitch += 12*($raise - $lower);
+      } else {
+	$pitch = interpret_absolute_pitch $pitch_as_written;
+      }
+      $pitch += $state->transpose() if defined $pitch;
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
+      $lhs = $midi_number_to_note[$pitch];
+      die "interpret_melody error: note $pitch_as_written out of range\n" unless defined $lhs;
+      $last_pitch = $pitch;
+
+    } elsif ($s =~ s/^($percussion_instrument_re)(?:$duration_re)?$end_re//s) {
+      $typesettable_version .= $&;
+      ($percussive_instrument, my $new_divisor, my $new_dots) = ($1, $2, $3);
+      ($divisor, $dots) = (interpret_divisor $new_divisor, length $new_dots) if defined $new_divisor;
+      $lhs = $percussive_instrument;
+
+    } elsif ($s =~ s/^\\($expressive_mark_re)\b//s) {
+      $typesettable_version .= $&;
+      $volume = $expressive_mark_to_midi_velocity{$1};
+
+    } elsif ($s =~ s/^\\set\s+Staff\.instrumentName\s+=\s+#"([^""]+)"\s*//s) {
+      $typesettable_version .= $&;
+      $main_instrument = $1;
+
+    } elsif ($s =~ s/^(\S+)//s) {
+      $typesettable_version .= $&;
+      log_debug sprintf('Unknown expression "%s" near "%s" discarded', $1, $');
+    } else {
+      $typesettable_version .= $&;
+      log_debug "Internal error: \"else\" case reached in interpret_melody, s=($s)";
+    }
+    if (defined $lhs) {
+      my $rhs = $state->unit_beat() * calculate_beat_length($divisor, $dots);
+      if ($tie_p) {
+	if (!defined $note) {
+	  $tie_p = 0;
+	  log_error "Tie ignored because there is no note to tie to";
+	} elsif ($note ne $lhs) {
+	  $tie_p = 0;
+	  log_error "Tie ignored because $note and $lhs are different";
+	} else {
+	  $voice->[+scalar @$voice - 1][1] += $rhs;
+	}
+      }
+      my $rest_p = $lhs eq 'r';
+      my $instrument = ($lhs eq $percussive_instrument || $rest_p)? undef: $main_instrument; # FIXME
+      my $node = [$lhs, $rhs, ($rest_p? undef: $volume), $instrument] unless $tie_p;
+      if (defined $grace_note_type) {	# zero out the note's duration, in effect ignoring all grace notes for now
+	$node->[1] = 0;
+	$node->[4] = {'actual-duration' => $rhs};
+      }
+      push @$voice, $node if defined $node;
+      $note = $lhs;
+      $tie_p = 0;
+      $grace_note_type = undef;
+      no integer;
+      $current_position += $rhs;
+    } elsif (defined $directive) {
+      my $verb = ref $directive? $directive->[0]: $directive;
+      if (!defined $note) {
+	log_error "Directive $verb ignored because there is no note before it";
+      } elsif ($verb eq 'accent') {
+	my $volume = $voice->[+scalar @$voice - 1]->[2];
+	if (defined $volume) {
+	  no integer;
+	  $volume *= 1.44;
+	  $volume = 127 if $volume > 127;
+	  $voice->[+scalar @$voice - 1]->[2] = $volume;
+	}
+      } elsif ($verb eq 'staccato') {
+	my $node = $voice->[+scalar @$voice - 1];
+	no integer;
+	$node->[4]->{'actual-duration'} = $node->[1]/4;
+      } elsif ($verb eq 'fermata') {
+	$voice->[+scalar @$voice - 1]->[1] *= 2;	# FIXME
+      } elsif ($verb eq 'laisserVibrer') {
+	my $node = $voice->[+scalar @$voice - 1];
+	$node->[4]->{'laisser-vibrer'} = 1;
+      } else {
+	log_error "interpret_melody: Unknown directive \"$verb\"";
+      }
+    }
+  }
+  push @$it, $voice if $voice;
+  log_debug sprintf "%s interpreted as %s", $s0,
+      join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @$it) if $debug > 2;
+  return wantarray? ($it, $typesettable_version): $it;
+}
+
+sub event_id ($$;$) {
+  my($mode, $event, $melody) = @_;
+  return join('-', map { defined $_? s/[^\.\w]+/_/sgr: () } ($mode, $melody, $event));
+}
+sub define_event_internal_real ($$$$$$$%) {
+  my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
+  my %it;
+  my($t0, $thing) = (eval { no integer; Time::HiRes::time },
+		    (defined $melody? $melody: join(' ', ($mode, sort keys %event_defs))) =~ s/^\s+//sr);
+
+  log_comment "interpreting score for $thing" if $debug || $verbose_p;
+  if (defined $melody && defined $description) {
+    $melody_description{$melody} = {'description' => $description, 'source' => $source};
+    $melody_description{$melody}->{'composer'} = $composer if defined $composer;
+    $melody_description{$melody}->{'year'} = $year if defined $year;
+  } elsif (defined $mode && defined $description) {
+    $mode_description{$mode} = {'description' => $description, 'source' => $source};
+    $mode_description{$mode}->{'composer'} = $composer if defined $composer;
+    $mode_description{$mode}->{'year'} = $year if defined $year;
+  }
+  $shared_defs =~ s/(?:^|(?<=\n))\s+//sg;			# kill indents
+  $shared_defs =~ s/\s+$//sg;					# trim
+  $shared_defs .= "\n" if $shared_defs =~ /\S/s;		# force newline at end if nonempty
+  for my $event (keys %event_defs) {
+    my $tune = $event_defs{$event};
+    $tune = sprintf('\\new Staff { %s }', $tune) unless $tune =~ /^\s*\\(?:drums|new\s+(?:Drum|Rhythmic)?Staff)\s+/;
+    $tune = sprintf('%s\score { %s }', $shared_defs, $tune);
+    $event = sprintf('q%d', $1/2) if $event =~ /^e[02468]$/;	# in case we got e2, e4 etc, convert them to q1, q2 etc.
+    $event = "q0" if $event eq 'q4';				# in case we got q4
+    if ($event =~ /^(?:h|halb)$/ && $tune =~ /\%[Il]/) {	# expand to h1..h12
+      for (my $i = 1; $i <= 12; $i += 1) {
+	my $edited_tune = $tune;
+	$edited_tune =~ s/\%[Il]/$i/sg;
+	$it{&event_id($mode, "$event$i", $melody)} = $edited_tune;
+      }
+    } else {
+      $it{&event_id($mode, $event, $melody)} = $tune;
+    }
+  }
+  for my $tune (values %it) {
+    my($interpretation, $typesettable_version) = interpret_melody $tune;
+    $interpretation{$tune} = $interpretation unless defined $interpretation{$tune};
+    $typesettable_version{$tune} = $typesettable_version unless defined $typesettable_version{$tune};
+  }
+  log_comment sprintf "%s defined in %.2f s", $thing, Time::HiRes::time - $t0 if $debug || $verbose_p;
+  return %it;
+}
+sub define_event_internal ($$$$$$$%) {
+  my($specified_mode, $specified_melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
+  my %it;
+  if (!defined $specified_mode || ($specified_mode eq $mode && ($mode ne MODE__CARILLON || $specified_melody eq $melody))) {
+    %it = define_event_internal_real($specified_mode, $specified_melody, $description, $composer, $year, $source, $shared_defs, %event_defs);
+  } else {
+    log_debug sprintf "%s %s definition skipped", $specified_mode, $specified_melody if $debug;
+  }
+  return %it;
+}
+sub define_event ($$$$$$$%) {
+  my($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs) = @_;
+  my %it;
+  if (ref $melody eq 'HASH') {
+    for my $melody_i (keys %$melody) {
+      my $description_i = defined $description? $description: $melody->{$melody_i}->{'title'};
+      my $composer_i = defined $composer? $composer: $melody->{$melody_i}->{'composer'};
+      my $year_i = defined $year? $year: $melody->{$melody_i}->{'year'};
+      my $source_i = defined $source? $source: $melody->{$melody_i}->{'source'};
+      my %event_defs_i = %{$event_defs{$melody_i}};
+      %it = (%it, define_event_internal($mode, $melody_i, $description_i, $composer_i, $year_i, $source_i, $shared_defs, %event_defs_i));
+    }
+  } else {
+    %it = define_event_internal($mode, $melody, $description, $composer, $year, $source, $shared_defs, %event_defs);
+  }
+  return %it;
+}
+sub interpret_watch ($$$$$$) {
+  my($watch, $subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
+  my $score;
+  my($repeats, $pattern) = @{$watch_chime_pattern[$watch - 1]};
+  my $gap = ($watch == 1? ' r2': ' r4.'); # FIXME
+  no integer;
+  my $previous_volume;
+  my $beats;
+  for (my $i = 0; $i < $repeats; $i += 1) {
+    $beats = calculate_beat_length(interpret_divisor $1, length $2) if $i == 0 && $gap =~ /$duration_re$/;
+    $score .= $gap if defined $score;
+    my $previous_duration; # need to reset this after emitting r
+    for my $length (map { $_ ne '.' } split(/\s+/, $pattern)) {
+      $score .= ' ' if defined $score;
+      my($instrument, $volume, $duration) = $length? ($instrument1, $volume1, '4.'): ($instrument2, $volume2, '8.');
+      $score .= sprintf('<>-\%s ', $volume) if !defined $previous_volume || $previous_volume ne $volume;
+      $score .= (!defined $previous_duration || $previous_duration ne $duration)? sprintf('%s%s', $instrument, $duration): $instrument;
+      $previous_duration = $duration;
+      $previous_volume = $volume;
+      $beats += calculate_beat_length(interpret_divisor $1, length $2) if $i == 0 && $duration =~ /$duration_re$/;
+    }
+  }
+  #printf STDERR "%s x%d interpreted as %s\n", $pattern, $repeats, $score;
+
+  my($numerator, $denominator) = (8*$beats, 32);
+  while ($numerator%2 == 0 && $denominator%2 == 0 && $denominator > 8) {
+    $numerator /= 2;
+    $denominator /= 2;
+  }
+  return sprintf('\drums { \tempo 4 = 60 \time %g/%g %s }', $numerator, $denominator, $score);
+}
+sub define_watches ($$$$$) {
+  my($subwatch, $volume1, $instrument1, $volume2, $instrument2) = @_;
+  my %defs;
+  for (my $watch = 1; $watch <= 5; $watch += 1) {
+    my $event_id = defined $subwatch? "w$watch.$subwatch": "w$watch";
+    $defs{$event_id} = interpret_watch($watch, $subwatch, $volume1, $instrument1, $volume2, $instrument2);
+  }
+  return define_event(undef, undef, undef, undef, undef, undef, undef, %defs);
+}
+
+
+
+sub trim ($) {
+  my($s) = @_;
+  $s =~ s/^\s+//;
+  $s =~ s/\s+$//;
+  return $s;
+}
+
+
+# NOTE: modified to act like the current PHP version (root section goes to /, duplicate keys allowed and get stashed into an array)
+sub read_ini ($) {
+  my($input) = @_;
+  my $it;
+  local(*INPUT, $.);
+  if (open(INPUT, '<:utf8', $input)) {
+    for (my $section = '/';;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      chomp $s;
+      if ($s =~ /^\s*(?:[#\%;]|$)/) {
+	;
+      } elsif ($s =~ /^\s*\[\s*([^\[\]]+?)\s*\]\s*$/) {
+	$section = $1;
+      } elsif ($s =~ /^\s*([^=]+?)\s*=\s*(.*)/) {
+	if (defined $section) {
+	  $it->{$section}->{$1} = [] unless defined $it->{$section}->{$1};
+	  push @{$it->{$section}->{$1}}, $2;
+	} else {
+	  $it->{$1} = [] unless defined $it->{$1};
+	  push @{$it->{$1}}, $2;
+	}
+      } else {
+	warn "$input:$.: Warning: Unknown input \"$s\"\n";
+      }
+    }
+    close INPUT;
+  }
+  return $it;
+}
+
+
+
+
+sub get_sink () {
+  return $ENV{'PULSE_SINK'};
+}
+
+sub set_sink ($) {
+  my($sink) = @_;
+  $ENV{'PULSE_SINK'} = $sink if defined $sink;
+}
+
+sub set_test_params () {
+  @sinks = @{$config->{'test'}->{'sink'}} if defined $config->{'test'}->{'sink'};
+  $mode = $config->{'test'}->{'mode'}->[0] if defined $config->{'test'}->{'mode'};
+  $method = $config->{'test'}->{'method'}->[0] if defined $config->{'test'}->{'method'};
+  $melody = lc $config->{'test'}->{'melody'}->[0] if defined $config->{'test'}->{'melody'};
+  $datadir = $config->{'test'}->{'datadir'} if defined $config->{'test'}->{'datadir'};
+  log_debug sprintf "test params set at %.2f: mode=%s, method=%s, melody=%s", $boottime, $mode, $method, $melody if $verbose_p || $debug;
+}
+
+sub set_sink_volume ($$) {
+  my($sink, $volume) = @_;
+  my @cmd = ('pactl', 'set-sink-volume', $sink, int($volume));
+  log_command @cmd if $debug;
+  system { $cmd[0] } @cmd;
+}
+
+
+sub get_time_parametrized_config ($$$$$$$$$;$) {
+  my($section, $key, $thing_re, $thing_valid, $hour, $min, $sec, $deciday, $wday, $thing_label) = @_;
+  my($adj, $error, $reason);
+  $thing_label = $key unless defined $thing_label;
+  for my $directive (map { split /\s*;\s*/ } @{$config->{$section}->{$key}}) {
+    log_debug "considering directive: $directive" if $debug > 1;
+    (my $candidate_adj, $error) = interpret_time_parametrized_config_value($thing_label, $thing_re, $thing_valid, $directive, $hour, $min, $sec, $deciday, $wday);
+    ($adj, $reason) = ($candidate_adj, "because of $thing_label rule \"$directive\"") if defined $candidate_adj;
+    log_error "CONFIG ERROR: $error in [$section] $key" if defined $error;
+  last if defined $adj;
+  }
+  return wantarray? ($adj, $error, $reason): [$adj, $error, $reason];
+}
+
+sub set_sink_volumes ($$$$$) {
+  my($hour, $min, $sec, $deciday, $wday) = @_;
+  for my $sink (@sinks) {
+    my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
+    no integer;
+    my $adj;
+    my $reason;
+    if (defined $config->{$sink} && defined $config->{$sink}->{'volume'}) {
+      ($adj, my $error, $reason) = get_time_parametrized_config($sink, 'volume', '\d+(?:\.\d+)?', sub {
+	my($target_volume) = @_;
+	no integer;
+	$target_volume >= 0 && $target_volume <= 1;
+      }, $hour, $min, $sec, $deciday, $wday);
+      $adj = 1.0 unless defined $adj;
+    } else {
+      # Default adjustment for "night"
+      $adj = 1.0;
+      $adj *= 0.9 if $deciday < 1 || $deciday > 5;
+      $adj *= 0.9 if $hour < 9 || $hour > 8;
+    }
+    $reason = 'by default' if defined $adj && !defined $reason;
+    log_info "Master volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
+    set_sink_volume $sink, 65535 * $adj;
+  }
+}
+
+sub get_cache_pathname_for_event ($) {
+  my($id) = @_;
+  my $it;
+  if (defined $id && $id ne 'test') {
+    die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
+    die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
+    my $basename;
+    if ($id =~ /^tmp\d+$/) {
+      $it = sprintf('%s/%s.oga', $datadir, $id);
+    } else {
+      my $chime_id = determine_chime_id_for_event $id;
+      $it = sprintf('%s/cache-%s.oga', $datadir, $chime_id) if defined $chime_id;
+    }
+  }
+  return $it;
+}
+
+sub send_midi_command ($) {
+  my($cmd) = @_;
+  log_output $cmd if $debug || $verbose_p;
+  if (defined $synth) {
+    $synth->send($cmd);
+    $synth->{'.last-note'} = current_time if $cmd =~ /\bnoteon\b/; # XXX
+  } else { # cached synth output disappeared
+    log_error "trying to send midi command while synth is not connected";
+  }
+}
+
+sub probe_synth_instruments ($) {
+  my($soundfonts) = @_;
+  my %instruments;
+  for (my $i = 0; $i < @$soundfonts; $i += 1) {
+    my $font = $i + 1;
+    send_midi_command(sprintf('inst %d', $font));
+    for my $s (split(/\r?\n/, $synth->before)) {
+      if ($s =~ /^(\d+)-(\d+)\s+(.*?)\r?$/s) {
+	if (!defined $instruments{$3}) {
+	  $instruments{$3} = [$font, $1 + 0, $2 + 0, $soundfonts->[$i]->{'zero'}];
+	  log_debug sprintf "instrument %s defined as %s", $3, Debug::cvs($instruments{$3}) if $debug > 1;
+	} else {
+	  log_debug sprintf "instrument %s from soundfont %d ignored", $3, $font if $debug > 1;
+	}
+	if (!defined $instruments{"$1-$2"}) {
+	  $instruments{"$1-$2"} = $3;
+	  log_debug sprintf "bank %s-%s from soundfont %s defined as alias for instrument %s", $1, $2, $font, $3 if $debug > 1;
+	} else {
+	  log_debug sprintf "alias %s-%s from soundfont %s ignored", $1, $2, $font if $debug > 1;
+	}
+      }
+    }
+  }
+  return wantarray? %instruments: \%instruments;
+}
+
+sub find_synth_instrument ($$@) {
+  my($instruments, $soundfonts, @preferences) = @_;
+  my $it;
+  for my $candidate (@preferences) {
+    $it = $instruments->{$candidate} if defined $instruments->{$candidate};
+    $it = $instruments->{$it} if defined $it && !ref $it && defined $instruments->{$it};
+  last if defined $it;
+  }
+  return $it;
+}
+
+sub synth_instrument_name ($$) {
+  my($instruments, $instrument) = @_;
+  my $id = sprintf('%03d-%03d', $instrument->[0], $instrument->[1]);
+  return $instruments->{$id};
+}
+
+sub canonical_instrument ($) {
+  my($instrument) = @_;
+  return defined $instrument && defined $alias_to_canonical_instrument{$instrument}? $alias_to_canonical_instrument{$instrument}: $instrument;
+}
+
+use vars qw( @need_instrument %need_instrument );
+@need_instrument = (
+  'Piano',
+  'Guitar',
+  'Bass Guitar',
+  'Woodblock',
+  'Bell',
+  'Gong',
+  'Music Box',
+  'drum kit',
+);
+%need_instrument = map { $_ => 1 } @need_instrument;
+
+sub connect_synth ($) {
+  my($id) = @_;
+  my $output = get_cache_pathname_for_event($id);
+  my($sf_path, $master_gain);
+  my $immediate_p = $id eq 'test';
+  if (!defined $synth && ($immediate_p || defined $output)) { # if we're connected don't try to create a second instance, it was disastrous
+    log_debug sprintf "needed instruments = %s", Debug::cvs [keys %need_instrument] if $debug;
+    # Gong, Bell, Woodblock are used by legacy code; assume they are always needed; percussion isn't used unless detected
+    if ($method ne METHOD__SYNTH) {
+      $need_instrument{'Gong'} = 1;
+      $need_instrument{'Bell'} = 1;
+      $need_instrument{'Woodblock'} = 1;
+      log_debug sprintf "needed instruments adjusted to %s", Debug::cvs [keys %need_instrument] if $debug;
+    }
+
+    # Figure out where our soundfont(s) is (are)
+    my $soundfonts;
+    if (defined $config->{'/'}->{'soundfont'}) {
+      my $prio = 0;
+      for my $input (@{$config->{'/'}->{'soundfont'}}) {
+	if (open(INPUT, '<', $input)) {
+	  require File::Format::RIFF;
+	  my $sf =  new File::Format::RIFF;
+	  $sf->read(*INPUT);
+	  if ($sf->type eq 'sfbk') {
+	    my $chunk = $sf->at(0);	# XXX assume first chunk is INFO
+	    if ($chunk->type eq 'INFO') {
+	      my($inam, $iprd);
+	      for (my $j = 0; $j < $chunk->numChunks; $j += 1) {
+		my $subchunk = $chunk->at($j);
+		$inam = $subchunk->data if $subchunk->id eq 'INAM';
+		$iprd = $subchunk->data if $subchunk->id eq 'IPRD';
+	      }
+	      my($type, $mf); # MIDI velocity that measures ~0 dB in japa when fluidsynth gain = 0.48 (MIDI velocity 64 supposedly = mf)
+	      if ($iprd =~ /^Aegean Symphonic Orchestra\b/) {	# INAM identifies as Musescore_General
+		($type, $mf) = ('Aegean Symphonic Orchestra', 64);
+	      } elsif ($inam =~ /^Sonatina Symphonic Orchestra\b/) {
+		($type, $mf) = ('Sonatina Symphonic Orchestra', 48);
+	      } elsif ($inam =~ /^Timbres Of Heaven\b/) {
+		($type, $mf) = ('Timbres Of Heaven', 32);
+	      } elsif ($inam =~ /^Musescore_General\b/) {
+		($type, $mf) = ('Musescore_General', 64);
+	      } elsif ($inam =~ /^Fluid R\d+\b/) {
+		($type, $mf) = ('Fluid', 64);
+	      } else {
+		$mf = 64;
+		log_warning "$input: Unknown sf2 soundfont, assuming mf=$mf";
+	      }
+	      my $descriptor = {'path' => $input, 'priority' => $prio, 'mf' => $mf};
+	      $descriptor->{'type'} = $type if defined $type;
+	      push @$soundfonts, $descriptor;
+	    } else {
+	      log_warning "$input: INFO chunk not found at beginning of file";
+	    }
+	  } else {
+	    log_warning "$input: Not an sf2 soundfont";
+	  }
+	  close INPUT;
+	} else {
+	  log_warning "$input: $!";
+	}
+	$prio += 1;
+      }
+    }
+    die "No usable soundfont found\n" unless defined $soundfonts;
+    $master_gain = 0.48; # measured ~0 dB with Aegean in japa
+
+    log_comment sprintf('Connecting synth %s', $immediate_p? (@sinks? "to $sinks[0]": ''): "for write to $output") if $debug || $verbose_p;
+    set_sink $sinks[0] if $immediate_p && @sinks;
+    my @cmd = ('fluidsynth', '-g', $master_gain,
+			     '--midi-channels', scalar(keys %need_instrument),
+			     ($immediate_p?
+				($use_jack_p? '-j': ('-a', 'pulseaudio')):
+				('-a', 'file',
+				 '-o', "audio.file.name=$output")),
+			     map { $_->{'path'} } @$soundfonts);
+
+    log_command @cmd if $debug;
+    $synth = new Expect::Simple({
+	'Cmd' => \@cmd,
+	'Prompt' => "\n> ",
+	'DisconnectCmd' => 'quit',
+      });
+
+    # Figure out what instruments to use
+    my $instruments = probe_synth_instruments $soundfonts;
+    %instrument_name_to_channel_number = ();	# need to reset this for each instance of fluidsynth
+    $wood_note = undef;				# and this
+    for my $instrument ('Gong', 'Bell', 'Woodblock', 'drum kit', sort keys %need_instrument) { # handle hard-coded values 0-3 first
+      if (defined $need_instrument{$instrument} && !defined $instrument_name_to_channel_number{$instrument}) {
+	my $midi_instrument_id = scalar keys %instrument_name_to_channel_number;
+	my $spec;
+	if ($instrument eq 'Gong') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Gong!!!', 'Tubular Bells');
+	} elsif ($instrument eq 'Bell') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Carillon', 'Tubular Bells (damp)', 'Tubular Bells');
+	} elsif ($instrument eq 'Church Bells') {
+	  # NOTE: instruments in Sonatina only have a range of [48, 84], Chimes also doesn't sound nicer (though it's a single strike)
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Church Bell', 'Church Bells', 'Chimes');
+	} elsif ($instrument eq 'Woodblock') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Woodblock'); # 000-115
+	} elsif ($instrument eq 'drum kit') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Jazz Drum Kit', 'Jazz', 'Orchestra Kit');
+	} elsif ($instrument eq 'Sine Wave') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Sine Wave', '1 kHz Test', '000-008'); # fallback to any celesta
+	} elsif ($instrument eq 'Music Box') {
+	  # Glockenspiel from Sonatina sounds the most realistic
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Glockenspiel', 'Music Box', '000-010');
+	} elsif ($instrument eq 'Organ') {
+	  # FIXME: Pipe Organ (Aegean) sounds a lot softer than Church Organ (Tibres of Heaven). Volume is still not equalized
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Pipe Organ', 'Church Organ');	# sonatina 0-19 is not an organ
+	} elsif ($instrument eq 'Piano') {
+	  # NOTE: These are all 000-000 but they sound very different so there's a preferred order
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Grand Piano C5', 'Concert Grand', 'Grand Piano', '000-000');
+	} elsif ($instrument eq 'Glockenspiel') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-009');	# glockenspiel
+	} elsif ($instrument eq 'Flute') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-073');	# flute
+	} elsif ($instrument eq 'Recorder') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-074');	# recorder
+	} elsif ($instrument eq 'Violin') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-040');	# violin
+	} elsif ($instrument eq 'Viola') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-041');	# viola
+	} elsif ($instrument eq 'Cello') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-042');	# cello
+	} elsif ($instrument eq 'Guitar') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-026');	# jazz guitar
+	} elsif ($instrument eq 'Bass Guitar') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, '000-032');	# bass guitar
+	} elsif ($instrument eq 'Harp') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Concert Harp', 'Harp (sustain)', 'Clavinova Harp', 'Harp');
+	} elsif ($instrument eq 'Harpsichord') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Harpsichord', "Don's Harpsichord");
+	} elsif ($instrument eq 'Guzheng') {
+	  $spec = find_synth_instrument($instruments, $soundfonts, 'Guzheng Harp');	# this is unrealistic; this is in reality a really quiet instrument
+	} else {
+	  die "$instrument: Unhandled instrument\n";
+	}
+	die "$instrument: Instrument not found\n" unless defined $spec;
+	# XXX You can't compensate for gain. First, there is no formula. Second, even if you can find one,
+	# XXX a loud note with low gain sounds different from a soft note with high gain,
+	# XXX probably because loud and soft notes use different samples
+	my($font, $bank, $inst, $zero) = @$spec;
+	if ($instrument eq 'Woodblock') {
+	  $wood_note = (synth_instrument_name($instruments, $spec) =~ / Kit\b/ || $bank == 128)? 31: $note_to_midi_number{'d#5'};
+	}
+	send_midi_command "select $midi_instrument_id $font $bank $inst";
+	$instrument_name_to_channel_number{$instrument} = $midi_instrument_id;
+	$instrument_name_to_mf_velocity{$instrument} = $zero;
+	log_debug "instrument $instrument mapped to $midi_instrument_id" if $debug;
+      }
+    }
+
+    # Set reverb, based on advice from
+    # - mrbumpy409. (2012, December 19). The fluidsynth reverb, while not as good as the old Live!/Audigy hardware reverbs (which were 
+    #   quite good), can still sound decent [Reply to forum post]. Retrieved from https://forums.scummvm.org/viewtopic.php?t=11632
+    send_midi_command "rev_setroomsize 0.61";
+    send_midi_command "rev_setdamp 0.23";
+    send_midi_command "rev_setwidth 0.76";
+    send_midi_command "rev_setlevel 0.57";
+    send_midi_command "cho_set_nr 3";
+    send_midi_command "cho_set_level 1.2";
+    send_midi_command "cho_set_speed 0.3";
+    send_midi_command "cho_set_depth 8";
+    send_midi_command "reverb on";
+    send_midi_command "chorus on";
+  }
+  return;
+}
+
+sub disconnect_synth () {
+  if (defined $synth) {
+    sleep SECONDS_BEFORE_DISCONNECT if defined $synth && defined $synth->{'.last-note'}; # wait a bit for things to stabilize if we sent anything
+    $synth = undef;
+    log_debug 'synth disconnected' if $debug;
+  }
+}
+END { disconnect_synth }
+
+
+
+sub interpret_volume ($;$) {
+  my($volume, $default) = @_;
+  if (ref $volume eq 'ARRAY') {
+      my($base, $hour, $min, $sec, $deciday, $wday) = @$volume;
+      if (defined $wday) {
+	no integer;
+	my $sink = get_sink();
+	my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
+	my($adj, $error, $reason) = get_time_parametrized_config($sink, 'clock volume', '\d+(?:\.\d+)?', sub {
+	    my($target_volume) = @_;
+	    no integer;
+	    $target_volume >= 0 && $target_volume <= 1;
+	  }, $hour, $min, $sec, $deciday, $wday);
+	$adj = 1 unless defined $adj;
+	log_info "Clock volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
+	$volume = $base * $adj;
+      }
+  }
+  $volume = $default if !defined $volume && defined $default;
+  return $volume;
+}
+
+sub play_sound_file ($;$$$) {
+  my($input, $volume, $start, $end) = @_;
+  my $latency;
+  if (@sinks) {
+    for my $sink (@sinks) {
+      log_debug "set sink $sink" if $debug;
+      set_sink $sink;
+      $latency = play_sound_file_real($input, interpret_volume($volume, 50), $start, $end);
+    }
+  } else {
+    $latency = play_sound_file_real($input, interpret_volume($volume, 50), $start, $end);
+  }
+  return $latency;
+}
+
+sub strike_gong (;$) {
+  my($note) = @_;
+  if ($note ne 'r') {
+    if ($method eq METHOD__SYNTH) {
+      send_midi_command sprintf('noteon 0 %d %s', $note_to_midi_number{$note}, $expressive_mark_to_midi_velocity{'ffff'});
+    } else {
+      $note = 'a#5' if !defined $note || !defined $gong_scale{$note};
+      play_sound_file sprintf('%s/%s', $datadir, $gong_scale{$note}), 50;
+    }
+  }
+}
+
+sub strike_bell ($) {
+  my($note) = @_;
+  if ($note ne 'r') {
+    if ($method eq METHOD__SYNTH) {
+      send_midi_command sprintf('noteon 1 %d %s', $note_to_midi_number{$note}, $expressive_mark_to_midi_velocity{'fff'});
+    } else {
+      $note = 'd#5' if !defined $note || !defined $chime_scale{$note};
+      play_sound_file sprintf('%s/%s', $datadir, $chime_scale{$note}), 100;
+    }
+  }
+}
+
+sub strike_stick () {
+  if ($method eq METHOD__SYNTH) {
+    send_midi_command sprintf('noteon 2 %d %s', $wood_note, $expressive_mark_to_midi_velocity{'f'});
+  } else {
+    #play_sound_file sprintf('%s/269735__theriavirra__drumsticks-stagg-maple-sm5a-powerclick-no4a.wav', $datadir), 70;
+    play_sound_file sprintf('%s/claves_ff.mp3', $datadir), 90;
+  }
+}
+
+sub transpose_note ($;$) {
+  my($note, $shift) = @_;
+  my $it = $midi_number_to_note[$note_to_midi_number{$note} + $shift] if $note ne 'r';
+  return defined $it? $it: $note;
+}
+
+sub strike_tune_real ($@) {
+  my($construct_filter_graph_p, @tune) = @_;
+  my %leftovers;
+  my($last_volume_used, @intermediate_input_labels);
+  log_debug sprintf "Flag %d, striking %s", $construct_filter_graph_p, join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @tune) if $debug || $verbose_p;
+  no integer;
+  my $semitones = 8;
+  my @midi_commands;
+  my $percussion_channel = $instrument_name_to_channel_number{'drum kit'};
+  my $percussion_mf = $instrument_name_to_mf_velocity{'drum kit'};
+  for my $voice (@tune) {
+    my $elapsed = 0;
+    my $t0 = current_time;
+    for my $spec (@$voice) {
+      my($note, $time, $velocity, $instrument, $flags) = @$spec;
+      $velocity = 127 unless defined $velocity; # NOTE backward compatibility
+      $instrument = canonical_instrument $instrument;
+      my $velocity_adjustment = defined $instrument_name_to_mf_velocity{$instrument}? $instrument_name_to_mf_velocity{$instrument}/64: 1;
+      my $t_i = current_time;
+      my $actual_time = $flags->{'actual-duration'};
+      my $note_length = $time * $beat_length;
+      my $effective_note_length = defined $actual_time? $actual_time * $beat_length: $note_length;
+      if (defined $flags && defined $flags->{'directive'}) {
+	push @midi_commands, [$elapsed, $flags->{'directive'}, $velocity * $velocity_adjustment];
+      } elsif (defined $percussion_note_to_midi_number{$note}) {
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $percussion_channel, $percussion_note_to_midi_number{$note}, $velocity * $velocity_adjustment];
+      } elsif (exists $percussion_note_to_midi_number{$note}) {	# valid percussion note but no MIDI equivalent
+	log_debug "percussion note $note has no MIDI equivalent";	# XXX
+      } elsif (defined $note_to_midi_number{$note}) {
+	my $channel = (defined $instrument_name_to_channel_number{$instrument})? $instrument_name_to_channel_number{$instrument}: 1;
+	my $note_number = $note_to_midi_number{$note};
+	my $laisser_vibrer_p = 1 if (defined $flags && defined $flags->{'laisser-vibrer'}) || (defined $laisser_vibrer_p{$instrument} && !defined $actual_time);
+	push @midi_commands, [$elapsed, sprintf 'noteon %d %d %d', $channel, $note_number, $velocity * $velocity_adjustment];
+	push @midi_commands, [$elapsed + $effective_note_length, sprintf 'noteoff %d %d', $channel, $note_number] unless $laisser_vibrer_p;
+      } elsif ($note ne 'r') {
+	log_debug "strike_tune: $note: \"else\" case reached";
+      }
+      # Instead of sleeping on the actual note length, we keep track of where we're supposed to be in relation to t0,
+      # our initial time. Then calculate how much time we need to sleep to hit the next note at the expected time.
+      $elapsed += $note_length;
+    }
+  }
+  if (@midi_commands) { # sort batched-up MIDI commands (to take care of noteoffs) and execute them in order, noteoff must come before noteon
+    @midi_commands = sort { $a->[0] <=> $b->[0] || $a->[1] cmp $b->[1] } @midi_commands;
+    map { log_debug "schedule: " . Debug::cvs($_) } @midi_commands if $debug > 1;
+    my $t0 = current_time; # reset start time
+    for (my $i = 0;; $i += 1) {
+      my($t, $midi_command, $non_midi_extra) = @{$midi_commands[$i]};
+      if (ref $midi_command) {
+	my($directive, @args) = @$midi_command;
+	if ($directive eq 'play') {
+	  my($volume, $filename, $start, $end) = ($non_midi_extra, @args);
+	  my $pathname = sprintf('%s/%s.wav', $datadir, $filename);
+	  no integer;
+	  if ($construct_filter_graph_p) {				# construct ffmpeg filter graph - see ffmpeg.md for comments
+	    my $intermediate_input_label = gensym;
+	    push @{$leftovers{'files'}}, $pathname;
+	    push @intermediate_input_labels, $intermediate_input_label;
+	    my @cmd;
+	    push @cmd, sprintf('volume=127/%d', $last_volume_used) if defined $last_volume_used;
+	    push @cmd, sprintf('volume=%d/127', $volume);
+	    push @cmd, sprintf('atrim=%f:%f', $start, $end);
+	    push @cmd, sprintf('adelay=%d', 1000*$t) if $t;
+	    log_debug sprintf 'intermediate file %s has label %s', $pathname, $intermediate_input_label if $debug;
+	    $leftovers{'filter-graph'} .= sprintf('[%d]%s[%s];', scalar @{$leftovers{'files'}}, join(',', @cmd), $intermediate_input_label);
+	    $last_volume_used = $volume;
+	  } else {
+	    play_sound_file $pathname, 100*$volume/127, $start, $end;
+	  }
+	} else {
+	  log_error "strike_tune: Unknown directive \"$directive\"";
+	}
+      } elsif ($method eq METHOD__SYNTH) {
+	send_midi_command $midi_command;
+      } elsif (defined $percussion_channel && $midi_command =~ /^noteon $percussion_channel (\d+) (\d+)/) {		# percussion
+	my($instrument, $volume) = ($1, $2);
+	if ($instrument == $percussion_note_to_midi_number{'cyms'}
+	  || $instrument == $percussion_note_to_midi_number{'cymch'}) {
+	  strike_gong;
+	} else {
+	  strike_stick;
+	}
+      } elsif ($midi_command =~ /^noteon (\d+) (\d+) (\d+)/) {		# pitched
+	my($channel, $pitch, $volume) = ($1, $2, $3);
+	my $note = $midi_number_to_note[$pitch];
+	# The gongs have a range of [c4, g5], or [48, 67]; the Westminster chimes require a range of [b3, g#4] or [47, 56]
+	# for just the melody, or [e3, g#4], or [40, 56], if we count also the strikes that count the hours
+	# If we just deal with the melody, we therefore need to transpose everything up by 1 to 11 semitones
+	# (and be content that the hourly strikes will sound a random note); otherwise we need to transpose it up by 8 to 11 semitones.
+	# The VCSL chimes have a slightly narrower range of [c4, f5] or [48, 65] so we'll need to transpose it up by 8 to 9 semitones.
+	#strike_gong transpose_note $note, $semitones;
+	strike_bell transpose_note $note, $semitones;
+      } else {
+	log_debug "strike_tune: samples mode reached \"else\" case (midi command was \"$midi_command\")";
+      }
+    last if $i == $#midi_commands;
+      my $dt = $midi_commands[$i + 1]->[0] - $t;
+      Time::HiRes::sleep $dt if $dt > 0;
+    }
+  }
+  if (%leftovers) {
+    $leftovers{'filter-graph'} .= sprintf('[0]%samix=inputs=%d',
+	join('', map { "[$_]" } @intermediate_input_labels),
+	@intermediate_input_labels + 1);
+
+    log_debug sprintf('strike_tune_real: returning leftovers=%s', Debug::cvs(\%leftovers)) if $debug;
+  }
+  return %leftovers;
+}
+
+sub strike_tune (@) {
+  my @tune = @_;
+  log_debug sprintf "Striking %s", join(" \\\\ ", map { join(' ', map { $_->[0] } @$_) } @tune) if $debug || $verbose_p;
+  return strike_tune_real 0, @tune;
+}
+
+sub update_latency_for_event ($$) {
+  my($id, $latency) = @_;
+  if (defined $id && defined $latency) {
+    my $latency_key = determine_latency_key_from_event_id $id;
+    if (defined $expected_latency{$latency_key}) {
+      $expected_latency{$latency_key}->remember($latency, $id);
+      log_debug sprintf 'measured latency %g for event %s, state updated (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key});
+    } else {
+      $expected_latency{$latency_key} = Latency->new($latency, $id);
+      $expected_latency{$latency_key}->tag($latency_key);
+      log_debug sprintf 'measured latency %g for event %s, state initialized (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key});
+    }
+  }
+}
+
+sub measure_latency_for_event ($) {
+  my($id) = @_;
+  my $output = get_cache_pathname_for_event($id);
+  my $chime_id = determine_chime_id_for_event $id;
+  my $latency;
+  if (defined $chime_id && $method eq METHOD__SYNTH && -f $output && !$no_cache_p) {
+    $latency = play_sound_file $output, 0;
+    update_latency_for_event $id, $latency;
+  }
+}
+
+
+sub usage (;$) {
+  my($st) = @_;
+  my $h = $st? *STDERR: *STDOUT;
+  print $h <<EOF;
+Usage: $0 [OPTION]...
+Chime on the quarter hour and on the start of every fifth of a night watch.
+
+  -d, --sink SINK             Use the specified SINK for audio
+      --nonproportional-watches (NOT IMPLEMENTED)
+                              Use watches that are aligned to duodecimal hours
+  -l, --list                  Display available carillon melodies and exit
+  -Q, --qing                  Same as --nonproportional-watches --qing-quarters
+      --qing-quarters         Use the Qing quarters system (identical to modern
+                              quarters) instead of the ancient centiday system
+  -v, --verbose               Explain what is being done
+  -z, --create-cache          Create missing cache files first
+      --help                  Display this help and exit
+EOF
+  print $h <<EOF unless $debug;
+                              (--debug --help to show debugging options)
+EOF
+  print $h <<EOF if $debug;
+
+Options for debugging:
+
+      --debug                 Produce debugging output
+      --dump-defs             Dump source chime definitions, then exit
+      --dump-notes            Dump compiled chime definitions, then exit
+      --melody=MELODY         Use the specified MELODY (overrides config file)
+      --method=METHOD         Use the specified METHOD (overrides config file)
+      --mode=MODE             Use the specified MODE (overrides config file)
+      --no-cache              Ignore any pregenerated audio
+      --proofsheet            Generate proofsheet on standard output, then exit
+      --test                  Continue with test parameters
+      --test-event ID[,ID...] Fire event identified by ID, then exit
+      --test-scale            Play the major scale from c4 to c5, if possible
+  -W, --what-if=TIME          Continue as if current time were TIME
+EOF
+  print $h <<EOF;
+
+Night watches are determined according to the proportional decimal time
+system in use c. 7-2 century BC in ancient China. For details please see
+https://github.com/acli/new_clock/blob/master/doc/Night_watches.md
+EOF
+  exit $st;
+}
+
+###############################################################################
+
+sub set_die_handler () {
+  $SIG{__DIE__} = sub {
+      my($sig) = @_;
+      for (my $i = 0; caller $i; $i += 1) {
+	printf STDERR "\n%s%d: %s", (' ' x $i), $i, join(' ', caller $i);
+      }
+      disconnect_synth;
+      die "\n$sig";
+    };
+}
+
+sub do_setup () {
+  state $setup_done_p = 0;
+  set_die_handler;		# Force __DIE__ handler to be re-set here because GetOptions will force it to DEFAULT, which is wrong
+  if (!$setup_done_p) {
+    log_info sprintf "$appName booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
+	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
+	if $verbose_p || $debug || !-t STDERR;
+
+    $setup_done_p = 1;
+  }
+}
+
+sub parse_command_line_arguments () {
+  my $what_if;
+
+  select((select(STDERR), $| = 1)[0]); # I don't know why this is needed for STDERR
+
+  # SIGCHLD handler must be IGNORE, otherwise Time::HiRes::sleep will fail randomly
+  $SIG{CHLD} = 'IGNORE';
+
+  # Handle config file
+  $config = read_ini("$ENV{HOME}/.chimerrc");
+  @sinks = @{$config->{'/'}->{'sink'}} if defined $config->{'/'}->{'sink'};
+  $mode = $config->{'/'}->{'mode'}->[0] if defined $config->{'/'}->{'mode'};
+  $method = $config->{'/'}->{'method'}->[0] if defined $config->{'/'}->{'method'};
+  $melody = lc $config->{'/'}->{'melody'}->[0] if defined $config->{'/'}->{'melody'};
+  $coords = {'lon' => $config->{'/'}->{'longitude'}->[0], 'lat' => $config->{'/'}->{'latitude'}->[0]}
+      if defined $config->{'/'}->{'longitude'} && defined $config->{'/'}->{'latitude'};
+  #FIXME die "Melody \"$melody\" is not known\n" unless defined $melody{$melody};
+  $datadir = $config->{'/'}->{'datadir'}->[0] if defined $config->{'/'}->{'datadir'};
+
+  # Check command-line arguments
+  Getopt::Long::config('bundling');
+  GetOptions(
+    'D|debug' => sub { $debug += 1; },
+    'd|sink=s' => sub { @sinks = $_[1]; },
+    'j' => \$use_jack_p,
+    'v|verbose' => \$verbose_p,
+    'help' => \&usage,
+  ) || exit(1);
+
+  log_debug "Connecting software synth";
+  connect_synth 'test';
+
+  log_debug "Entering full-screen mode";
+  initscr;
+}
+
+use vars qw( %map );
+%map = (
+  # upper row
+  '`' => 'a#3',
+  'q' => 'c4',
+  '2' => 'c#4',
+  'w' => 'd4',
+  '3' => 'd#4',
+  'e' => 'e4',
+  'r' => 'f4',
+  '5' => 'f#4',
+  't' => 'g4',
+  '6' => 'g#4',
+  'y' => 'a4',
+  '7' => 'a#4',
+  'u' => 'b4',
+  'i' => 'c5',
+  '9' => 'c#5',
+  'o' => 'd5',
+  '0' => 'd#5',
+  'p' => 'e5',
+  '[' => 'f5',
+  '=' => 'f#5',
+  ']' => 'g5',
+  "\b" => 'g#5',
+  '\\' => 'a5',
+  # lower row
+  "'" => 'c#4',
+  '/' => 'c4',
+  '.' => 'b3',
+  'l' => 'a#3',
+  ',' => 'a3',
+  'k' => 'g#3',
+  'm' => 'g3',
+  'j' => 'f#3',
+  'n' => 'f3',
+  'b' => 'e3',
+  'g' => 'd#3',
+  'v' => 'd3',
+  'f' => 'c#3',
+  'c' => 'c3',
+  'x' => 'b2',
+  's' => 'a#2',
+  'z' => 'a2',
+  'a' => 'g#2',
+);
+
+sub decrease_volume ($) {
+  my($volume) = @_;
+  if ($volume =~ /^f(f+)$/) {
+    $volume = $1;
+  } elsif ($volume eq 'f') {
+    $volume = 'mf';
+  } elsif ($volume eq 'mf') {
+    $volume = 'mp';
+  } elsif ($volume eq 'mp') {
+    $volume = 'p';
+  } elsif ($volume =~ /^(p+)$/ && defined $expressive_mark_to_midi_velocity{"p$1"}) {
+    $volume .= 'p';
+  }
+  return $volume;
+}
+
+sub increase_volume ($) {
+  my($volume) = @_;
+  if ($volume =~ /^p(p+)$/) {
+    $volume = $1;
+  } elsif ($volume eq 'p') {
+    $volume = 'mp';
+  } elsif ($volume eq 'mp') {
+    $volume = 'mf';
+  } elsif ($volume eq 'mf') {
+    $volume = 'f';
+  } elsif ($volume =~ /^(f+)$/ && defined $expressive_mark_to_midi_velocity{"f$1"}) {
+    $volume .= 'f';
+  }
+  return $volume;
+}
+
+sub switch_instrument_from ($) {
+  my($instrument) = @_;
+  state(%instrument_to_index, $n);
+  if (!%instrument_to_index) {
+    $n = @need_instrument;
+    for (my $i = 0; $i < $n; $i += 1) {
+      $instrument_to_index{$need_instrument[$i]} = $i;
+    }
+  }
+  $instrument = $need_instrument[($instrument_to_index{$instrument} + 1)%$n];
+  return $instrument;
+}
+
+sub show_instrument ($) {
+  my($instrument) = @_;
+  my $s = sprintf('%-10s', $instrument);
+  addstr(0, 0, $s);
+}
+
+use vars qw( @ly_scale );
+@ly_scale = qw( c cis d dis e f fis g gis a ais b );
+
+sub show_shift ($) {
+  my($shift) = @_;
+  my $s = sprintf('%+dvo', $shift/12);
+  $s .= sprintf('+%d', $shift%12) if $shift%12;
+  if ($shift) {
+    my $target_note = $ly_scale[$shift%12];
+    $target_note .= (',' x ((11 - $shift)/12)) if $shift < 0;
+    $target_note .= ("'" x ($shift/12)) if $shift > 11;
+    $s .= " (\\transpose c $target_note)";
+  } else {
+    $s .= ' (\absolute)';
+  }
+  $s = sprintf('%-30s', $s);
+  addstr(0, 30, $s);
+}
+
+sub show_volume ($) {
+  my($volume) = @_;
+  my $s = sprintf('%-10s', $volume);
+  addstr(0, 20, $s);
+}
+
+sub show_note ($) {
+  my($midi_number) = @_;
+  my $s = sprintf('%-5s', $midi_number_to_note[$midi_number]);
+  addstr(1, 0, $s);
+}
+
+sub show_warning ($) {
+  my($s) = @_;
+  my $h = LINES;
+  addstr($h - 1, 0, $s);
+  clrtoeol;
+}
+
+sub do_main_loop () {
+  keypad(1);
+  cbreak;
+  noecho;
+  my($prev_shift, $prev_volume, $prev_instrument);
+  for (my $shift = 0, my $volume = 'mf', my $instrument = 'Piano';;) {
+    if (!defined $prev_shift || $prev_shift != $shift) {
+      show_shift $shift;
+      $prev_shift = $shift;
+    }
+    if (!defined $prev_volume || $prev_volume ne $volume) {
+      show_volume $volume;
+      $prev_volume = $volume;
+    }
+    if (!defined $prev_instrument || $prev_instrument ne $instrument) {
+      show_instrument $instrument;
+      $prev_instrument = $instrument;
+    }
+    my($c, $fn) = getchar;
+    if (defined $fn) {
+      if ($fn == KEY_BACKSPACE) {
+	$c = "\b";
+      } elsif ($fn == KEY_DOWN) {
+	$shift -= 12;
+      } elsif ($fn == KEY_UP) {
+	$shift += 12;
+      } elsif ($fn == KEY_LEFT) {
+	$shift -= 1;
+      } elsif ($fn == KEY_RIGHT) {
+	$shift += 1;
+      } elsif ($fn == KEY_NPAGE) {
+	my $new_volume = decrease_volume $volume;
+	show_warning "Volume $volume is already at minimum" if $new_volume eq $volume;
+	$volume = $new_volume;
+      } elsif ($fn == KEY_PPAGE) {
+	my $new_volume = increase_volume $volume;
+	show_warning "Volume $volume is already at maximum" if $new_volume eq $volume;
+	$volume = $new_volume;
+      } else {
+	show_warning "function key $fn not handled";
+      }
+    }
+    if (!defined $c) {
+      ;
+    } elsif ($c eq "\t") {
+      $instrument = switch_instrument_from $instrument;
+    } elsif ($c eq "\f") {
+      refresh();
+    } elsif ($c eq "\n") {
+      $shift = 0;
+    } elsif (defined $map{$c}) {
+      my $note = $map{$c};
+      my $channel = $instrument_name_to_channel_number{$instrument};
+      my $note_number = $note_to_midi_number{$note};
+      my $velocity = $expressive_mark_to_midi_velocity{$volume};
+      if (defined $note_number) {
+	$note_number += $shift;
+	show_note $note_number;
+	send_midi_command "noteon $channel $note_number $velocity";
+      } else {
+	show_warning "note number for note $note not found";
+      }
+    } else {
+      show_warning "character $c not handled";
+    }
+  }
+}
+
+if (!caller) {
+  set_die_handler;
+  parse_command_line_arguments;
+  do_setup;
+  do_main_loop unless $quit_p;
+  disconnect_synth;
+}
+
+=pod
+
+=head1 HISTORY
+
+Concept from the Javascript chiming clocks:
+"Copyright © 2018 by Ambrose Li :-)"
+
+Mostly based on the genmon script for Chinese/Hebrew dates:
+"Copyright 2016-2018, 2021 by Ambrose Li <ambrose.li@gmail.com>
+The primary purpose of this script is to figure out the year number in the Chinese system
+so that I can name my CV's without having to look up two web pages.
+Everything else is just for kicks =P"
+
+=cut
+
+END { endwin }
+1;
