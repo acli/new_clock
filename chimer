@@ -603,6 +603,8 @@ sub MELODY__WESTMINSTER   () { 'westminster' }
 sub MELODY__WHITTINGTON   () { 'whittington' }
 sub MELODY__WHITTINGTON11 () { 'whittington11' }
 
+sub MELODY__TORONTO       () { 'toronto' }
+
 use vars qw( $mode $method $melody );
 $mode   = MODE__CARILLON;
 $method = METHOD__SAMPLES;
@@ -1672,6 +1674,18 @@ sub define_chimes () {
       'q0' => '\x <>-\ff \D',
       'h' => '\x <>-\fff \repeat volta %I { \S }',
     ),
+  define_event(MODE__CARILLON, MELODY__TORONTO, 'Toronto Old City Hall chimes', undef, 'traditional', 'blog.ambroseli.ca/entry/2022.7.9.1', q(
+	x = { \tempo 4 = 24 }
+	A = \absolute { a'4 e' }
+	B = \absolute { r1 }
+	S = \absolute { e2 }
+      ),
+      'q1' => '\x <>-\ff \A',
+      'q2' => '\x <>-\ff \A \A',
+      'q3' => '\x <>-\ff \A \A \A',
+      'q0' => '\x <>-\ff \A \A \A \A \B',
+      'h' => '\x <>-\fff \repeat volta %I { \S }',
+    ),
   define_event(MODE__CARILLON, MELODY__TINGTANG2A, 'Ting-tang (ding-dong) quarters on major second', undef, 'traditional', 'Starmer, 1907, p. 4', q(
 	x = { \tempo 4 = 96 }
 	A = \relative c' { c'4 b }
@@ -1782,8 +1796,11 @@ sub define_chimes () {
       'whittington11study' => {
 	title => 'Whittington chimes on eleven bells (arr. Ambrose Li)',
       },
-      'whittington11pianostudy' => {
-	title => 'Whittington chimes on eleven bells (piano study)',
+      'whittington11violinstudy' => {
+	title => 'Whittington chimes on eleven bells (violin study)',
+      },
+      'whittington11organstudy' => {
+	title => 'Whittington chimes on eleven bells (organ study)',
       },
     }, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
 	s = { \key b \major \voiceOne \clef "treble" }
@@ -1792,28 +1809,42 @@ sub define_chimes () {
 	w = { \tempo 4 = 96 }
 	x = { \tempo 4 = 96 \time 3/4 }
 	y = { \set Staff.instrumentName = #"Organ" }
-	ytest = { \set Staff.instrumentName = #"Violin" }
-	ytestb = { \set Staff.instrumentName = #"Cello" }
 	melodyonly = { <>-\ff }
 	melodywaccomp = { <>-\ff \set Staff.instrumentName = #"Carillon" }
 	quarteraccomp = { <>-\mp \y }
 	halfaccomp = { <>-\mf \y }
 	houraccomp = { <>-\f \y }
 	houraccompfinal = { <>-\mf }
-	melodywtestaccomp = { <>-\ff \set Staff.instrumentName = #"Piano" }
-	quartertestaccomp = { <>-\mp \ytest }
-	halftestaccomp = { <>-\mf \ytest }
-	hourtestaccomp = { <>-\f \ytest }
-	hourtestaccompfinal = { <>-\mf }
-	quartertestaccompb = { <>-\mp \ytestb }
-	halftestaccompb = { <>-\mf \ytestb }
-	hourtestaccompb = { <>-\f \ytestb }
-	hourtestaccompfinalb = { <>-\mf }
+
+	melodywViolinStudyAcc = { <>-\ff \set Staff.instrumentName = #"Music Box" }
+	ViolinStudyAccT = { \set Staff.instrumentName = #"Viola" }
+	ViolinStudyAccB = { \set Staff.instrumentName = #"Cello" }
+	quarterViolinStudyAcc = { <>-\mp \ViolinStudyAccT }
+	halfViolinStudyAcc = { <>-\mf \ViolinStudyAccT }
+	hourViolinStudyAcc = { <>-\f \ViolinStudyAccT }
+	hourViolinStudyAccFinal = { <>-\mf }
+	quarterViolinStudyAccB = { <>-\mp \ViolinStudyAccB }
+	halfViolinStudyAccB = { <>-\mf \ViolinStudyAccB }
+	hourViolinStudyAccB = { <>-\f \ViolinStudyAccB }
+	hourViolinStudyAccFinalb = { <>-\mf }
+
+	melodywOrganStudyAcc = { <>-\ff \set Staff.instrumentName = #"Organ" }
+	OrganStudyAccT = { \set Staff.instrumentName = #"Bell" }
+	OrganStudyAccB = { \set Staff.instrumentName = #"Bell" }
+	quarterOrganStudyAcc = { <>-\mp \OrganStudyAccT }
+	halfOrganStudyAcc = { <>-\mp \OrganStudyAccT }
+	hourOrganStudyAcc = { <>-\mp \OrganStudyAccT }
+	hourOrganStudyAccFinal = { <>-\mp }
+	quarterOrganStudyAccB = { <>-\mp \OrganStudyAccB }
+	halfOrganStudyAccB = { <>-\mp \OrganStudyAccB }
+	hourOrganStudyAccB = { <>-\mp \OrganStudyAccB }
+	hourOrganStudyAccFinalb = { <>-\mp }
+
 	A = \transpose c b { c'4 g' f' e' }
 	B = \transpose c b { c'4 g' f' e' g' d' }
 	C = \transpose c b { a4 g f e g d' c' e' d' }
 	D = \transpose c b { c'4 g' f' e' g' d' c' a f e g d^\fermata }	% pause inserted to make the hour strike sound less abrupt
-	S = \transpose c b { c1 }
+	S = \transpose c b { c2.. r8 } % c1, in theory
       ),
       &MELODY__WHITTINGTON11 => {
 	'q1' => '\x \melodyonly \partial 4 \A',
@@ -1890,70 +1921,137 @@ sub define_chimes () {
 	    >>),
       },
       # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
-      'whittington11pianostudy' => {
-	'q1' => q(<< { \s \x \melodywtestaccomp \partial 4 \A }
-	      \new Staff { \t \x \quartertestaccomp \transpose c b, { \partial 4 a1 } }
-	      \new Staff { \b \x \quartertestaccompb \transpose c b, { \partial 4 f1 } }
+      'whittington11violinstudy' => {
+	'q1' => q(<< { \s \x \melodywViolinStudyAcc \partial 4 \A }
+	      \new Staff { \t \x \quarterViolinStudyAcc \transpose c b, { \partial 4 a1 } }
+	      \new Staff { \b \x \quarterViolinStudyAccB \transpose c b, { \partial 4 f1 } }
 	    >>),
-	'q2' => q(<< { \s \x \melodywtestaccomp \B }
-	      \new Staff { \t \x \halftestaccomp \transpose c b, { b2. a } }
-	      \new Staff { \b \x \halftestaccompb \transpose c b, { g2. f } }
+	'q2' => q(<< { \s \x \melodywViolinStudyAcc \B }
+	      \new Staff { \t \x \halfViolinStudyAcc \transpose c b, { b2. a } }
+	      \new Staff { \b \x \halfViolinStudyAccB \transpose c b, { g2. f } }
 	    >>),
-	'q3' => q(<< { \s \x \melodywtestaccomp \C }
-	      \new Staff { \t \x \quartertestaccomp \transpose c b, { b2. c' d' } }
-	      \new Staff { \b \x \quartertestaccompb \transpose c b, { g2. a  b  } }
+	'q3' => q(<< { \s \x \melodywViolinStudyAcc \C }
+	      \new Staff { \t \x \quarterViolinStudyAcc \transpose c b, { b2. c' d' } }
+	      \new Staff { \b \x \quarterViolinStudyAccB \transpose c b, { g2. a  b  } }
 	    >>),
-	'q0' => q(<< { \s \x \melodywtestaccomp \D }
-	      \new Staff { \t \x \hourtestaccomp \transpose c b, { g2. a b a } }
-	      \new Staff { \b \x \hourtestaccompb \transpose c b, { e2. f g f } }
+	'q0' => q(<< { \s \x \melodywViolinStudyAcc \D }
+	      \new Staff { \t \x \hourViolinStudyAcc \transpose c b, { g2. a b a } }
+	      \new Staff { \b \x \hourViolinStudyAccB \transpose c b, { e2. f g f } }
 	    >>),
-	'h1' => q(<< { \s \w \melodywtestaccomp { \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { c1 } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 } }
+	'h1' => q(<< { \s \w \melodywViolinStudyAcc { \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { c1 } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c,1 } }
 	    >>),
-	'h2' => q(<< { \s \w \melodywtestaccomp { \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { d1 \hourtestaccompfinal c } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 \hourtestaccompfinal c, } }
+	'h2' => q(<< { \s \w \melodywViolinStudyAcc { \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { d1 \hourViolinStudyAccFinal c } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c1 \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h3' => q(<< { \s \w \melodywtestaccomp { \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { e1 e \hourtestaccompfinal c } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c \hourtestaccompfinal c, } }
+	'h3' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { e1 e \hourViolinStudyAccFinal c } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c1 c \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h4' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { f1 f f \hourtestaccompfinal c } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c \hourtestaccompfinal c, } }
+	'h4' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { f1 f f \hourViolinStudyAccFinal c } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c1 c c \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h5' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { g1 g g g \hourtestaccompfinal c } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c c \hourtestaccompfinal c, } }
+	'h5' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { g1 g g g \hourViolinStudyAccFinal c } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c1 c c c \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h6' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { a1 a a a a \hourtestaccompfinal c } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c c c \hourtestaccompfinal c, } }
+	'h6' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { a1 a a a a \hourViolinStudyAccFinal c } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c1 c c c c \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h7' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { b1 b b b b b \hourtestaccompfinal c } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c1 c c c c c \hourtestaccompfinal c, } }
+	'h7' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { b1 b b b b b \hourViolinStudyAccFinal c } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c1 c c c c c \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h8' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { c1 c c c c c c \hourtestaccompfinal c, } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	'h8' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { c1 c c c c c c \hourViolinStudyAccFinal c, } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c,1 c, c, c, c, c, c, \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h9' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { d1 d d d d d d d \hourtestaccompfinal c, } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	'h9' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { d1 d d d d d d d \hourViolinStudyAccFinal c, } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c,1 c, c, c, c, c, c, c, \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h10' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { e1 e e e e e e e e \hourtestaccompfinal c, } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	'h10' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { e1 e e e e e e e e \hourViolinStudyAccFinal c, } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c,1 c, c, c, c, c, c, c, c, \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h11' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { f1 f f f f f f f f f \hourtestaccompfinal c, } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	'h11' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { f1 f f f f f f f f f \hourViolinStudyAccFinal c, } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, \hourViolinStudyAccFinal c, } }
 	    >>),
-	'h12' => q(<< { \s \w \melodywtestaccomp { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourtestaccomp \transpose c b, { g1 g g g g g g g g g g \hourtestaccompfinal c, } }
-	      \new Staff { \b \w \hourtestaccompb \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \hourtestaccompfinal c, } }
+	'h12' => q(<< { \s \w \melodywViolinStudyAcc { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourViolinStudyAcc \transpose c b, { g1 g g g g g g g g g g \hourViolinStudyAccFinal c, } }
+	      \new Staff { \b \w \hourViolinStudyAccB \transpose c b, { c,1 c, c, c, c, c, c, c, c, c, c, \hourViolinStudyAccFinal c, } }
+	    >>),
+      },
+      # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
+      'whittington11organstudy' => {
+	'q1' => q(<< { \s \x \melodywOrganStudyAcc \partial 4 \A }
+	      \new Staff { \t \x \quarterOrganStudyAcc \transpose c b' { \partial 4 a1 } }
+	      \new Staff { \b \x \quarterOrganStudyAccB \transpose c b' { \partial 4 f1 } }
+	    >>),
+	'q2' => q(<< { \s \x \melodywOrganStudyAcc \B }
+	      \new Staff { \t \x \halfOrganStudyAcc \transpose c b' { b2. a } }
+	      \new Staff { \b \x \halfOrganStudyAccB \transpose c b' { g2. f } }
+	    >>),
+	'q3' => q(<< { \s \x \melodywOrganStudyAcc \C }
+	      \new Staff { \t \x \quarterOrganStudyAcc \transpose c b' { b2. c' d' } }
+	      \new Staff { \b \x \quarterOrganStudyAccB \transpose c b' { g2. a  b  } }
+	    >>),
+	'q0' => q(<< { \s \x \melodywOrganStudyAcc \D }
+	      \new Staff { \t \x \hourOrganStudyAcc \transpose c b' { g2. a b a } }
+	      \new Staff { \b \x \hourOrganStudyAccB \transpose c b' { e2. f g f } }
+	    >>),
+	'h1' => q(<< { \s \w \melodywOrganStudyAcc { \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { c1 } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 } }
+	    >>),
+	'h2' => q(<< { \s \w \melodywOrganStudyAcc { \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { d1 \hourOrganStudyAccFinal c } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c1 \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h3' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { e1 e \hourOrganStudyAccFinal c } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c1 c \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h4' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { f1 f f \hourOrganStudyAccFinal c } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c1 c c \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h5' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { g1 g g g \hourOrganStudyAccFinal c } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c1 c c c \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h6' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { a1 a a a a \hourOrganStudyAccFinal c } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c1 c c c c \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h7' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { b1 b b b b b \hourOrganStudyAccFinal c } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c1 c c c c c \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h8' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { c1 c c c c c c \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h9' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { d1 d d d d d d d \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h10' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { e1 e e e e e e e e \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h11' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { f1 f f f f f f f f f \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	    >>),
+	'h12' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { g1 g g g g g g g g g g \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
 	    >>),
       },
     ),
