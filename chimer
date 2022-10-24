@@ -3468,10 +3468,11 @@ sub play_sound_file_real ($;$$$) {
     $close_stdin_p = 0; # otherwise paplay craps out
   } else {
     # Ubuntu's mpv accepts --input-terminal no but the Pi only accepts --input-terminal=no (otherwise it thinks "no" is an input file)
-    @cmd = ('mpv', '--audio-client-name', $user_agent, '--no-video', '--input-terminal=no', '--volume', int($volume));
+    # New mpv on new osmc (2022-09) doesn't understand --volume x, only --volume=x
+    @cmd = ('mpv', "--audio-client-name=$user_agent", '--no-video', '--input-terminal=no', "--volume=$volume");
     push @cmd, ($measure_latency_p? '--quiet': '--really-quiet');
-    push @cmd, ('--start', $start) if defined $start;
-    push @cmd, ('--end', $end) if defined $end;
+    push @cmd, ("--start=$start") if defined $start;
+    push @cmd, ("--end=$end") if defined $end;
 
     # Ubuntu's mpv accepts --ao=pulse::$sink but the Pi says ao doesn't accept sub-options
     # The Pi's mpv is newer so why this happens is a mystery
@@ -4004,7 +4005,7 @@ sub parse_command_line_arguments () {
       my $found_p = 0;
       for (my $i = 0; $i < @restart_cmd; $i += 1) {
 	log_debug $restart_cmd[$i];
-	if ($i && $restart_cmd[$i - 1] =~ /^(?:-w|--what-if)$/ && $restart_cmd[$i] eq $what_if) {
+	if ($i && $restart_cmd[$i - 1] =~ /^(?:-W|--what-if)$/ && $restart_cmd[$i] eq $what_if) {
 	  $restart_cmd[$i] = sprintf('%+f', $time_displacement);
 	  $found_p = 1;
 	} elsif ($restart_cmd[$i] =~ /^(--what-if)=$what_if$/) {
