@@ -720,6 +720,7 @@ sub log_internal ($$;$$$) {
   $last_logged->{'keep'} = $keep_p + 0;
 }
 
+sub log_input   ($) { log_internal '<', $_[0] }
 sub log_output  ($) { log_internal '>', $_[0] }
 sub log_comment ($) { log_internal '#', $_[0] }
 sub log_debug   ($) { log_internal '#', $_[0], 'DEBUG', 1, 1 }
@@ -4021,6 +4022,47 @@ sub parse_command_line_arguments () {
   }
 }
 
+sub wait_for_calibration_if_needed () {
+  my $det = $config->{'/'}->{'calibrate'};
+  # If calibrate is defined, wait until time looks reasonable (e.g., if this is a Pi)
+  # We can't really request a calibration (hopefully we're not root!) so this assumes ntpd is running
+  if (defined $det) {
+    my @cmd = ('ntpdate', '-q', '-u', @$det);
+    for (;;) {
+      my($server, $delta, $error);
+      log_command @cmd if $debug;
+      my $pid = open(INPUT, '-|');
+      die "$0: wait_for_calibration_if_needed: $cmd[0]: fork: $!\n" unless defined $pid;
+      if ($pid) {
+	for (;;) {
+	  my $s = scalar <INPUT>;
+	last unless defined $s;
+	  chomp;
+	  log_input $s if $debug > 1;
+	  if ($s =~ /adjust time server (\S+) offset ([-\+]?\d+\.\d+) sec/s) {
+	    no integer;
+	    ($server, $delta) = ($1, $2 + 0);
+	  } elsif ($s =~ /, stratum \d+, offset /s) {	# debugging output from -q
+	    ;
+	  } else {
+	    log_error "Unexpected input: $s";
+	  }
+	last if defined $server;
+	}
+	close INPUT;
+      } else {
+	POSIX::dup2(1, 2);	# redirect stderr to stdout
+	exec {$cmd[0]} @cmd;
+	die "$0: wait_for_calibration_if_needed: $cmd[0]: exec: $!\n";
+      }
+      no integer;
+      log_debug "Server $server reports delta $delta" if defined $server;
+    last if defined $server && abs($delta) < 1;
+      sleep 15;
+    }
+  }
+}
+
 sub do_main_loop () {
   for (my $countdown = COUNTDOWN, my $last_prediction_error, my $t_last_prediction, my %pending_events, my %completed_events;;) {
     my $t0 = current_time;
@@ -4177,6 +4219,7 @@ sub do_main_loop () {
 if (!caller) {
   set_die_handler;
   parse_command_line_arguments;
+  wait_for_calibration_if_needed;
   do_setup;
   if ($create_cache_p) {
     generate_sound_clips;
