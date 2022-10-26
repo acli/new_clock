@@ -3884,6 +3884,21 @@ EOF
 
 ###############################################################################
 
+sub normal_shutdown_handler () {
+  my $eol = -t STDERR? "\n\n": '';
+  log_info sprintf "chimer shut down at real time %.2f%s", time, $eol
+	if $verbose_p || $debug || !-t STDERR;
+
+  disconnect_synth;
+  exit(0);
+}
+
+sub set_shutdown_handler () {
+  for my $sig (qw( TERM INT HUP )) {
+    $SIG{$sig} = \&normal_shutdown_handler;
+  }
+}
+
 sub set_die_handler () {
   $SIG{__DIE__} = sub {
       my($sig) = @_;
@@ -4223,6 +4238,7 @@ sub do_main_loop () {
 
 if (!caller) {
   set_die_handler;
+  set_shutdown_handler;
   parse_command_line_arguments;
   wait_for_calibration_if_needed;
   do_setup;
