@@ -520,12 +520,16 @@ use vars qw( @restart_cmd );
 use vars qw( $use_datetime_event_sunrise );
 use vars qw( $use_datetime_astro_sunrise );
 use vars qw( $use_astro_sunrise );
+use vars qw( $sunrise_module );
 BEGIN {
   if (eval { require DateTime::Event::Sunrise; }) {
+    $sunrise_module = 'DateTime::Event::Sunrise';
     $use_datetime_event_sunrise = 1;
   } elsif (eval { require DateTime::Astro::Sunrise; }) {
+    $sunrise_module = 'DateTime::Astro::Sunrise';
     $use_datetime_astro_sunrise = 1;
   } elsif (eval { require Astro::Sunrise; }) {
+    $sunrise_module = 'Astro::Sunrise';
     $use_astro_sunrise = 1;
   } else {
     die "Cannot find a usable Sunrise package";
@@ -3895,7 +3899,8 @@ sub do_setup () {
   state $setup_done_p = 0;
   set_die_handler;		# Force __DIE__ handler to be re-set here because GetOptions will force it to DEFAULT, which is wrong
   if (!$setup_done_p) {
-    log_info sprintf "chimer booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
+    log_info sprintf "chimer (using %s) booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
+	  $sunrise_module,
 	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
 	if $verbose_p || $debug || !-t STDERR;
 
@@ -4056,7 +4061,7 @@ sub wait_for_calibration_if_needed () {
 	die "$0: wait_for_calibration_if_needed: $cmd[0]: exec: $!\n";
       }
       no integer;
-      log_debug "Server $server reports delta $delta" if defined $server;
+      log_info "server $server reports delta $delta" if defined $server;
     last if defined $server && abs($delta) < 1;
       sleep 15;
     }
