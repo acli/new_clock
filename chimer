@@ -439,8 +439,9 @@ sub predict_from_loadavg {
   my %candidates;
 
   # Calculate candidates predictions
-  $candidates{'exponential curve fitting'} = predict_via_exponential_curve_fitting(@latencies, $loadavg, $t);
-  $candidates{'polynomial curve fitting'} = predict_via_polynomial_curve_fitting(@latencies, $loadavg, $t);
+  # Exponential and polynomial sound like good ideas, but they actually give wildly inaccurate predictions
+  #$candidates{'exponential curve fitting'} = predict_via_exponential_curve_fitting(@latencies, $loadavg, $t);
+  #$candidates{'polynomial curve fitting'} = predict_via_polynomial_curve_fitting(@latencies, $loadavg, $t);
   $candidates{'weighted-averaging'} = predict_via_weighted_averaging(@latencies, $loadavg, $t);
   $candidates{'averaging'} = predict_via_averaging(@latencies, $loadavg, $t);
 
@@ -3483,7 +3484,7 @@ sub play_sound_file_real ($;$$$) {
     # The Pi's mpv is newer so why this happens is a mystery
     push @cmd, ("--ao=pulse") if $sink;
     set_sink $sink;
-    $expected_output = 'Playing: ';
+    $expected_output = 'AO: '; # should be 'Playing', but the mpv on the new osmc no longer emits 'Playing' (!)
   }
   push @cmd, $input;
   log_command @cmd if $verbose_p || $debug;
