@@ -518,19 +518,26 @@ use vars qw( @ISA @EXPORT @EXPORT_OK );
 use vars qw( @restart_cmd );
 @restart_cmd = ($0, @ARGV); # save this because GetOpt will clear @ARGV
 
+use vars qw( $user_agent );
+$user_agent = 'Chiming clock';
+
 use vars qw( $use_datetime_event_sunrise );
 use vars qw( $use_datetime_astro_sunrise );
 use vars qw( $use_astro_sunrise );
 use vars qw( $sunrise_module );
+use vars qw( $sunrise_module_version );
 BEGIN {
   if (eval { require DateTime::Event::Sunrise; }) {
     $sunrise_module = 'DateTime::Event::Sunrise';
+    $sunrise_module_version = DateTime::Event::Sunrise->VERSION if defined DateTime::Event::Sunrise->VERSION;
     $use_datetime_event_sunrise = 1;
   } elsif (eval { require DateTime::Astro::Sunrise; }) {
     $sunrise_module = 'DateTime::Astro::Sunrise';
+    $sunrise_module_version = DateTime::Astro::Sunrise->VERSION if defined DateTime::Astro::Sunrise->VERSION;
     $use_datetime_astro_sunrise = 1;
   } elsif (eval { require Astro::Sunrise; }) {
     $sunrise_module = 'Astro::Sunrise';
+    $sunrise_module_version = Astro::Sunrise->VERSION if defined Astro::Sunrise->VERSION;
     $use_astro_sunrise = 1;
   } else {
     die "Cannot find a usable Sunrise package";
@@ -3029,7 +3036,7 @@ sub set_test_params () {
 
 sub set_sink_volume ($$) {
   my($sink, $volume) = @_;
-  my @cmd = ('pactl', 'set-sink-volume', $sink, int($volume));
+  my @cmd = ('pactl', '--client-name', $user_agent, 'set-sink-volume', $sink, int($volume));
   log_command @cmd if $debug;
   system { $cmd[0] } @cmd;
 }
@@ -3457,7 +3464,6 @@ sub play_sound_file_real ($;$$$) {
   }
 
   # Fork and play it in the background
-  my $user_agent = 'Chiming clock';
   my $close_stdin_p = 1;
   my $use_paplay_p = 0;
   my $measure_latency_p = latency_measurable_p;
@@ -3915,8 +3921,9 @@ sub do_setup () {
   state $setup_done_p = 0;
   set_die_handler;		# Force __DIE__ handler to be re-set here because GetOptions will force it to DEFAULT, which is wrong
   if (!$setup_done_p) {
-    log_info sprintf "chimer (using %s) booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
+    log_info sprintf "chimer (using %s%s) booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
 	  $sunrise_module,
+	  ($sunrise_module_version? " $sunrise_module_version": ''),
 	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
 	if $verbose_p || $debug || !-t STDERR;
 
