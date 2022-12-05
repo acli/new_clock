@@ -4230,11 +4230,12 @@ sub do_main_loop () {
 	my $actual_latency = do_event($id, $hour, $min, $sec, $deciday, $wday);
 
 	# Remember prediction error
+	my $epsilon = 0.005;
 	my $duration = determine_event_duration($id, undef);
 	$last_prediction_error = defined $actual_latency && defined $effective_latency? $actual_latency - $effective_latency: undef;
 	$t_last_prediction = $now + $duration;
 	log_info sprintf 'Latency for %s ending %.2f was %s', $id, $t_last_prediction,
-		sprintf(($last_prediction_error == 0? 'perfect':
+		sprintf((abs($last_prediction_error) < $epsilon? 'perfect':
 			$last_prediction_error > 0? 'underestimated by %.2f': 'overestimated by %.2f'), $last_prediction_error),
 	    if defined $last_prediction_error;
 
