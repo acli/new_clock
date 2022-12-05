@@ -3488,7 +3488,12 @@ sub play_sound_file_real ($;$$$) {
 
     # Ubuntu's mpv accepts --ao=pulse::$sink but the Pi says ao doesn't accept sub-options
     # The Pi's mpv is newer so why this happens is a mystery
-    push @cmd, ("--ao=pulse") if $sink;
+    # The Pi's system (Debian Buster) has a lot of strange problems, it's newer but lots of things don't work
+    if ($sink && $sink =~ /^alsa\//) {	# lol... sigh
+      push @cmd, ("--ao=alsa", "--audio-device=$sink");
+    } else {
+      push @cmd, ("--ao=pulse") if $sink;
+    }
     set_sink $sink;
     $expected_output = 'AO: '; # should be 'Playing', but the mpv on the new osmc no longer emits 'Playing' (!)
   }
