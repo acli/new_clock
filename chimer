@@ -3020,6 +3020,31 @@ sub get_sink () {
   return $ENV{'PULSE_SINK'};
 }
 
+sub get_alsa_control ($$) {
+  my($key, $card) = @_;
+  my @cmd = ('amixer', '-c', $card, 'controls');
+  my $pid = open(INPUT, '-|');
+  my $it;
+  die "$0: get_alsa_control: $cmd[0]: fork: $!\n" unless defined $pid;
+  if ($pid) {
+    for (;;) {
+      my $s = scalar <INPUT>;
+    last unless defined $s;
+      chomp;
+      log_input $s if $debug > 1;
+      # NOTE: amixer output is designed for shell use; the single quotes aren't actually part of the id
+      $it = $1 . $2 . $3 if $s =~ /^(.*?,name=)'($key)'(.*)/s;
+    last if defined $it;
+    }
+    close INPUT;
+  } else {
+    POSIX::dup2(1, 2);	# redirect stderr to stdout
+    exec {$cmd[0]} @cmd;
+    die "$0: get_alsa_control: $cmd[0]: exec: $!\n";
+  }
+  return $it;
+}
+
 sub set_sink ($) {
   my($sink) = @_;
   $ENV{'PULSE_SINK'} = $sink if defined $sink;
@@ -3037,6 +3062,13 @@ sub set_test_params () {
 sub set_sink_volume ($$) {
   my($sink, $volume) = @_;
   my @cmd = ('pactl', '--client-name', $user_agent, 'set-sink-volume', $sink, int($volume));
+  if ($sink && $sink =~ /^alsa\/.*CARD=(\w+)/) {	# lol... sigh
+    my $card = $1;
+    my $key = 'PCM Playback Volume';
+    my $id = get_alsa_control($key, $card);
+    no integer;
+    @cmd = ('amixer', '-c', $card, '-M', 'cset', $id, sprintf('%d%%', $volume*100));
+  }
   log_command @cmd if $debug;
   system { $cmd[0] } @cmd;
 }
@@ -3543,7 +3575,7 @@ sub interpret_volume ($;$) {
 	    no integer;
 	    $target_volume >= 0 && $target_volume <= 1;
 	  }, $hour, $min, $sec, $deciday, $wday);
-	$adj = 1 unless defined $adj;
+	($adj, $reason) = (1, "because no clock volume is defined for sink $sink") unless defined $adj;
 	log_info "Clock volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
 	$volume = $base * $adj;
       }
@@ -3925,12 +3957,30 @@ sub set_die_handler () {
 sub do_setup () {
   state $setup_done_p = 0;
   set_die_handler;		# Force __DIE__ handler to be re-set here because GetOptions will force it to DEFAULT, which is wrong
+  set_shutdown_handler;		# there's reason to believe this was also touched
   if (!$setup_done_p) {
     log_info sprintf "chimer (using %s%s) booted at real time %.2f (time shifted %+.2f) in %s mode%s using %s",
 	  $sunrise_module,
 	  ($sunrise_module_version? " $sunrise_module_version": ''),
 	  $boottime, $time_displacement, $mode, ($mode eq MODE__CARILLON? " (using $melody melody)": ''), $method
 	if $verbose_p || $debug || !-t STDERR;
+
+    if (defined $config->{'/'}->{'group'}) {
+      my $group = $config->{'/'}->{'group'}->[0];
+      if ($group !~ /^\d+$/) {
+	my $gid = (getgrnam $group)[2];
+	if (defined $gid) {
+	  $group = $gid;
+	} else {
+	  log_error("group $group not found");
+	  $group = undef;
+	}
+      }
+      if (defined $group) {
+	$) = $group;
+	log_error("setgid $group failed: $!") if $!;
+      }
+    }
 
     set_test_params if $test_p;
     define_chimes;
