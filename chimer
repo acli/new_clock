@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # vi:set sw=2 ai sm:
-# Copyright © 2021–2022 by Ambrose Li
+# Copyright © 2021–2023 by Ambrose Li
 
 =pod
 
@@ -501,6 +501,227 @@ sub new {
 }
 
 
+package Synth;
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+
+package Chime_Id;
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class, $id = undef) {
+  my $self = {
+      'implementation' => [],
+    };
+  $self->{'id'} = $id if defined $id;
+  bless $self, $class;
+  return $self;
+}
+
+sub id ($self, $id = undef) {
+  my $it = $self;
+  if (defined $id) {
+    $self->{'id'} = $id;
+  } else {
+    $it = $self->{'id'};
+  }
+  return $it;
+}
+
+sub mode ($self, $mode = undef) {
+  my $it = $self;
+  if (defined $mode) {
+    $self->{'mode'} = $mode;
+  } else {
+    $it = $self->{'mode'};
+  }
+  return $it;
+}
+
+sub melody ($self, $melody = undef) {
+  my $it = $self;
+  if (defined $melody) {
+    $self->{'melody'} = $melody;
+  } else {
+    $it = $self->{'melody'};
+  }
+  return $it;
+}
+
+sub implementation ($self) {
+  return $self->{'implementation'};
+}
+
+sub count ($self) {
+  return scalar @{$self->implementation};
+}
+
+sub prepend ($self, $event) {
+  unshift @{$self->implementation}, $event;
+  return $self;
+}
+
+sub append ($self, $event) {
+  push @{$self->implementation}, $event;
+  return $self;
+}
+
+
+package Event_List;
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class) {
+  my $self = {
+      'events' => [],
+    };
+  bless $self, $class;
+  return $self;
+}
+
+sub value ($self) {
+  return $self->{'events'};
+}
+
+sub count ($self) {
+  return scalar @{$self->value};
+}
+
+sub prepend ($self, $event) {
+  unshift @{$self->value}, $event;
+  return $self;
+}
+
+sub append ($self, $event) {
+  push @{$self->value}, $event;
+  return $self;
+}
+
+sub id ($self) {
+  return join(',', map { $_->id } @{$self->value});
+}
+
+sub t ($self) {
+  return $self->value->[0]->t if @{$self->value};
+}
+
+sub delay ($self) {
+  return $self->value->[0]->delay if @{$self->value};
+}
+
+sub type ($self) {
+  my $it;
+  for my $node (@{$self->value}) {
+    $it = $node->type if defined $node->type && $node->type !~ /^(?:pre|post)/;
+  last if defined $it;
+  }
+  return $it;
+}
+
+
+package Event;
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class, $t, $delta, $id, $type, $comment = undef) {
+  my $self = {
+	't' => $t,
+	'delta' => $delta,
+	'id' => $id,
+	'type' => $type,
+    };
+  $self->{'comment'} = $comment if defined $comment;
+  $self->{'anticipating'} = -$delta if defined $delta && $delta < 0;
+  bless $self, $class;
+  return $self;
+}
+
+sub t ($self) {
+  return $self->{'t'} + $self->{'delta'};
+}
+
+sub id ($self) {
+  return $self->{'id'};
+}
+
+sub type ($self) {
+  return $self->{'type'};
+}
+
+sub hour ($self) {
+  return (localtime $self->t)[2];
+}
+
+sub minute ($self) {
+  return (localtime $self->t)[1];
+}
+
+sub delay ($self) {
+  return $self->{'delay'};
+}
+
+
+package Event::Quarter::Half;
+use vars qw( @ISA @EXPORT @EXPORT_OK );
+@ISA = qw(Event::Quarter Exporter);
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class, $t, $delta, $half_quarter_number) {
+  $half_quarter_number = 0 if $half_quarter_number == 8;
+  my($id, $type);
+  my($sec, $min, $hour) = localtime $t;
+  my $hour12 = $hour%12;
+  $hour12 = 12 unless $hour12;
+  if ($delta == 0 && $half_quarter_number == 0) {
+    $id = "h$hour12";
+    $type = 'hour';
+  } elsif ($delta == 0 && $half_quarter_number == 4) {
+    $id = sprintf('halb%d', $hour12%12 + 1);
+    $type = 'half-hour';
+  } elsif ($delta < 0 && $half_quarter_number%2) {
+    $id = "e$half_quarter_number";
+    $type = 'half quarter';
+  } elsif ($delta < 0) {
+    $id = sprintf('q%d', $half_quarter_number/2);
+    $type = 'quarter';
+  } elsif ($delta > 0 && $half_quarter_number == 0) {
+    $id = "posth$hour12";
+    $type = 'post-quarter';
+  } elsif ($delta > 0 && $half_quarter_number == 4) {
+    $id = sprintf('posthalb%d', $hour12%12 + 1);
+    $type = 'post-quarter';
+  } else {
+    die "Event::Quarter::Half->new: Unhandled case delta = $delta, half_quarter_number = $half_quarter_number\n";
+  }
+  return new Event($t, $delta, $id, $type);
+}
+
+
+package Event::Quarter;
+use vars qw( @ISA @EXPORT @EXPORT_OK );
+@ISA = qw(Event Exporter);
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class, $t, $delta, $quarter_number) {
+  return new Event::Quarter::Half($t, $delta, 2*$quarter_number);
+}
+
+
+package Event::Watch;
+use vars qw( @ISA @EXPORT @EXPORT_OK );
+@ISA = qw(Event Exporter);
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class, $t, $watch_number, $subwatch_number) {
+  my $id = "w$watch_number.$subwatch_number";
+  return new Event($t, undef, $id, 'quarter');
+}
+
+
 package Chimer;
 
 use POSIX;
@@ -508,6 +729,7 @@ use POSIX ":sys_wait_h"; # for nonblocking read
 use DateTime;
 use Time::HiRes; # overrides (qw) do not seem to work
 use Expect::Simple;
+no feature 'signatures';
 
 use Exporter;
 require Exporter;
@@ -1535,12 +1757,6 @@ sub define_chimes () {
 	E = { #(play-recording "72699__benboncan__cuckoo" 0.05 8.90) }
 	F = { #(play-recording "72699__benboncan__cuckoo" 0.05 10.65 24) }
 	% Source: https://www.volksliederarchiv.de/des-morgens-in-der-fruehe/
-%	frueheglobal = { \key e \major \time 2/4 }
-%	fruehemelody = \transpose c c' { \partial 8 \repeat volta 2 { e8 | e8. fis16 e8 c' | a4 e8 } c'8 |
-%	  \mark "110p2" b8[e'] b[e'] | c'[a c'] c' | b4 dis' | e' e'8 |
-%	  \mark "110p3" \repeat volta 2 { d'8 b fis gis | a[c'] e c' |
-%	  \mark "110p4" 
-%	}
 	% Source: https://www.volksliederarchiv.de/kein-schoener-land-in-dieser-zeit/ (night)
 	keinschoenerlandindieserzeitglobal = { \key a \major \time 3/4 }
 	keinschoenerlandindieserzeitmelody = \transpose c c' { r2. | r4. % \partial 4.
@@ -1800,7 +2016,7 @@ sub define_chimes () {
       'q2' => '\x \A \B',
       'q3' => '\x \C \D \E',
       'q0' => '\x \A \B \C \D \F',
-      'h' => '\x <>-\fff \repeat volta %I { \S }',
+      'h' => '\x \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, {
       &MELODY__WHITTINGTON11 => {
@@ -2406,7 +2622,6 @@ sub define_chimes () {
   log_info sprintf "%.2f s was spent interpreting scores for chime melodies", eval { no integer; Time::HiRes::time - $t0};
 }
 
-
 sub start_of_day ($) {
   my($t) = @_;
   my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime $t;
@@ -2736,8 +2951,12 @@ sub determine_chinese_time ($) {
 
 sub parse_chime_id ($) {
   my($id) = @_;
-  my $it = ();
-  $it->{'id'} = $1 if $id =~ s/-([^-]+)$//s || $id =~ s/^(w\d+(?:\.\d+)?)$//s; # FIXME
+  my $it;
+  if (ref $id) {
+    die;
+  } else {
+    $it->{'id'} = $1 if $id =~ s/-([^-]+)$//s || $id =~ s/^(w\d+(?:\.\d+)?)$//s; # FIXME
+  }
   die "parse_chime_id: id not found in \"$id\"" unless defined $it->{'id'};
   if ($id =~ /^([^-]+)-(.*)$/) {
     $it->{'mode'} = $1;
@@ -2767,23 +2986,47 @@ sub enumerate_defined_events () {
 }
 
 sub determine_chime_id_for_event ($) {
-  my($event) = @_;
-  my $it;
-  for (;;) {
-    my $id1 = event_id($mode, $event, $melody);
-    my $id2 = event_id($mode, $event);
-    my $id3 = event_id(undef, $event);
-    $it = defined $chime{$id1}? $id1: defined $chime{$id2}? $id2: defined $chime{$id3}? $id3: undef;
-  last if defined $it;
-    my $last_tried = $event;
-    if ($event =~ /\./s) {
-      $event =~ s/\.[^\.]+$//; # chop off subevent and try again
-    } elsif ($event =~ /\d+$/s) {
-      $event =~ s/\d+$//s;		# chop off number and try again
+  my($event_list_id) = @_;
+  my $it = new Chime_Id;
+  my($mode_prefix, $melody_prefix);
+  for my $event (split(/,/, $event_list_id)) {
+    my $segment_implementation;
+    for (;;) {
+      my $id1 = event_id($mode, $event, $melody);
+      my $id2 = event_id($mode, $event);
+      my $id3 = event_id(undef, $event);
+      if (defined $chime{$id1}) {
+	$segment_implementation = $id1;
+	$mode_prefix = $mode unless defined $mode_prefix;
+	$melody_prefix = $melody unless defined $melody_prefix;
+      } elsif (defined $chime{$id2}) {
+	$segment_implementation = $id2;
+	$mode_prefix = $mode unless defined $mode_prefix;
+      } elsif (defined $chime{$id3}) {
+	$segment_implementation = $id3;
+      }
+    last if defined $segment_implementation;
+      my $last_tried = $event;
+      if ($event =~ /\./s) {
+	$event =~ s/\.[^\.]+$//; # chop off subevent and try again
+      } elsif ($event =~ /\d+$/s) {
+	$event =~ s/\d+$//s;		# chop off number and try again
+      }
+    last unless $event ne $last_tried;	# nothing else to try
     }
-  last unless $event ne $last_tried;	# nothing else to try
+    $it->append($segment_implementation) if defined $segment_implementation;
   }
-  log_debug sprintf "event %s has definition keyed to %s", $event, Debug::cvs($it) if $debug > 1;
+  if (defined $mode_prefix && defined $melody_prefix) {
+    $it->id("$mode_prefix-$melody_prefix-$event_list_id");
+    $it->mode($mode);
+    $it->melody($melody);
+  } elsif (defined $mode_prefix) {
+    $it->id("$mode_prefix-$event_list_id");
+    $it->mode($mode);
+  } else {
+    $it->id($event_list_id);
+  }
+  log_debug sprintf "event %s has definition keyed to %s", $event_list_id, Debug::cvs($it) if $debug > 1;
   return $it;
 }
 
@@ -2814,13 +3057,15 @@ sub determine_chime_duration ($$) {
 
 sub determine_event_duration ($$) {
   my($event, $default) = @_;
-  my $id = determine_chime_id_for_event $event;
+  my $event_list_id = determine_chime_id_for_event $event;
   my $it;
-  if (defined $id) {
-    $it = determine_chime_duration($id, $default) if defined $id;
-    log_debug "event duration for event $event is $it" if $debug;
-  } else {
-    log_debug "event duration for event $event is undefined" if $debug;
+  for my $id (@{$event_list_id->implementation}) {
+    if (defined $id) {
+      $it += determine_chime_duration($id, $default) if defined $id;
+      log_debug "event duration for event $event is $it" if $debug;
+    } else {
+      log_debug "event duration for event $event is undefined" if $debug;
+    }
   }
   return $it;
 }
@@ -2829,7 +3074,7 @@ sub determine_next_uncached_event (@) {
   my @event = @_;
   my $it;
   for my $event (@event) {
-    my $event_id = $event->{'id'};
+    my $event_id = $event->id;
     my $det = get_cache_pathname_for_event($event_id);
     $it = $event_id if defined $det && !-f $det;
   last if defined $it;
@@ -2861,7 +3106,7 @@ sub determine_next_event_with_unknown_latency (@) {
     my $latency_key = determine_latency_key_from_event_id $event_id;
     $it = $event_id if !defined $expected_latency{$latency_key};
   last if defined $it;
-    $it = $event_id if !$expected_latency{$latency_key}->has_usable_measurements_p();
+    $it = $event_id if defined $expected_latency{$latency_key} && !$expected_latency{$latency_key}->has_usable_measurements_p();
   last if defined $it;
   }
   return $it;
@@ -2889,79 +3134,62 @@ sub determine_events ($$$$$$$$$) {
 			  $t_next_half_quarter_chime += 450,
 			  $next_half_quarter = ($next_half_quarter + 1)%8,
 			  $next_hour += !$next_half_quarter, $next_hour = ($next_hour - 1)%12 + 1) {
+    my $node = new Event_List;
     my $prechime_length;
     if ($next_half_quarter%4 == 0) {
-      my $id = sprintf('%s%d', $next_half_quarter == 0? ('h', $next_hour): ('halb', $next_hour%12 + 1));
-      push @it, {
-	't' => $t_next_half_quarter_chime,
-	'id' => $id,
-	'type' => 'hour',
-	'comment' => ($next_half_quarter == 0? "$next_hour o'clock chime": "half past $next_hour chime (continental)"),
-      };
-      # Some clock do the melody after the hour/half-hour strikes - push that as posth/posthalb
-      my $chime_length = determine_event_duration($id, undef);
-      if (defined $chime_length) {
-	push @it, {
-	  't' => $t_next_half_quarter_chime + $chime_length,
-	  'id' => "post$id",
-	  'type' => 'post-quarter',
-	  'comment' => ($it[$#it]->{'comment'} =~ s/(?=\bchime\b)/post/sr),
-	};
-      }
+      # Push the on-quarter chime if it exists - most clocks *don't* have these except hourly chimes (sysline being an exception)
+      my $next_quarter = $next_half_quarter/2;
+      my $on_quarter_chime = new Event::Quarter($t_next_half_quarter_chime, 0, $next_quarter);
+      my $chime_length = determine_event_duration($on_quarter_chime->id, undef);
+      $node->append($on_quarter_chime) if defined $chime_length;
+
+      # Some clocks (for example cuckoos) do the melody after the hour/half-hour strikes - push that as posth/posthalb
+      my $post_chime = new Event::Quarter($t_next_half_quarter_chime, $chime_length, $next_quarter) if defined $chime_length;
+      my $post_chime_length = determine_event_duration($post_chime, undef) if defined $post_chime;
+      $node->append($post_chime) if defined $post_chime_length;	# post-chime exists
     }
     if ($next_half_quarter == 0) {
-      $prechime_length = determine_event_duration('q0', 25);
+      $prechime_length = determine_event_duration('q0', undef); # was: 25
     } elsif ($next_half_quarter == 1) {
-      $prechime_length = determine_event_duration('e1', 5);
+      $prechime_length = determine_event_duration('e1', undef); # was: 5
     } elsif ($next_half_quarter == 2) {
-      $prechime_length = determine_event_duration('q1', 5);
+      $prechime_length = determine_event_duration('q1', undef); # was: 5
     } elsif ($next_half_quarter == 3) {
-      $prechime_length = determine_event_duration('e3', 5);
+      $prechime_length = determine_event_duration('e3', undef); # was: 5
     } elsif ($next_half_quarter == 4) {
-      $prechime_length = determine_event_duration('q2', 10);
+      $prechime_length = determine_event_duration('q2', undef); # was: 10
     } elsif ($next_half_quarter == 5) {
-      $prechime_length = determine_event_duration('e5', 5);
+      $prechime_length = determine_event_duration('e5', undef); # was: 5
     } elsif ($next_half_quarter == 6) {
-      $prechime_length = determine_event_duration('q3', 15);
+      $prechime_length = determine_event_duration('q3', undef); # was: 15
     } elsif ($next_half_quarter == 7) {
-      $prechime_length = determine_event_duration('e7', 5);
+      $prechime_length = determine_event_duration('e7', undef); # was: 5
+    } else {
+      ...
     }
-    if ($t_next_half_quarter_chime - $prechime_length >= $t0) {
-      if ($next_half_quarter % 2 == 0) {
-	my $next_quarter = $next_half_quarter/2;
-	my $id = "q$next_quarter";
-	push @it, {
-	  't' => $t_next_half_quarter_chime - $prechime_length,
-	  'id' => $id,
-	  'type' => 'quarter',
-	  'comment' => "hour $next_hour quarter $next_quarter prechime",
-	  'anticipating' => $prechime_length,
-	};
-	$quarter_chime_events_pushed += 1;
-      } else {
-	push @it, {
-	  't' => $t_next_half_quarter_chime - $prechime_length,
-	  'id' => "e$next_half_quarter",
-	  'type' => 'half quarter',
-	  'comment' => "hour $next_hour half quarter $next_half_quarter prechime (continental)",
-	  'anticipating' => $prechime_length,
-	};
-	$half_quarter_chime_events_pushed += 1;
-      }
+    my $deferred;
+    if (!defined $prechime_length) {	# event chime does not exist
+      log_debug "precchime_length for next_half_quarter=$next_half_quarter is not defined" if $debug; # GOT HERE
+    } elsif ($next_half_quarter % 2 == 0) {
+      my $next_quarter = $next_half_quarter/2;
+      $node->prepend(new Event::Quarter($t_next_half_quarter_chime, -$prechime_length, $next_quarter));
+      $deferred = sub { $quarter_chime_events_pushed += 1; };
+    } else {
+      $node->prepend(new Event::Quarter::Half($t_next_half_quarter_chime, -$prechime_length, $next_half_quarter));
+      $deferred = sub { $half_quarter_chime_events_pushed += 1; };
     }
-  last if $quarter_chime_events_pushed > 3 && $half_quarter_chime_events_pushed > 3;
+    if ($node->count && $node->t >= $t0) {
+      push @it, $node;
+      &$deferred if defined $deferred;
+    }
+  last if $quarter_chime_events_pushed > 3 || $half_quarter_chime_events_pushed > 3;
   }
 
   # Spring-and-Autumn-era proportional-deciday-based night watch chimes
   # 1 watch is exactly 1 deciday, which is not actually 1/10 of a day but 1/5 of the current proportional moitie
   if ($deciday > 5 && $deciday < 6) { # 5 is the last deciday in the "day" moitie
     my $t_first_watch = $t0 + (6 - $deciday)*$deciday_size;
-    push @it, {
-      't' => $t_first_watch,
-      'id' => 'w1.1',
-      'type' => 'watch',
-      'comment' => 'watch 1',
-    };
+    push @it, Event_List->new->append(new Event::Watch($t_first_watch, 1, 1));
   } elsif ($deciday >= 6) {
     my $decidays_into_the_night = $deciday - 6;
     my $subwatches_into_the_night = 5*$decidays_into_the_night;
@@ -2970,17 +3198,11 @@ sub determine_events ($$$$$$$$$) {
       my $next_watch = int($zero_based_next_subwatch/5) + 1;
       my $next_subwatch = $zero_based_next_subwatch%5 + 1;
       my $t_next_subwatch = $t0 + (1 - fmod($subwatches_into_the_night, 1)) * ($deciday_size/5) + $global_delay;
-      my $id = "w$next_watch.$next_subwatch";
-      push @it, {
-	't' => $t_next_subwatch,
-	'id' => $id,
-	'type' => 'watch',
-	'comment' => "watch $next_watch.$next_subwatch",
-      };
+      push @it, Event_List->new->append(new Event::Watch($t_next_subwatch, $next_watch, $next_subwatch));
     }
   }
 
-  @it = sort { $a->{'t'} <=> $b->{'t'} } @it;
+  @it = sort { $a->t <=> $b->t } @it;
   return wantarray? @it: \@it;
 }
 
@@ -3159,13 +3381,13 @@ sub get_cache_pathname_for_event ($) {
   my $it;
   if (defined $id && $id ne 'test') {
     die "get_cache_pathname_for_event: Internal error: $mode: Illegal mode" unless $mode =~ /^[-\.\w]+$/s;
-    die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^[-\.\w]+$/s;
+    die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^(?:(?:^|,)[-\.\w]+)+$/s;
     my $basename;
     if ($id =~ /^tmp\d+$/) {
       $it = sprintf('%s/%s.oga', $datadir, $id);
     } else {
       my $chime_id = determine_chime_id_for_event $id;
-      $it = sprintf('%s/cache-%s.oga', $datadir, $chime_id) if defined $chime_id;
+      $it = sprintf('%s/cache-%s.oga', $datadir, $chime_id->id) if defined $chime_id;
     }
   }
   return $it;
@@ -3235,19 +3457,21 @@ sub probe_score_instruments () {
   my @events_to_check = enumerate_defined_events;
   for (my $pass = 0; $pass < 2; $pass += 1) {
     for my $event (@events_to_check) {
-      my $chime_id = determine_chime_id_for_event $event;
+      my $structured_chime_id = determine_chime_id_for_event $event;
       my $latency;
-      die "probe_score_instruments: Internal error: $event: Enumerated event has no chime id" unless defined $chime_id;
-      for my $voice (@{$interpretation{$chime{$chime_id}}}) {
-	for my $spec (@$voice) {
-	  my($note, $time, $velocity, $instrument, $flags) = @$spec;
-	  $instrument = canonical_instrument $instrument;
-	  if (defined $instrument) {
-	    $instruments{$instrument} = 1;
-	  } elsif (defined $percussion_note_to_midi_number{$note}) {
-	    $instruments{'drum kit'} = 1;
-	  } elsif ($note ne 'r') {
-	    die "probe_score_instruments: $note: Unknown note";
+      die "probe_score_instruments: Internal error: $event: Enumerated event has no chime id" unless defined $structured_chime_id;
+      for my $chime_id (@{$structured_chime_id->implementation}) {
+	for my $voice (@{$interpretation{$chime{$chime_id}}}) {
+	  for my $spec (@$voice) {
+	    my($note, $time, $velocity, $instrument, $flags) = @$spec;
+	    $instrument = canonical_instrument $instrument;
+	    if (defined $instrument) {
+	      $instruments{$instrument} = 1;
+	    } elsif (defined $percussion_note_to_midi_number{$note}) {
+	      $instruments{'drum kit'} = 1;
+	    } elsif ($note ne 'r') {
+	      die "probe_score_instruments: $note: Unknown note";
+	    }
 	  }
 	}
       }
@@ -3437,6 +3661,37 @@ sub disconnect_synth () {
 }
 END { disconnect_synth }
 
+sub create_chime_interpretation ($) {
+  my($chime_id) = @_;
+  die Debug::cvs($chime_id) unless ref $chime_id; #FIXME
+  my @it;
+  my @t;
+  my $t_max;
+  for my $chime_id (@{$chime_id->implementation}) {
+    no integer;
+    # FIXME too much magic
+    # each actual defined interpretation is an array of voices, in turn an array of specs where [1] is "time" (note duration)
+    my $i = 0;
+    for my $voice (@{$interpretation{$chime{$chime_id}}}) {
+      $it[$i] = [] unless defined $it[$i];
+      if (defined $t_max && defined $t[$i] && $t[$i] < $t_max) {
+	my $dt = $t[$i] - $t_max;
+	push @{$it[$i]}, ['r', $dt, undef, undef];
+	$t[$i] = $t_max;
+      }
+      for my $note (@$voice) {
+	$t[$i] += $note->[1];
+	push @{$it[$i]}, $note;
+      }
+      $i += 1;
+    }
+    for (my $i = 0; $i < @it; $i += 1) {
+      $t_max = $t[$i] if $t_max < $t[$i];
+    }
+  }
+  return @it;
+}
+
 sub generate_sound_clip_for_event ($) {
   my($event_id) = @_;
   my $dummy_id = "tmp$$";
@@ -3447,7 +3702,7 @@ sub generate_sound_clip_for_event ($) {
     log_info "Generating audio for event $event_id";
     local @sinks;
     connect_synth $dummy_id;
-    my %leftovers = strike_tune_real(1, @{$interpretation{$chime{+determine_chime_id_for_event($event_id)}}});
+    my %leftovers = strike_tune_real(1, create_chime_interpretation(determine_chime_id_for_event($event_id)));
     disconnect_synth;
     my $ok = 0;
     if (!%leftovers) {
@@ -3473,7 +3728,20 @@ sub generate_sound_clip_for_event ($) {
 sub generate_sound_clips () {
   log_debug "Generating audio files" if $debug;
   disconnect_synth;
-  for my $event_id (enumerate_defined_events) {
+  # because of the new composite events (e.g., q0,h4) we can't use enmerate_defined_events any more.
+  # instead, we'll call determine_events over 24 hours
+  my %event;
+  for (my $i = 0; $i < 86400; $i += 3600) {
+    my $t0 = $i + current_time;
+    my $c = determine_chinese_time $t0;
+    ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
+    (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
+    for my $event (determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size)) {
+      $event{+$event->id} = 1;
+    }
+  }
+  log_debug sprintf 'events to generate are: %s', Debug::cvs([sort keys %event]);
+  for my $event_id (sort keys %event) {
     generate_sound_clip_for_event $event_id;
   }
 }
@@ -3785,6 +4053,7 @@ sub do_event ($;$$$$$) {
   my $output = get_cache_pathname_for_event($id);
   my $chime_id = determine_chime_id_for_event $id;
   my $latency;
+  # TODO XXX id=(q0,h7) -> chime_id=<</id (carillon-whittington11study-q0,h7) /implementation [(carillon-whittington11study-q0) (carillon-whittington11study-h7)] /melody (whittington11study) /mode (carillon)>> /Chime_Id bless
   if (!defined $chime_id) {
     log_debug sprintf "Event %s does not exist for the current mode/melody", $id if $debug;
   } else {
@@ -3793,7 +4062,7 @@ sub do_event ($;$$$$$) {
       $latency = play_sound_file $output, (defined $wday? [100, $hour, $min, $sec, $deciday, $wday]: 100);
       update_latency_for_event $id, $latency;
     } else {
-      strike_tune @{$interpretation{$chime{$chime_id}}};
+      strike_tune create_chime_interpretation($chime_id);
     }
   }
   return $latency;
@@ -3988,7 +4257,7 @@ sub do_setup () {
       my $melody_exists_p = 0;
       for my $event_id (enumerate_defined_events) {
 	my $chime_id = determine_chime_id_for_event($event_id);
-	my $det = parse_chime_id $chime_id;
+	my $det = $chime_id;	# new function returns structured object
 	$melody_exists_p = 1 if defined $det->{'melody'};
       last if $melody_exists_p;
       }
@@ -4008,6 +4277,13 @@ sub do_test_setup () {
   set_test_params;
   do_setup;
   connect_synth('test') if $method eq METHOD__SYNTH;
+}
+
+sub display_info () {
+  my $t0 = current_time;
+  my $c = determine_chinese_time $t0;
+  ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
+  printf "current time %d deciday %s%s\n", $t0, $deciday, ($deciday >= 6? sprintf(' (%s)', qw(A B C D E)[$deciday - 6]): '');
 }
 
 sub parse_command_line_arguments () {
@@ -4046,6 +4322,7 @@ sub parse_command_line_arguments () {
 	exit disconnect_synth },
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
+    'info' => sub { exit display_info },
     'j' => \$use_jack_p,
     'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; # FIXME
 	print join('', map { defined $melody_description{$_}?
@@ -4165,27 +4442,20 @@ sub do_main_loop () {
     }
 
     # Determine what should happen next
+    # The revised algorithm should have already guaranteed all the events we get are defined in the current personality
     no integer;
     my @event = determine_events($t0, $hour, $min, $sec, $chinese_hour, $quarter, $centiday, $deciday, $deciday_size);
     my $next_event;
-    log_debug "Upcoming events determined to be " . Debug::cvs(\@event) if $debug;
+    log_debug "Upcoming events determined to be " . Debug::cvs($debug? \@event: [map {$_->id} @event]) if $debug || $verbose_p;
     for my $event (@event) {
       # Don't trust floating point calculations - don't use t as key, use id instead
-      $pending_events{+$event->{'id'}} = $event;
-    }
-    # remove events that don't exist in the current personality
-    for my $id (keys %pending_events) {
-      my $chime_id = determine_chime_id_for_event($id);
-      if (!defined $chime_id) {
-	delete $pending_events{$id};
-	log_debug "Event $id discarded because it's not defined for $mode $melody" if $debug;
-      }
+      $pending_events{+$event->id} = $event;
     }
     # delay night watches and post-hour chimes if they clash with other, more important chimes
-    for my $id (sort { $pending_events{$a}->{'t'} + $pending_events{$a}->{'delay'} <=> $pending_events{$b}->{'t'} + $pending_events{$b}->{'delay'} } grep { $pending_events{$_}->{'type'} =~ /^(?:watch|post-quarter)$/ } keys %pending_events) {
-      for my $id2 (sort { $pending_events{$a}->{'t'} + $pending_events{$a}->{'delay'} <=> $pending_events{$b}->{'t'} + $pending_events{$b}->{'delay'} } grep { $_ ne $id } keys %pending_events) {
-	my $t1_start = $pending_events{$id}->{'t'} + $pending_events{$id}->{'delay'};
-	my $t2_start = $pending_events{$id2}->{'t'} + $pending_events{$id2}->{'delay'};
+    for my $id (sort { $pending_events{$a}->t + $pending_events{$a}->delay <=> $pending_events{$b}->t + $pending_events{$b}->delay } grep { $pending_events{$_}->type =~ /^(?:watch|post-quarter)$/ } keys %pending_events) {
+      for my $id2 (sort { $pending_events{$a}->t + $pending_events{$a}->delay <=> $pending_events{$b}->t + $pending_events{$b}->delay } grep { $_ ne $id } keys %pending_events) {
+	my $t1_start = $pending_events{$id}->t + $pending_events{$id}->delay;
+	my $t2_start = $pending_events{$id2}->t + $pending_events{$id2}->delay;
 	my $d1 = determine_event_duration($id, 30);
 	my $d2 = determine_event_duration($id2, 30);
 	my $t1_end = $t1_start + $d1;
@@ -4204,20 +4474,20 @@ sub do_main_loop () {
     # remove events that we somehow missed
     for my $id (keys %pending_events) {
       my $e = $pending_events{$id};
-      my $t = $e->{'t'};
-      $t += $e->{'delay'} if defined $e->{'delay'};
+      my $t = $e->t;
+      $t += $e->delay if defined $e->delay;
       if ($t0 - $t > 60) { # just do it if we missed it by just a fraction of a second, actually it's fine even if it's a whole minute
 	log_info sprintf "EVENT %s (%d) MISSED at %d (%.2f too late)", $id, $t, $t0, $t0 - $t;
 	delete $pending_events{$id};
       }
     }
     # reconstitute the @event array
-    @event = sort { $a->{'t'} + $a->{'delay'} <=> $b->{'t'} + $b->{'delay'} } map { $pending_events{$_} } keys %pending_events;
+    @event = sort { $a->t + $a->delay <=> $b->t + $b->delay } map { $pending_events{$_} } keys %pending_events;
 
     # Determine when we should wake up; try to make some effort to align it to a second boundary
     my $t1 = current_time;
-    my $dt0 = $event[0]->{'t'} - $t1;
-    my $latency_key0 = determine_latency_key_from_event_id $event[0]->{'id'};
+    my $dt0 = $event[0]->t - $t1;
+    my $latency_key0 = determine_latency_key_from_event_id $event[0]->id;
     $dt0 -= $expected_latency{$latency_key0}->predict() if defined $expected_latency{$latency_key0};
     my $t_next = ($countdown && $dt0 > 1)? (int($t0) + 1): ($t1 + $dt0/2);
     my $dt = $t_next - $t1;
@@ -4238,7 +4508,7 @@ sub do_main_loop () {
     # Ditto for latencies, if it is possible to measure them
     if (latency_measurable_p) {
       my $t1 = current_time;
-      my $dt0 = $event[0]->{'t'} - $t1;
+      my $dt0 = $event[0]->t - $t1;
       if ($dt0 > 90 && $method eq METHOD__SYNTH && !$no_cache_p) {
 	my $event = determine_next_event_with_unknown_latency @event;
 	measure_latency_for_event $event if defined $event;
@@ -4248,7 +4518,7 @@ sub do_main_loop () {
     # Debug message
     log_comment sprintf "%10.2f=%02d+%2.2f=%2.2f=%2.2f (Δt=%2.2f) > %s",
 	$t0, $chinese_hour, $quarter, $centiday, $deciday, $dt,
-	join(', ', map { sprintf(($debug? '%.2f (%+.1f) %s': '%3$s%2$+.1f'), $_->{'t'}, ($_->{'t'} - $t0), $_->{'id'}) } @event) if $verbose_p;
+	join(', ', map { sprintf(($debug? '%.2f (%+.1f) %s': '%3$s%2$+.1f'), $_->t, ($_->t - $t0), $_->id) } @event) if $verbose_p;
 
     my $t2 = current_time;
     $dt = $max_sleep_time if defined $max_sleep_time && $dt > $max_sleep_time;
@@ -4258,12 +4528,12 @@ sub do_main_loop () {
     my $now = current_time;
     my $dt_actual = $now - $t2;
     log_warning sprintf "tried to sleep for %.2f s but slept for %.2f s\n", $dt, $dt_actual if $dt_actual > $dt + 1;
-    for my $id (keys %pending_events) {
+    for my $id (sort { $pending_events{$a}->t <=> $pending_events{$b}->t } keys %pending_events) {
       my $e = $pending_events{$id};
-      my $t = $e->{'t'};
+      my $t = $e->t;
       my $latency_key = determine_latency_key_from_event_id $id;
       my($effective_latency, $prediction_method) = $expected_latency{$latency_key}->predict() if defined $expected_latency{$latency_key};
-      $t += $e->{'delay'} if defined $e->{'delay'};
+      $t += $e->delay if defined $e->delay;
       $t -= $effective_latency if defined $effective_latency;
       $t += $last_prediction_error if defined $last_prediction_error && $last_prediction_error > 0 && $t_last_prediction >= $now - 15; # XXX
       if ($now < $t) {
