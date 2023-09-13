@@ -19,14 +19,14 @@ and reducing sound distortion issues caused by RTP broadcasts.
 
 Status
 ------
-As of 2023, only carillon mode¹ with pre-generated synthesized audio files² are guaranteed to work,
+As of 2023, only carillon mode¹ with pre-generated synthesized audio files² is guaranteed to work,
 and the only melody guaranteed to work is a modified version 
-of the new Whittington chimes composed by Charles Villiers Stanford in 1905 (as transcribed by Starmers, 1907, p. 5)³;
+of the new Whittington chimes³ (composed by Charles Villiers Stanford in 1905, as transcribed by Starmers, 1907, p. 5);
 this is my own setup, so if any showstopping bugs show up I’ll have to fix them.
 
 In earlier versions of the code, quarter chimes and hourly strikes are separate events;
 in the current code the two are still technically separate events but grouped together (as an Event_List)
-to prevent their clashing together when latency prediction goes wrong.
+to prevent their clashing together when latency prediction goes wrong.⁴
 
 The code itself is a big mess. I tried to do it right, but I’m a terrible coder.
 
@@ -50,7 +50,8 @@ Please see the [sample config file](doc/chimerrc.example).
 
 Dependencies
 ------------
-- [Pulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio/)-based Linux system
+- [Pulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio/)-
+  or [JACK](https://jackaudio.org/)-based Linux system
 - [Perl 5](https://www.perl.org/) with Unicode support (version 5.14 or later)
 - [mpv](https://github.com/mpv-player/mpv)
   to play audio samples
@@ -87,3 +88,4 @@ Notes
 1. `mode = carillon`
 2. `method = synth`
 3. `melody = whittington11study`; note that this is *not* the same Whittington chimes you’ll find on most clocks
+4. Which is all the time. I literally failed stats; I don’t know what I’m doing with these predictions.
