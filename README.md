@@ -22,13 +22,15 @@ Status
 As of 2023, only carillon mode¹ with pre-generated synthesized audio files² are guaranteed to work,
 and the only melody guaranteed to work is a modified version 
 of the new Whittington chimes composed by Charles Villiers Stanford in 1905 (as transcribed by Starmers, 1907, p. 5)³;
-this is my own setup, so if any showstopping bugs show up I’ll have to fix it.
+this is my own setup, so if any showstopping bugs show up I’ll have to fix them.
 
-In earlier versions of the code, quarter chimes and the strikes are separate events;
-in the current code the two are grouped together as a single event (or rather Event_List)
+In earlier versions of the code, quarter chimes and hourly strikes are separate events;
+in the current code the two are still technically separate events but grouped together (as an Event_List)
 to prevent their clashing together when latency prediction goes wrong.
 
 The code itself is a big mess. I tried to do it right, but I’m a terrible coder.
+
+In my actual setup I’m back to RTP, RTP problems I had seems to be a hardware problem that I’ve now solved with a new switch.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
 
