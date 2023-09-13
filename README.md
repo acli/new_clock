@@ -19,28 +19,22 @@ and reducing sound distortion issues caused by RTP broadcasts.
 
 Status
 ------
-This is still a work-in-progress but is already usable.
-The current tested configuration is `method = synth`
-(the synth is only used for pre-generating sound files)
-with `mode = carillon`.
+As of 2023, only carillon mode¹ with pre-generated synthesized audio files² are guaranteed to work,
+and the only melody guaranteed to work is a modified version 
+of the new Whittington chimes composed by Charles Villiers Stanford in 1905 (as transcribed by Starmers, 1907, p. 5)³;
+this is my own setup, so if any showstopping bugs show up I’ll have to fix it.
 
-All carillon melodies except the studies should work;
-this includes `westminster` (Westminster Quarters),
-`whittington` (traditional 8-bell Whittington chimes),
-and various melodies documented by Starmer (1907, 1910)
-including `whittington11` (the Bow version of Whittington chimes composed by Charles Villiers Stanford in 1905,
-as transcribed by Starmers, 1907, p. 5).
-You can also try `study2` or `study3`,
-which are based on Starmer’s (1910, p. 97) description of “continental” chiming that divides the hour into eight parts.
+In earlier versions of the code, quarter chimes and the strikes are separate events;
+in the current code the two are grouped together as a single event (or rather Event_List)
+to prevent their clashing together when latency prediction goes wrong.
 
-`cuckoo` mode should work but doesn’t quite work correctly;
-the cause is still to be found.
+The code itself is a big mess. I tried to do it right, but I’m a terrible coder.
 
 At some point it should ultimately serve as the back-end of my genmon plugin that shows Chinese (and Hebrew) dates.
 
 Running
 -------
-The script currently only runs on a PulseAudio-based Linux system.
+The script currently only runs on either PulseAudio- or JACK-based Linux system.
 You also must have mpv and ffmpeg installed (see Dependencies below).
 
 If you’re not running directly from a git clone,
@@ -85,3 +79,9 @@ place the wav files in the “raw” directory and run make to generate the mp3 
 
 One of these sound files is licensed through Creative Commons (CC-by-sa).
 For details please see [the CREDITS file](doc/CREDITS.md).
+
+Notes
+-----
+1. `mode = carillon`
+2. `method = synth`
+3. `melody = whittington11study`; note that this is *not* the same Whittington chimes you’ll find on most clocks
