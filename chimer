@@ -3730,8 +3730,9 @@ sub generate_sound_clips () {
   disconnect_synth;
   # because of the new composite events (e.g., q0,h4) we can't use enmerate_defined_events any more.
   # instead, we'll call determine_events over 24 hours
+  # but because of how night watches work we need to step in less than 3600-second increments or we'll miss some
   my %event;
-  for (my $i = 0; $i < 86400; $i += 3600) {
+  for (my $i = 0; $i < 86400; $i += 300) {
     my $t0 = $i + current_time;
     my $c = determine_chinese_time $t0;
     ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
