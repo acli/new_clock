@@ -1657,6 +1657,7 @@ sub define_event ($$$$$$$%) {
       my $composer_i = defined $composer? $composer: $melody->{$melody_i}->{'composer'};
       my $year_i = defined $year? $year: $melody->{$melody_i}->{'year'};
       my $source_i = defined $source? $source: $melody->{$melody_i}->{'source'};
+      die "$melody_i in melody (arg 2) not in event_defs (arg 8)" unless defined $event_defs{$melody_i};
       my %event_defs_i = %{$event_defs{$melody_i}};
       %it = (%it, define_event_internal($mode, $melody_i, $description_i, $composer_i, $year_i, $source_i, $shared_defs, %event_defs_i));
     }
@@ -2019,6 +2020,86 @@ sub define_chimes () {
       'h' => '\x \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, {
+      'whittington8xtoronto' => {
+	title => "Whittington chimes on eight bells sync'd to Toronto Old City Hall chimes",
+      },
+      'whittington8-toronto' => {
+	title => "Whittington chimes on eight bells plus Toronto Old City Hall chimes",
+      },
+    }, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
+	x = { \tempo 4 = 24 \key e \major }
+	A = \relative e' { e'16 fis, dis' gis, cis a b e, }
+	B = \relative e' { e'16 cis a fis dis' b gis e }
+	C = \relative e' { e'16 dis a gis cis b fis e }
+	D = \relative e' { fis16 a cis e dis b gis e }
+	E = \relative e' { e'16 dis cis b a gis fis e }
+	S = \relative e' { e,2 }
+	F = \relative e' { r1 }
+	Whittington = { <>-\p \set Staff.instrumentName = #"Bell" }
+	TO = { <>-\f \set Staff.instrumentName = #"Bell" }
+	TOtingtang = \absolute { a'4 e' }
+	TOgap = \absolute { r1 }
+	TOstrike = \absolute { e2 }
+      ),
+      'whittington8xtoronto' => {
+	'q1' => '\x \E',
+	'q2' => '\x \A \B',
+	'q3' => '\x \C \D \E',
+	'q0' => '\x \A \B \C \D \F',
+	'h' => '\x <>-\fff \repeat volta %I { \S }',
+      },
+      'whittington8-toronto' => {
+	'q1' => q(<< { \Whittington \x \E }
+	      \new Staff { \TO \x \absolute { \TOtingtang } }
+	    >>),
+	'q2' => q(<< { \Whittington \x \A \B }
+	      \new Staff { \TO \x \absolute { \TOtingtang \TOtingtang } }
+	    >>),
+	'q3' => q(<< { \Whittington \x \C \D \E }
+	      \new Staff { \TO \x \absolute { \TOtingtang \TOtingtang \TOtingtang } }
+	    >>),
+	'q0' => q(<< { \Whittington \x \A \B \C \D \F }
+	      \new Staff { \TO \x \absolute { \TOtingtang \TOtingtang \TOtingtang \TOtingtang \TOgap } }
+	    >>),
+	'h1' => q(<< { \Whittington \x { \S } }
+	      \new Staff { \TO \x \absolute { \TOstrike } }
+	    >>),
+	'h2' => q(<< { \Whittington \x { \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 1 { \TOstrike } \TOstrike } }
+	    >>),
+	'h3' => q(<< { \Whittington \x { \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 2 { \TOstrike } \TOstrike } }
+	    >>),
+	'h4' => q(<< { \Whittington \x { \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 3 { \TOstrike } \TOstrike } }
+	    >>),
+	'h5' => q(<< { \Whittington \x { \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 4 { \TOstrike } \TOstrike } }
+	    >>),
+	'h6' => q(<< { \Whittington \x { \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 5 { \TOstrike } \TOstrike } }
+	    >>),
+	'h7' => q(<< { \Whittington \x { \S \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 6 { \TOstrike } \TOstrike } }
+	    >>),
+	'h8' => q(<< { \Whittington \x { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 7 { \TOstrike } \TOstrike } }
+	    >>),
+	'h9' => q(<< { \Whittington \x { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 8 { \TOstrike } \TOstrike } }
+	    >>),
+	'h10' => q(<< { \Whittington \x { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 9 { \TOstrike } \TOstrike } }
+	    >>),
+	'h11' => q(<< { \Whittington \x { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 10 { \TOstrike } \TOstrike } }
+	    >>),
+	'h12' => q(<< { \Whittington \x { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \TO \x \absolute { \repeat unfold 11 { \TOstrike } \TOstrike } }
+	    >>),
+      },
+    ),
+  define_event(MODE__CARILLON, {
       &MELODY__WHITTINGTON11 => {
 	title => 'Whittington chimes on eleven bells',
       },
@@ -2030,6 +2111,9 @@ sub define_chimes () {
       },
       'whittington11organstudy' => {
 	title => 'Whittington chimes on eleven bells (organ study)',
+      },
+      'whittington11xtoronto' => {
+	title => "Whittington chimes on eleven bells sync'd to Toronto Old City Hall chimes",
       },
     }, 'Whittington chimes on eleven bells', 'Charles Villiers Stanford', '1905', 'Starmer, 1907, p. 5', q(
 	s = { \key b \major \voiceOne \clef "treble" }
@@ -2043,7 +2127,7 @@ sub define_chimes () {
 	quarteraccomp = { <>-\mp \y }
 	halfaccomp = { <>-\mf \y }
 	houraccomp = { <>-\f \y }
-	houraccompfinal = { <>-\mf }
+	houraccompfinal = { \y }
 
 	melodywViolinStudyAcc = { <>-\ff \set Staff.instrumentName = #"Music Box" }
 	ViolinStudyAccT = { \set Staff.instrumentName = #"Viola" }
@@ -2068,6 +2152,25 @@ sub define_chimes () {
 	halfOrganStudyAccB = { <>-\mp \OrganStudyAccB }
 	hourOrganStudyAccB = { <>-\mp \OrganStudyAccB }
 	hourOrganStudyAccFinalb = { <>-\mp }
+
+	xTO = { \tempo 4 = 48 \time 3/4 }
+	xW = { \tempo 4 = 36 \time 3/4 }
+	xWq = { \tempo 4 = 48 \time 3/4 }
+	wW = { \tempo 4 = 48 }
+	wTO = { \tempo 4 = 48 }
+	TOtingtang = \absolute { a'2 e' }
+	TOgap = \absolute { r1 r1 }
+	TOstrike = \absolute { e1 }
+	melodywTOacc = { <>-\ff \set Staff.instrumentName = #"Music Box" }
+	TOaccT = { \set Staff.instrumentName = #"Bell" }
+	quarterTOacc = { <>-\f \TOaccT }
+	halfTOacc = { <>-\f \TOaccT }
+	hourTOacc = { <>-\f \TOaccT }
+	hourTOaccFinal = { <>-\f }
+	quarterTOaccB = { <>-\f \TOaccB }
+	halfTOaccB = { <>-\f \TOaccB }
+	hourTOaccB = { <>-\f \TOaccB }
+	hourTOaccFinalb = {  }
 
 	A = \transpose c b { c'4 g' f' e' }
 	B = \transpose c b { c'4 g' f' e' g' d' }
@@ -2267,20 +2370,71 @@ sub define_chimes () {
 	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
 	    >>),
 	'h9' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { d1 d d d d d d d \hourOrganStudyAccFinal c, } }
-	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	      \new Staff { \t \wTO \hourOrganStudyAcc \transpose c b' { d1 d d d d d d d \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \wTO \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
 	    >>),
-	'h10' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { e1 e e e e e e e e \hourOrganStudyAccFinal c, } }
-	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	'h10' => q(<< { \s \wTO \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \wTO \hourOrganStudyAcc \transpose c b' { e1 e e e e e e e e \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \wTO \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
 	    >>),
-	'h11' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { f1 f f f f f f f f f \hourOrganStudyAccFinal c, } }
-	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	'h11' => q(<< { \s \wTO \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \wTO \hourOrganStudyAcc \transpose c b' { f1 f f f f f f f f f \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \wTO \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
 	    >>),
-	'h12' => q(<< { \s \w \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S \S \S } }
-	      \new Staff { \t \w \hourOrganStudyAcc \transpose c b' { g1 g g g g g g g g g g \hourOrganStudyAccFinal c, } }
-	      \new Staff { \b \w \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	'h12' => q(<< { \s \wTO \melodywOrganStudyAcc { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \t \wTO \hourOrganStudyAcc \transpose c b' { g1 g g g g g g g g g g \hourOrganStudyAccFinal c, } }
+	      \new Staff { \b \wTO \hourOrganStudyAccB \transpose c b' { c,1 c, c, c, c, c, c, c, c, c, c, \hourOrganStudyAccFinal c, } }
+	    >>),
+      },
+      # FIXME: Don't use chord notation. The proof will look right but sound will be wrong because the code to handle chords just isn't there
+      'whittington11xtoronto' => {
+	'q1' => q(<< { \s \xWq \melodywTOacc \partial 4 \A }
+	      \new Staff { \b \xTO \quarterTOacc \transpose c b, { \partial 4 \TOtingtang } }
+	    >>),
+	'q2' => q(<< { \s \xW \melodywTOacc \B }
+	      \new Staff { \b \xTO \halfTOacc \transpose c b, { \TOtingtang \TOtingtang } }
+	    >>),
+	'q3' => q(<< { \s \xW \melodywTOacc \C }
+	      \new Staff { \b \xTO \quarterTOacc \transpose c b, { \TOtingtang \TOtingtang \TOtingtang } }
+	    >>),
+	'q0' => q(<< { \s \xW \melodywTOacc \D }
+	      \new Staff { \b \xTO \hourTOacc \transpose c b, { \TOtingtang \TOtingtang \TOtingtang \TOtingtang \TOggap } }
+	    >>),
+	'h1' => q(<< { \s \wTO \melodywTOacc { \S } }
+	      \new Staff { \b \wW \hourTOacc \transpose c b, { \TOstrike } }
+	    >>),
+	'h2' => q(<< { \s \wW \melodywTOacc { \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h3' => q(<< { \s \wW \melodywTOacc { \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h4' => q(<< { \s \wW \melodywTOacc { \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h5' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h6' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h7' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h8' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h9' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h10' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h11' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
+	    >>),
+	'h12' => q(<< { \s \wW \melodywTOacc { \S \S \S \S \S \S \S \S \S \S \S \S } }
+	      \new Staff { \b \wTO \hourTOacc \transpose c b, { \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \TOstrike \hourTOaccFinal \TOstrike } }
 	    >>),
       },
     ),
@@ -2459,7 +2613,6 @@ sub define_chimes () {
 		      'source' => 'Weir, Lavallée, and Schaeffer (1914); Stevenson (n.d.); Starmers (1910, p. 97)',
 		    },
       }, undef, undef, '2021', undef, q(
-	x = { \tempo 4 = 96 } % allegro vivent would be 120-ish but even at 120 it's way too fast
 	% Source:
 	% - Weir, R. S., Lavallée, C. & Schaeffer, G. A. G. (1914). O Canada! The national song of the Dominion.
 	%   Retrieved from https://archive.org/details/CSM_01142/
@@ -3084,17 +3237,15 @@ sub determine_next_uncached_event (@) {
 
 sub determine_latency_key_from_event_id ($) {
   my($event_id) = @_;
-  # We used to use $event_id as-is, but it's probably more reasonable to somewhat group them
+  # We previously tried: using $event_id as-is, grouping them (watches, h/halb, posth, others)
+  # The original groupings actually don't make a lot of sense and we're grouping q/h, q2/halb into Event_List's anyway
   my $it;
-  if ($event_id =~ /^w\d/s) {			# night watches are a separate category because they just randomly happen
-    $it = 'w';
-  } elsif ($event_id =~ /^(?:h|halb)\d/s) {	# hourly/half-hourly melodies that most likely are preceded by a quarter chime
-    $it = 'h';
-  } elsif ($event_id =~ /^posth/s) {		# melodies after the hourly strikes
-    $it = 'posth';
-  } else {					# everything else get massed into one single category
-    $it = '*';
+  if ($method eq METHOD__SYNTH && !$no_cache_p) {
+    my $output = get_cache_pathname_for_event($event_id);
+    no integer;
+    $it = POSIX::ceil((-s $output)/65536) if defined $output;
   }
+  $it = '*' unless defined $it;;
   return $it;
 }
 
@@ -3792,6 +3943,8 @@ sub play_sound_file_real ($;$$$) {
     # The Pi's system (Debian Buster) has a lot of strange problems, it's newer but lots of things don't work
     if ($sink && $sink =~ /^alsa\//) {	# lol... sigh
       push @cmd, ("--ao=alsa", "--audio-device=$sink");
+    } elsif ($use_jack_p) {
+      push @cmd, ("--ao=jack");
     } else {
       push @cmd, ("--ao=pulse") if $sink;
     }
@@ -4400,7 +4553,7 @@ sub wait_for_calibration_if_needed () {
 	last unless defined $s;
 	  chomp;
 	  log_input $s if $debug > 1;
-	  if ($s =~ /adjust time server (\S+) offset ([-\+]?\d+\.\d+) sec/s) {
+	  if ($s =~ /(?:adjust|step) time server (\S+) offset ([-\+]?\d+\.\d+) sec/s) {	# the Acer says "adjust", the Pi says "step"
 	    no integer;
 	    ($server, $delta) = ($1, $2 + 0);
 	  } elsif ($s =~ /, stratum \d+, offset /s) {	# debugging output from -q
