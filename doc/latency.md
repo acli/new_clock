@@ -14,7 +14,7 @@ It doesn’t respond to signals.
 2. Use some sort of library to handle the whole audio playing thing.
 [MPV::Simple](https://metacpan.org/pod/MPV::Simple) (i.e., libmpv) was considered,
 but according to [MPV’s notes on copyright](https://github.com/mpv-player/mpv/blob/master/Copyright)
-JACK suppose is GPL and therefore missing from libmpv,
+JACK support is GPL and therefore missing from libmpv,
 so libmpv can’t be used.
 
 Other way to reduce this latency would be to make *chimer* an audio player itself.
