@@ -4182,11 +4182,11 @@ sub update_latency_for_event ($$) {
     my $latency_key = determine_latency_key_from_event_id $id;
     if (defined $expected_latency{$latency_key}) {
       $expected_latency{$latency_key}->remember($latency, $id);
-      log_debug sprintf 'measured latency %g for event %s, state updated (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key});
+      log_debug sprintf 'measured latency %g for event %s, state updated (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key}) if $debug || $verbose_p;
     } else {
       $expected_latency{$latency_key} = Latency->new($latency, $id);
       $expected_latency{$latency_key}->tag($latency_key);
-      log_debug sprintf 'measured latency %g for event %s, state initialized (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key});
+      log_debug sprintf 'measured latency %g for event %s, state initialized (currently %s)', $latency, $id, Debug::cvs($expected_latency{$latency_key}) if $debug || $verbose_p;
     }
   }
 }
