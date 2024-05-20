@@ -3390,7 +3390,7 @@ sub in_semi_closed_range ($$) {
 }
 
 sub get_sink () {
-  return $ENV{'PULSE_SINK'};
+  return $use_jack_p? 'jack': $ENV{'PULSE_SINK'};
 }
 
 sub get_alsa_control ($$) {
@@ -4700,7 +4700,7 @@ sub do_main_loop () {
 	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)%s", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt)),
 	      (defined $effective_latency? sprintf(' (%.2f latency predicted by %s)', $effective_latency, $prediction_method):
 					  ' (unable to predict latency)');
-	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
+	set_sink_volumes($hour, $min, $sec, $deciday, $wday) if !$use_jack_p;	# JACK has no concept of sink volume
 	my $actual_latency = do_event($id, $hour, $min, $sec, $deciday, $wday);
 
 	# Remember prediction error
