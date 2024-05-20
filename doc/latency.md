@@ -15,7 +15,7 @@ When this happens, you often can’t tell which hour it is by listening.
 
 In September 2023 the two were grouped together
 (that is, q0 and each h<i>n</i> are no longer separate audio files,
-but a single audio file.
+but a single audio file q0,h<i>n</i>.
 So in the current situation, in theory,
 latency is no longer a real problem
 unless you have two *chimer* instances running on two separate computers.
@@ -31,12 +31,12 @@ Two ways to do this are being explored:
 Unfortunately it’s not clear how to unpause it other than trying to somehow send a space to it.
 It doesn’t respond to signals.
 
-2. Use some sort of library to handle the whole audio playing thing.
+2. Use some sort of library to handle the whole audio playing business.
 [MPV::Simple](https://metacpan.org/pod/MPV::Simple) (i.e., libmpv) was considered,
 but according to [MPV’s notes on copyright](https://github.com/mpv-player/mpv/blob/master/Copyright)
 JACK support is GPL and therefore missing from libmpv,
 so libmpv can’t be used.
 
-Other way to reduce this latency would be to make *chimer* an audio player itself.
+Another way to reduce this latency would be to make *chimer* an audio player itself.
 This is probably technically possible with PulseAudio (by telling PulseAudio to load the audio then to play it)
 but it’s not clear if this is possible with JACK.
