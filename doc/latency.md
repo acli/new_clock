@@ -3,6 +3,26 @@ which requires the player to load,
 and then the player needing to load the audio file.
 We try to track and predict this, but prediction doesn’t always work.
 
+Adverse effects
+===============
+In the original design, chimes on the hour
+are broken into two parts:
+the fourth-quarter chime (q0) followed by the correct number of hour strikes (h<i>n</i>).
+
+In theory, this is correct and is a good way to avoid repeating ourselves.
+Unfortunately, latency sometimes causes the hour strikes to begin before the fourth-quarter chime is finished.
+When this happens, you often can’t tell which hour it is by listening.
+
+In September 2023 the two were grouped together
+(that is, q0 and each h<i>n</i> are no longer separate audio files,
+but a single audio file.
+So in the current situation, in theory,
+latency is no longer a real problem
+unless you have two *chimer* instances running on two separate computers.
+
+Reducing latency
+================
+
 One possible way to reduce this latency would be to pre-load the audio player
 and the audio file, then start the audio at the scheduled time.
 Two ways to do this are being explored:
