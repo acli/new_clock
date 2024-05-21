@@ -2113,7 +2113,7 @@ sub define_chimes () {
 	s = { \key b \major \voiceOne \clef "treble" }
 	t = { \key b \major \voiceThree \clef "bass" }
 	b = { \key b \major \voiceFour \clef "bass" }
-	w = { \tempo 4 = 90 }			# Cf Heath (2011)
+	w = { \tempo 4 = 90 }			% Cf Heath (2011)
 	x = { \tempo 4 = 90 \time 3/4 }
 	y = { \set Staff.instrumentName = #"Organ" }
 	melodyonly = { <>-\ff }
