@@ -81,6 +81,16 @@ references:
   url: http://www.ccarh.org/courses/253/handout/gminstruments/
 
 - authors:
+  - family-names: George
+    given-names: Chet
+  year: 2014
+  month: 3
+  day: 2
+  title: Seth Thomas 8 Bell Sonora Clock
+  date-accessed: 2024-05-21
+  url: https://www.youtube.com/watch?v=XJJHVLjVd2I
+
+- authors:
   - family-names: Gossner
     given-names: Samuel
     url: http://sgossner.versilstudios.com/
@@ -105,9 +115,23 @@ references:
   date-accessed: 2021-09-10
   url: https://www.mtosmt.org/issues/mto.00.6.4/mto.00.6.4.harrison.html
 
+- authors:
+  - family-names: Heath
+    given-names: Graham
+  year: 2011
+  month: 6
+  day: 26
+  title: St Mary Le Bow, London's Bow Bells - Clock chimes
+  date-accessed: 2024-05-21
+  url: https://www.youtube.com/watch?v=rk5NvXNPUPs
+
 - title: hebcal
   type: software
   repository-code: https://github.com/hebcal/hebcal
+
+- title: JACK
+  type: software
+  url: https://jackaudio.org/
 
 - authors:
   - family-names: Li
@@ -332,4 +356,4 @@ references:
   date-accessed: 2021-09-28
   url: http://www.towerbells.org/data/GBGreatBells.html
 
-# This file was generated from config/CITATION.cff.in, README.md, chimer, doc/2023_REFACCTORING.md, doc/CHIMES.md, doc/CREDITS.md, doc/EVENTS.md, doc/Night_watches.md, doc/ffmpeg.md, and doc/sysline.md
+# This file was generated from config/CITATION.cff.in, README.md, chimer, doc/2023_REFACCTORING.md, doc/CHIMES.md, doc/CREDITS.md, doc/Night_watches.md, doc/ffmpeg.md, doc/latency.md, and doc/sysline.md
