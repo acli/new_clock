@@ -226,14 +226,18 @@ https://freesound.org/people/mike_stranks/sounds/397575/
 
 References
 ==========
-Zimmerman, <span title="Carl Scott">C. S.</span> (n.d.).
-Great Bells of the British Isles.
-Retrieved September 28, 2021, from http://www.towerbells.org/data/GBGreatBells.html
+George, <span title=Chet>C.</span> (2014, March 2).
+Seth Thomas 8 Bell Sonora Clock [Video file].
+Retrieved May 21, 2024, from https://www.youtube.com/watch?v=XJJHVLjVd2I
 
 Harrison, <span title=Daniel>D.</span> (2000, October).
 Tolling Time.
 <cite>Music Theory Online, 6</cite>(4), Article 6.4.1.
 Retrieved September 10, 2021, from https://www.mtosmt.org/issues/mto.00.6.4/mto.00.6.4.harrison.html
+
+Heath, <span title=Graham>G.</span> (2011, June 26).
+St Mary Le Bow, London's Bow Bells - Clock chimes [Video file].
+Retrieved May 21, 2024, from https://www.youtube.com/watch?v=rk5NvXNPUPs
 
 Li, <span title=Ambrose>A.</span> (2018, January 8).
 sysline beeps are music, or the multisensory Unix text mode interface [Weblog post].
@@ -269,3 +273,8 @@ Retrieved September 1, 2021, from https://mb.nawcc.org/threads/jauch-grandfather
 Zahnke, <span title=Tyler>T.</span> (2020, January 25).
 Hello, I am a totally blind composer, and I'v tweaked LilyPond so it's accessible for me [Facebook post].
 Retrieved September 10, 2021, from https://www.facebook.com/groups/gnulilypond/permalink/10157912670783529/
+
+Zimmerman, <span title="Carl Scott">C. S.</span> (n.d.).
+Great Bells of the British Isles.
+Retrieved September 28, 2021, from http://www.towerbells.org/data/GBGreatBells.html
+
