@@ -2010,7 +2010,7 @@ sub define_chimes () {
 	C = \relative e' { e'4-> dis a gis cis-> b fis e2 }
 	D = \relative e' { fis4-> a cis e dis-> b gis e2 }
 	E = \relative e' { e'4-> dis cis b a-> gis fis e2 }
-	S = \relative e' { e,1 }				% 1 cf George (2014)
+	S = \relative e' { e,2 }				% 1 cf George (2014)
 	F = \relative e' { r2. r1 }
       ),
       'q1' => '<>-\ff \x \E',
