@@ -2013,11 +2013,11 @@ sub define_chimes () {
 	S = \relative e' { e1 }					% 1 cf George (2014)
 	F = \relative e' { r2. r1 }
       ),
-      'q1' => '<>-\ff \x \E',
-      'q2' => '<>-\ff \x \A \B',
-      'q3' => '<>-\ff \x \C \D \E',
-      'q0' => '<>-\ff \x \A \B \C \D \F',
-      'h' => '<>-\fff \x \repeat volta %I { \S }',
+      'q1' => '<>-\f \x \E',
+      'q2' => '<>-\f \x \A \B',
+      'q3' => '<>-\f \x \C \D \E',
+      'q0' => '<>-\f \x \A \B \C \D \F',
+      'h' => '<>-\ff \x \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, {
       'whittington8xtoronto' => {

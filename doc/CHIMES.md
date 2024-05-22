@@ -31,7 +31,8 @@ Chime melodies
 ==============
 The script’s actual chime melodies have been sourced from Wikipedia
 (“Westminster Quarters”, 2021; “Whittington chimes”, 2021)
-and an out-of-copyright paper by Starmer (1907).
+and various out-of-copyright sources,
+including a couple of papers written by Starmer (1907, 1910).
 
 The Whittington chimes actually has nothing to do with Whittington,
 since they were clearly already in use when Whittington allegedly heard them.
@@ -42,6 +43,16 @@ even though it was originally a 6-bell chime
 The name “Whittington” only started to take off around 1900.
 An 11-bell version, later composed specifically for St Mary Le Bow,
 was based on what was still known about the 6-bell version (Starmer, 1907, p. 5).
+
+Because the melodies used are based on written sources,
+they might not correspond to reality.
+For example, although mechanical clocks are precision devices,
+their chiming mechanisms aren’t.
+Both grandfather clocks and clock towers
+exhibit irregularities in the rhythms they produce
+(George, 2014; Heath, 2011).
+The pitches produced by actual clocks
+might also deviate from the theoretical pitches described by scores (George, 2014).
 
 Chime melody notation
 =====================
