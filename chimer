@@ -2004,7 +2004,7 @@ sub define_chimes () {
       'h' => '<>-\fff \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
-	x = { \tempo 4 = 120 \key e \major <>-\fff }
+	x = { \tempo 4 = 120 \key e \major }
 	A = \relative e' { e'4-> fis, dis' gis, cis-> a b e,2 }	% 2 cf George (2014)
 	B = \relative e' { e'4-> cis a fis dis'-> b gis e2 }
 	C = \relative e' { e'4-> dis a gis cis-> b fis e2 }
@@ -2013,11 +2013,11 @@ sub define_chimes () {
 	S = \relative e' { e,1 }				% 1 cf George (2014)
 	F = \relative e' { r2. r1 }
       ),
-      'q1' => '\x \E',
-      'q2' => '\x \A \B',
-      'q3' => '\x \C \D \E',
-      'q0' => '\x \A \B \C \D \F',
-      'h' => '\x \repeat volta %I { \S }',
+      'q1' => '<>-\ff \x \E',
+      'q2' => '<>-\ff \x \A \B',
+      'q3' => '<>-\ff \x \C \D \E',
+      'q0' => '<>-\ff \x \A \B \C \D \F',
+      'h' => '<>-\fff \x \repeat volta %I { \S }',
     ),
   define_event(MODE__CARILLON, {
       'whittington8xtoronto' => {
