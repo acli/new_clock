@@ -3288,11 +3288,31 @@ sub set_test_params () {
   $mode = $config->{'test'}->{'mode'}->[0] if defined $config->{'test'}->{'mode'};
   $method = $config->{'test'}->{'method'}->[0] if defined $config->{'test'}->{'method'};
   $melody = lc $config->{'test'}->{'melody'}->[0] if defined $config->{'test'}->{'melody'};
-  $datadir = $config->{'test'}->{'datadir'} if defined $config->{'test'}->{'datadir'};
+  $datadir = $config->{'test'}->{'datadir'}->[0] if defined $config->{'test'}->{'datadir'};
   log_debug sprintf "test params set at %.2f: mode=%s, method=%s, melody=%s", $boottime, $mode, $method, $melody if $verbose_p || $debug;
 }
 
-sub set_sink_volume ($$) {
+sub emulated_sink_volume (;$) {
+  my($volume) = @_;
+  state $emulated_volume = 1;
+  if (defined $volume) {
+    if ($volume >= 0 && $volume <= 65535) {	# we're dealing with PulseAudio style volumes here. Valid range is [0, 65535]
+      $emulated_volume = $volume;
+    } else {
+      log_warning sprintf 'emulated_sink_volume: ignored invalid volume %s', $volume;
+    }
+  }
+  return $emulated_volume;
+}
+
+sub emulated_sink_volume_as_fraction {
+  no integer;
+  my $it = emulated_sink_volume;
+  $it /= 65535 if defined $it;
+  return $it;
+}
+
+sub set_sink_volume_real ($$) {
   my($sink, $volume) = @_;
   my @cmd = ('pactl', '--client-name', $user_agent, 'set-sink-volume', $sink, int($volume));
   if ($sink && $sink =~ /^alsa\/.*CARD=(\w+)/) {	# lol... sigh
@@ -3304,6 +3324,15 @@ sub set_sink_volume ($$) {
   }
   log_command @cmd if $debug;
   system { $cmd[0] } @cmd;
+}
+
+sub set_sink_volume ($$) {
+  my($sink, $volume) = @_;
+  if ($use_jack_p) {
+    emulated_sink_volume $volume;
+  } else {
+    set_sink_volume_real $sink, $volume;
+  }
 }
 
 sub interpret_time_parametrized_config_value ($$$$$$$$$) {
@@ -3363,7 +3392,7 @@ sub get_time_parametrized_config ($$$$$$$$$;$) {
 
 sub set_sink_volumes ($$$$$) {
   my($hour, $min, $sec, $deciday, $wday) = @_;
-  for my $sink (@sinks) {
+  for my $sink ($use_jack_p? ('jack'): @sinks) {
     my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
     no integer;
     my $adj;
@@ -3395,11 +3424,12 @@ sub get_cache_pathname_for_event ($) {
     die "get_cache_pathname_for_event: $id: Illegal event id" unless $id =~ /^(?:(?:^|,)[-\.\w]+)+$/s;
     my $basename;
     if ($id =~ /^tmp\d+$/) {
-      $it = sprintf('%s/%s.oga', $datadir, $id);
+      $basename = $id;
     } else {
       my $chime_id = determine_chime_id_for_event $id;
-      $it = sprintf('%s/cache-%s.oga', $datadir, $chime_id->id) if defined $chime_id;
+      $basename = 'cache-' . $chime_id->id if defined $chime_id;
     }
+    $it = sprintf('%s/%s.oga', $datadir, $basename) if defined $basename;
   }
   return $it;
 }
@@ -3783,6 +3813,13 @@ sub play_sound_file_real ($;$$$) {
   my $expected_output;
   my $t0 = Time::HiRes::time;
   my @cmd;
+  if ($use_jack_p) {	# JACK has no concept of sink volume, so need to compensate
+    my $effective_volume = $volume * emulated_sink_volume_as_fraction;	# does not need to be an integer at this point
+    if ($effective_volume != $volume) {
+      log_debug sprintf 'effective volume adjusted from %g to %g', $volume, $effective_volume if $verbose_p || $debug;
+      $volume = $effective_volume;
+    }
+  }
   if ($use_paplay_p && $volume == 100 && !defined $start && !defined $end && $input =~ /\.(?:oga|wav)$/s) {
     @cmd = ('paplay', '-n', $user_agent);
     push @cmd, ('-v') if $measure_latency_p;
@@ -4084,7 +4121,7 @@ sub do_event ($;$$$$$) {
 
 sub restart_script_real () {	# NOTE: this function exists only to silence the "Statement unlikely to be reached" warning
   for my $pid (keys %children) {
-    log_comment "DEBUG: killing synth $pid" if $debug;
+    log_info "killing synth $pid" if $debug;
     kill 'TERM', $pid;
   }
   my @cmd = @restart_cmd;
@@ -4172,6 +4209,7 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
   -d, --sink SINK             Use the specified SINK for audio
       --nonproportional-watches (NOT IMPLEMENTED)
                               Use watches that are aligned to duodecimal hours
+  -j                          Use JACK instead of PulseAudio
   -l, --list                  Display available carillon melodies and exit
   -Q, --qing                  Same as --nonproportional-watches --qing-quarters
       --qing-quarters         Use the Qing quarters system (identical to modern
@@ -4291,7 +4329,7 @@ sub do_setup () {
 sub do_test_setup () {
   set_test_params;
   do_setup;
-  connect_synth('test') if $method eq METHOD__SYNTH;
+  connect_synth('test') if $method eq METHOD__SYNTH && $no_cache_p;
 }
 
 sub display_info () {
@@ -4561,7 +4599,7 @@ sub do_main_loop () {
 	log_info sprintf "EVENT %s (%.2f) fired at %.2f (%s)%s", $id, $t, $now, ($dt < 0.01? 'on time': sprintf('%.2f s late', $dt)),
 	      (defined $effective_latency? sprintf(' (%.2f latency predicted by %s)', $effective_latency, $prediction_method):
 					  ' (unable to predict latency)');
-	set_sink_volumes($hour, $min, $sec, $deciday, $wday) if !$use_jack_p;	# JACK has no concept of sink volume
+	set_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	my $actual_latency = do_event($id, $hour, $min, $sec, $deciday, $wday);
 
 	# Remember prediction error
