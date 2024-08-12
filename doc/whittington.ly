@@ -17,8 +17,8 @@ B = \transpose c c' { a4 g f e d b c' c2 }
 C = \transpose c c' { c'4 a f d b g e c2 }
 D = \transpose c c' { d4 f a c' b g e c2 }
 E = \transpose c c' { c'4 b a g f e d c2 }
-S = \transpose c c' { c2 }
-F = \transpose c c' { r4 }
+S = \transpose c c' { c1 }
+F = \transpose c c' { \time 3/4 r2. \time 4/4 r1 }
 
 \score {
 	\new StaffGroup <<
@@ -27,8 +27,9 @@ F = \transpose c c' { r4 }
 			\section \sectionLabel "1st" \E
 			\section \sectionLabel "2nd" \A\B
 			\section \sectionLabel "3rd" \C\D\E
-			\section \sectionLabel "4th" \A\B\C\D \time 1/4 \F \time 2/4 \repeat volta 2 { \S }
+			\section \sectionLabel "4th" \A\B\C\D
+			\F \repeat volta 12 \alternative { \volta 1,2,3,4,5,6,7,8,9,10,11 \S }{ \volta 2  \S }
 		}
-		\new Voice { \clef bass s2. * 31 }
+		\new Voice { \clef bass s2. * 31 s1 * 3 }
 	>>
 }

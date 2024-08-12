@@ -2003,15 +2003,15 @@ sub define_chimes () {
       'q0' => '<>-\fff \B \C \D \E \F',
       'h' => '<>-\fff \repeat volta %I { \S }',
     ),
-  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Wikipedia', q(
+  define_event(MODE__CARILLON, MELODY__WHITTINGTON, 'Whittington chimes on eight bells', undef, 'traditional', 'Starmer, 1907, p. 7', q(
 	x = { \tempo 4 = 120 \key e \major }
-	A = \relative e' { e'4-> fis, dis' gis, cis-> a b e,2 }	% 2 cf George (2014)
-	B = \relative e' { e'4-> cis a fis dis'-> b gis e2 }
-	C = \relative e' { e'4-> dis a gis cis-> b fis e2 }
-	D = \relative e' { fis4-> a cis e dis-> b gis e2 }
-	E = \relative e' { e'4-> dis cis b a-> gis fis e2 }
-	S = \relative e' { e1 }					% 1 cf George (2014)
-	F = \relative e' { r2. r1 }
+	A = \transpose c e' { c'4 f b e a d g c2 }	% 2 cf George (2014)
+	B = \transpose c e' { a4 g f e d b c' c2 }
+	C = \transpose c e' { c'4 a f d b g e c2 }
+	D = \transpose c e' { d4 f a c' b g e c2 }
+	E = \transpose c e' { c'4 b a g f e d c2 }
+	S = \transpose c e' { c1 }			% 1 cf George (2014)
+	F = \transpose c e' { r2. r1 }
       ),
       'q1' => '<>-\f \x \E',
       'q2' => '<>-\f \x \A \B',

@@ -17,7 +17,13 @@ qi = \transpose c c'' { \x	\partial 4 c4 | g f e }
 qii = \transpose c c'' { \x	c4 g f | e g d }
 qiii = \transpose c c'' { \x	a,4 g, f, | e, g, d | c e d }
 qiiii = \transpose c c'' { \x	c4 g f | e g d | c a, f, | e, g, d, ~d,2. ~ d,2. |
-	\repeat volta 2 { \x \time 3/4	c,2. }
+	\repeat volta 12 \alternative {
+		\volta 1,2,3,4,5,6,7,8,9,10,11
+			c,2.
+	}{
+		\volta 12
+			c,2.
+	}
 }
 
 \score {
@@ -28,6 +34,6 @@ qiiii = \transpose c c'' { \x	c4 g f | e g d | c a, f, | e, g, d, ~d,2. ~ d,2. |
 			\section \sectionLabel "3rd" \qiii
 			\section \sectionLabel "4th" \qiiii
 		}
-		\new Voice { \clef bass \partial 4 s4 | s2. * 13 }
+		\new Voice { \clef bass \partial 4 s4 | s2. * 14 }
 	>>
 }
