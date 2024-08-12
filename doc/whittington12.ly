@@ -1,12 +1,33 @@
 \version "2.18.2"
 
-\markup {12-bell version (see Starmer, 1907, p. 5, but for timings cf. Heath, 2011)}
-\markup {transpose 1 semitone down to B}
+\header {
+	title = "Whittington Chimes 12-bell version"
+	subtitle = "(see Starmer, 1907, p. 5, but for timings cf. Heath, 2011)"
+	composer = "Charles Villiers Stanford, 1905"
+	tagline = "transpose 1 semitone down to B"
+}
 
-x = { \key c \major \omit Staff.TimeSignature }
-\transpose c c'' { \x \time 3/4	\partial 4 c4 | g f e }
-\transpose c c'' { \x \time 3/4	c4 g f | e g d }
-\transpose c c'' { \x \time 3/4	a,4 g, f, | e, g, d | c e d }
-\transpose c c'' { \x \time 3/4	c4 g f | e g d | c a, f, | e, g, d, ~d,2. ~ d,2. |
+x = {
+	\key c \major
+	\time 3/4 % \omit Staff.TimeSignature
+	\override Score.BarNumber.break-visibility = ##(#t #t #f)
+}
+
+qi = \transpose c c'' { \x	\partial 4 c4 | g f e }
+qii = \transpose c c'' { \x	c4 g f | e g d }
+qiii = \transpose c c'' { \x	a,4 g, f, | e, g, d | c e d }
+qiiii = \transpose c c'' { \x	c4 g f | e g d | c a, f, | e, g, d, ~d,2. ~ d,2. |
 	\repeat volta 2 { \x \time 3/4	c,2. }
+}
+
+\score {
+	\new StaffGroup <<
+		\new Voice {
+			\section \sectionLabel "1st" \qi
+			\section \sectionLabel "2nd" \qii
+			\section \sectionLabel "3rd" \qiii
+			\section \sectionLabel "4th" \qiiii
+		}
+		\new Voice { \clef bass \partial 4 s4 | s2. * 13 }
+	>>
 }
