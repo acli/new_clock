@@ -773,6 +773,7 @@ use vars qw( $config );
 use vars qw( $overrides );
 use vars qw( $debug );
 use vars qw( $no_cache_p $create_cache_p $test_p );
+use vars qw( $latent_action );
 use vars qw( $verbose_p );
 use vars qw( $quit_p );
 use vars qw( $enable_nonproportional_watches );
@@ -4368,21 +4369,21 @@ sub parse_command_line_arguments () {
   GetOptions(
     'D|debug' => sub { $debug += 1; },
     'd|sink=s' => sub { @sinks = $_[1]; },
-    'dump-defs' => sub { printf "%s\n", Debug::cvs \%chime; exit disconnect_synth },
-    'dump-notes' => sub { for my $key (sort { Debug::lazy_sorter($a, $b) } keys %chime) {
+    'dump-defs' => sub { $latent_action = sub { printf "%s\n", Debug::cvs \%chime; exit disconnect_synth }},
+    'dump-notes' => sub { $latent_action = sub { for my $key (sort { Debug::lazy_sorter($a, $b) } keys %chime) {
 	    printf "%s => %s\n", $key, Debug::cvs $interpretation{$chime{$key}}
 	  };
-	exit disconnect_synth },
+	exit disconnect_synth }},
     'enable-nonproportional-watches|nonproportional-watches' => \$enable_nonproportional_watches,
     'enable-qing-quarters|qing-quarters' => \$enable_qing_quarters,
     'info' => sub { exit display_info },
     'j' => \$use_jack_p,
-    'l|list' => sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; # FIXME
+    'l|list' => sub { $latent_action = sub { my %a = map { /^carillon-(.*?)-[qh]\d*$/? ($1 => 1): () } keys %chime; # FIXME
 	print join('', map { defined $melody_description{$_}?
 	      sprintf("%-24s%s%s\n", $_, $melody_description{$_}->{'description'},
 		      ($verbose_p? sprintf(' (source: %s)', $melody_description{$_}->{'source'}): '')):
 	      "$_\n" } sort keys %a);
-	exit disconnect_synth },
+	exit disconnect_synth }},
     'melody=s' => \$melody,
     'method=s' => \$method,
     'mode=s' => \$mode,
@@ -4633,6 +4634,7 @@ if (!caller) {
     generate_sound_clips;
     do_setup;
   }
+  &$latent_action if defined $latent_action;
   do_main_loop unless $quit_p;
   disconnect_synth;
 }
