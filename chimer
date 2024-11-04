@@ -4215,6 +4215,10 @@ Chime on the quarter hour and on the start of every fifth of a night watch.
   -Q, --qing                  Same as --nonproportional-watches --qing-quarters
       --qing-quarters         Use the Qing quarters system (identical to modern
                               quarters) instead of the ancient centiday system
+      --query-deciday         Display the current deciday, followed by "day" or
+                              "night", then the hour number or letter, then an
+                              equal sign, then the equivalent watch number
+                              (if applicable)
   -v, --verbose               Explain what is being done
   -z, --create-cache          Create missing cache files first
       --help                  Display this help and exit
@@ -4390,6 +4394,14 @@ sub parse_command_line_arguments () {
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
+    'query-deciday' => sub {
+	my $t0 = current_time;
+	my $c = determine_chinese_time $t0;
+	($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
+	printf "%g %s %s%s\n", $deciday, (qw(day night))[int($deciday/5)], (qw(1 2 3 4 5 A B C D E))[$deciday - 1],
+	    ($deciday > 5? sprintf(' = w%d.%d', $deciday - 5, 5 * ($deciday - int($deciday)) + 1): '');
+	exit;
+      },
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => \$test_p,
     'test-event=s' => sub { do_test_setup; for my $e (split(/,\s*/, $_[1])) {
