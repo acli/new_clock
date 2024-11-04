@@ -3391,10 +3391,10 @@ sub get_time_parametrized_config ($$$$$$$$$;$) {
   return wantarray? ($adj, $error, $reason): [$adj, $error, $reason];
 }
 
-sub set_sink_volumes ($$$$$) {
+sub determine_sink_volumes ($$$$$) {
   my($hour, $min, $sec, $deciday, $wday) = @_;
+  my $it;
   for my $sink ($use_jack_p? ('jack'): @sinks) {
-    my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
     no integer;
     my $adj;
     my $reason;
@@ -3411,6 +3411,17 @@ sub set_sink_volumes ($$$$$) {
       $adj *= 0.9 if $deciday < 1 || $deciday > 5;
       $adj *= 0.9 if $hour < 9 || $hour > 8;
     }
+    $it->{$sink} = [$adj, $reason];
+  }
+  return $it;
+}
+
+sub set_sink_volumes ($$$$$) {
+  my($hour, $min, $sec, $deciday, $wday) = @_;
+  my $sink_volumes = determine_sink_volumes($hour, $min, $sec, $deciday, $wday);
+  for my $sink (sort keys %$sink_volumes) {
+    my $label = defined $config->{$sink} && defined $config->{$sink}->{'label'}? $config->{$sink}->{'label'}->[0]: "sink $sink";
+    my($adj, $reason) = @{$sink_volumes->{$sink}};
     $reason = 'by default' if defined $adj && !defined $reason;
     log_info "Master volume adjusted to $adj for $label $reason" if $debug || $verbose_p;
     set_sink_volume $sink, 65535 * $adj;
@@ -4344,6 +4355,28 @@ sub display_info () {
   printf "current time %d deciday %s%s\n", $t0, $deciday, ($deciday >= 6? sprintf(' (%s)', qw(A B C D E)[$deciday - 6]): '');
 }
 
+sub show_scaled_volume_then_exit ($$$) {
+  my($k, $v, $f) = @_;
+  die "Invalid scale factor $v for --$k\n" if $v < 1;
+  my $fmt = $v == 1? '%g': '%d';
+  my $t0 = current_time;
+  my $c = determine_chinese_time $t0;
+  ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
+  (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t0;
+  my $det = &$f($hour, $min, $sec, $deciday, $wday);
+  if (ref $det) {
+    for my $sink (sort keys %$det) {
+      my($adj, $reason) = @{$det->{$sink}};
+      printf $fmt, $v * $adj;
+      printf " (%s)", $sink if keys %$det > 1;
+      print "\n";
+    }
+  } else {
+    printf "$fmt\n", $v * $det;
+  }
+  exit;
+}
+
 sub parse_command_line_arguments () {
   my $what_if;
 
@@ -4394,6 +4427,14 @@ sub parse_command_line_arguments () {
     'no-cache' => \$no_cache_p,
     'Q|qing' => sub { ($enable_nonproportional_watches, $enable_qing_quarters) = (1, 1); },
     'q|quit' => \$quit_p,
+    'query-clock-volume=i' => sub {
+	my($k, $v) = @_;
+	show_scaled_volume_then_exit($k, $v, sub {
+	      my($hour, $min, $sec, $deciday, $wday) = @_;
+	      my %it = map { set_sink $_; ( $_ => [ interpret_volume([1, $hour, $min, $sec, $deciday, $wday], 50) ]) } @sinks;
+	      return \%it;
+	    });
+      },
     'query-deciday' => sub {
 	my $t0 = current_time;
 	my $c = determine_chinese_time $t0;
@@ -4401,6 +4442,13 @@ sub parse_command_line_arguments () {
 	printf "%g %s %s%s\n", $deciday, (qw(day night))[int($deciday/5)], (qw(1 2 3 4 5 A B C D E))[$deciday - 1],
 	    ($deciday > 5? sprintf(' = w%d.%d', $deciday - 5, 5 * ($deciday - int($deciday)) + 1): '');
 	exit;
+      },
+    'query-volume=i' => sub {
+	my($k, $v) = @_;
+	show_scaled_volume_then_exit($k, $v, sub {
+	      my($hour, $min, $sec, $deciday, $wday) = @_;
+	      return determine_sink_volumes($hour, $min, $sec, $deciday, $wday);
+	    });
       },
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => \$test_p,
