@@ -4439,7 +4439,7 @@ sub parse_command_line_arguments () {
 	my $t0 = current_time;
 	my $c = determine_chinese_time $t0;
 	($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
-	printf "%g %s %s%s\n", $deciday, (qw(day night))[int($deciday/5)], (qw(1 2 3 4 5 A B C D E))[$deciday - 1],
+	printf "%g %s %s%s\n", $deciday, (qw(day night))[int(($deciday - 1)/5)], (qw(1 2 3 4 5 A B C D E))[$deciday - 1],
 	    ($deciday > 5? sprintf(' = w%d.%d', $deciday - 5, 5 * ($deciday - int($deciday)) + 1): '');
 	exit;
       },
@@ -4449,6 +4449,25 @@ sub parse_command_line_arguments () {
 	      my($hour, $min, $sec, $deciday, $wday) = @_;
 	      return determine_sink_volumes($hour, $min, $sec, $deciday, $wday);
 	    });
+      },
+    'query-watches' => sub {
+	# FIXME: brute force for now
+	my $t0 = current_time;
+	for (my $t = $t0;; $t += 1) {
+	  my $c = determine_chinese_time $t;
+	  ($_, $_, $_, $_, my $chinese_hour, my $quarter, my $centiday, my $deciday, $_, $_, my $deciday_size) = @$c;
+	last if $t - 86400 > $t0;
+	  my $k = $deciday < 6? 1: 5;
+	  if (abs($k*$deciday - int($k*$deciday)) < 1e-3) {
+	    (my $sec, my $min, my $hour, $_, $_, $_, my $wday) = localtime $t;
+	    printf "%d %02d:%02d:%02d %d # %s%s (%.1f)\n", $t, $hour, $min, $sec, $wday,
+		    (qw(1 2 3 4 5 A B C D E))[$deciday - 1],
+		    ($deciday < 6? '': sprintf(' w%d.%d', int($deciday - 5), (5*$deciday)%5 + 1)),
+		    $deciday;
+	  }
+	  $t += $deciday_size * (1/$k - ($k*$deciday - int($k*$deciday))/$k);
+	}
+	exit;
       },
     'proofsheet' => sub { do_setup; generate_proofsheet; exit },
     'test' => \$test_p,
